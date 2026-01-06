@@ -199,11 +199,11 @@ async def get_reports():
 
 @app.get("/api/compare")
 async def compare_reports(ids: str):
-    """Get detailed data for comparing multiple reports."""
+    """Get detailed data for comparing multiple reports by question index."""
     report_ids = ids.split(',')
 
     reports = []
-    all_questions = {}
+    reports_with_questions = []
 
     for report_id in report_ids:
         filepath = REPORTS_DIR / f"{report_id}.html"
@@ -217,32 +217,52 @@ async def compare_reports(ids: str):
 
         if filepath.exists():
             report_data = parse_html_report(filepath)
-            reports.append(report_data)
+            reports_with_questions.append(report_data)
+            # Keep a copy without questions for response
+            report_copy = {k: v for k, v in report_data.items() if k != 'questions'}
+            reports.append(report_copy)
 
-            # Collect questions
-            for i, q in enumerate(report_data.get('questions', [])):
-                q_key = q['question'][:100]  # Use first 100 chars as key
-                if q_key not in all_questions:
-                    all_questions[q_key] = {
-                        'question': q['question'],
-                        'answers': []
-                    }
-                all_questions[q_key]['answers'].append({
-                    'report_id': report_data['id'],
-                    'model': report_data.get('model', 'Unknown'),
-                    'date': report_data.get('date', ''),
+    # Find max number of questions across all reports
+    max_questions = max((len(r.get('questions', [])) for r in reports_with_questions), default=0)
+
+    # Build questions by index (Q1 vs Q1, Q2 vs Q2, etc.)
+    questions_by_index = []
+    for i in range(max_questions):
+        question_data = {
+            'index': i + 1,
+            'answers': []
+        }
+
+        for report in reports_with_questions:
+            report_questions = report.get('questions', [])
+            if i < len(report_questions):
+                q = report_questions[i]
+                question_data['answers'].append({
+                    'report_id': report['id'],
+                    'model': report.get('model', 'Unknown'),
+                    'date': report.get('date', ''),
+                    'question': q['question'],
                     'answer': q['answer'],
                     'score': q['score'],
                     'score_percent': (q['score'] / 50) * 100 if q['score'] else 0
                 })
+            else:
+                # No question at this index - add empty placeholder
+                question_data['answers'].append({
+                    'report_id': report['id'],
+                    'model': report.get('model', 'Unknown'),
+                    'date': report.get('date', ''),
+                    'question': None,
+                    'answer': None,
+                    'score': None,
+                    'score_percent': None
+                })
 
-    # Clean up report data for response
-    for report in reports:
-        report.pop('questions', None)
+        questions_by_index.append(question_data)
 
     return {
         'reports': reports,
-        'questions': list(all_questions.values())
+        'questions': questions_by_index
     }
 
 
