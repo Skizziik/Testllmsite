@@ -229,6 +229,8 @@ async def compare_reports(ids: str):
                     }
                 all_questions[q_key]['answers'].append({
                     'report_id': report_data['id'],
+                    'model': report_data.get('model', 'Unknown'),
+                    'date': report_data.get('date', ''),
                     'answer': q['answer'],
                     'score': q['score'],
                     'score_percent': (q['score'] / 50) * 100 if q['score'] else 0
