@@ -139,7 +139,7 @@ def parse_html_report(filepath: Path) -> dict:
                 if question_text:
                     q_data = {
                         'question': question_text.get_text().strip(),
-                        'answer': answer_cell.get_text().strip()[:1000],  # Limit answer length
+                        'answer': answer_cell.get_text().strip(),
                         'score': 0
                     }
 
