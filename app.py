@@ -286,7 +286,8 @@ async def serve_report(filename: str):
     return FileResponse(filepath, media_type="text/html")
 
 
-# Health check for Render
+# Health check for Render (supports both GET and HEAD for UptimeRobot)
+@app.head("/health")
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
