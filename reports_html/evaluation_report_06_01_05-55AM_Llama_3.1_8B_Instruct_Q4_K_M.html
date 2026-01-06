@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-06 05:55 | Questions: 15 | Model: Llama 3.1 8B Instruct (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.1 8B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br>Do NOT use &lt;think&gt; tags or internal reasoning. Respond directly with the answer.<br><br>Your task is to answer the player's question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>CRITICAL - Anti-Hallucination Rules:<br>- NEVER add information not present in the context, even if you &quot;know&quot; it from training.<br>- If the context says X is immune to fire, do NOT say X is weak to fire.<br>- Do NOT invent mechanics, numbers, or behaviors not explicitly stated in context.<br>- When unsure, say &quot;I don't have enough information&quot; instead of guessing.<br><br>Completeness Rules:<br>- Include ALL relevant details from the context (numbers, percentages, levels, ranges).<br>- Quote specific mechanics exactly as stated in context.<br>- Do not over-summarize — if context has 5 key facts, include all 5.<br><br>General Rules:<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers factual and well-structured.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Detailed factual answer (GOOD)<br>Context: Creepers have 20 health points. They chase players within 16 blocks. When within 3 blocks, they stop, hiss, flash, and explode after 1.5 seconds. The explosion destroys blocks and deals massive damage. When struck by lightning, a Creeper becomes charged with doubled explosion power.<br>Question: What is a Creeper and how does it attack?<br>Assistant: A Creeper is a hostile mob with 20 health points. It chases players within 16 blocks. When within 3 blocks of a player, it stops moving, hisses, flashes, and explodes after 1.5 seconds. The explosion destroys nearby blocks and deals massive damage. If struck by lightning, it becomes a charged Creeper with doubled explosion power.<br><br>Example 2 — Complete answer with numbers (GOOD)<br>Context: Diamond ore is found at level 15 or lower, most commonly between -50 and -64. Levels -58 and -59 are best for mining. Fortune III can yield up to 4 diamonds per ore block.<br>Question: Where do I find diamonds?<br>Assistant: Diamond ore is found at level 15 or lower, with the highest concentration between levels -50 and -64. The optimal mining levels are -58 and -59. Using Fortune III enchantment can yield up to 4 diamonds per ore block.<br><br>Example 3 — Avoiding hallucination (GOOD)<br>Context: The Ender Dragon has 200 health points. It is immune to fire, drowning, and poison. End crystals on obsidian pillars heal the dragon.<br>Question: How do I defeat the Ender Dragon?<br>Assistant: The Ender Dragon has 200 health points and is immune to fire, drowning, and poison. To defeat it, you must destroy the End crystals on obsidian pillars that heal the dragon, then attack the dragon directly.<br><br>Example 4 — Irrelevant context retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 5 — No context retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 6 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 7 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can't help with that request.<br><br>Example 8 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don't understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br>Extract and include ALL relevant facts, numbers, and mechanics from the context.<br><br>Context:<br>{context}<br><br>Question to answer:<br></div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 1,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.2,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #f59e0b">542/750</div>
+                <div class="subtext">72.3% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #f59e0b">36.1</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">79.7%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #10b981">97.8%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #f59e0b">77.0%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">65.2%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does an Enderman behave and what makes it aggressive?</div>
+                                <div class="reference-text">Ref: Endermen are neutral mobs that become hostile when a player looks directly at their eyes (crosshair over the face) or attacks them. They can teleport to avoid damage and water. Endermen take damage from water, rain, and splash water bottles. They have the unique ability to pick up and place certain blocks. When aggressive, they open their mouths and shake.</div>
+                            </td>
+                            <td class="answer-cell">An Enderman is a neutral mob in Minecraft, but it can become aggressive under certain circumstances. An enderman's behavior and aggression are influenced by its surroundings and interactions.<br><br>An enderman will initially behave as a neutral mob and not attack players unless provoked or if it enters the player's line of sight through a transparent block while wearing a carved pumpkin on their head, which does not provoke an Enderman.<br><br>However, if the enderman is attacked or provoked in some way, such as being hit with a weapon or being damaged by a player's projectile, the Enderman will become aggressive and attack the player.<br><br>An aggressive enderman will pursue the player until it is either killed or distracted by external elements, such as rain or fire. They do not take damage from sunlight like undead mobs, but when at a sufficient light level under the sky during the day or at any light level they teleport randomly, typically ending up in caves (although certain non-full blocks, such as soul sand and mud, also register as &quot;dark&quot; when the Enderman is standing in them).<br><br>In summary, an Enderman's behavior and aggression are influenced by its surroundings and interactions. An aggressive enderman will pursue the player until it is either killed or distracted by external elements.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 57%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but omits key details about provocation triggers and some behaviors, while including minor irrelevant information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: enderman_2)** is **highly relevant (3)** because it directly addresses the question's core components:<br>      1. **Behavior**: Describes Endermen as neutral mobs that become aggressive under specific conditions (e.g., direct eye contact, attacks).<br>      2. **Aggression triggers**: Confirms hostility when looked at directly (or through transparent blocks/while wearing a pumpkin) or attacked, and details their teleportation and pursuit mechanics.<br>      3. **Weaknesses**: Explains damage from water, rain, and splash water bottles, aligning with the Reference Answer.<br>      4. **Additional context**: While the chunk includes extra details (e.g., teleportation mechanics, endermite aggression), these are still relevant to understanding Enderman behavior and do not detract from the answer's accuracy.<br>    - The chunk fully satisfies the Reference Answer's requirements and provides a comprehensive response to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Enderman is a neutral mob in Minecraft, but it can become aggressive under certain circumstances.: SUPPORTED<br>  - An enderman's behavior and aggression are influenced by its surroundings and interactions.: SUPPORTED<br>  - An enderman will initially behave as a neutral mob and not attack players unless provoked or if it enters the player's line of sight through a transparent block while wearing a carved pumpkin on their head, which does not provoke an Enderman.: CONTRADICTED<br>  - If the enderman is attacked or provoked in some way, such as being hit with a weapon or being damaged by a player's projectile, the Enderman will become aggressive and attack the player.: SUPPORTED<br>  - An aggressive enderman will pursue the player until it is either killed or distracted by external elements, such as rain or fire.: SUPPORTED<br>  - They do not take damage from sunlight like undead mobs, but when at a sufficient light level under the sky during the day or at any light level they teleport randomly, typically ending up in caves (although certain non-full blocks, such as soul sand and mud, also register as 'dark' when the Enderman is standing in them).: SUPPORTED<br>  - An enderman's behavior and aggression are influenced by its surroundings and interactions.: SUPPORTED<br>  - An aggressive enderman will pursue the player until it is either killed or distracted by external elements.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Endermen are neutral mobs that become aggressive when provoked.', 'Aggressive endermen pursue the player until killed or distracted (e.g., rain/fire).', 'Endermen do not take damage from sunlight like undead mobs.', 'Endermen teleport randomly in high light levels or when in certain blocks.'], 'incorrect_or_misleading': [&quot;The AI incorrectly states that endermen are provoked by 'being hit with a weapon or damaged by a projectile' without clarifying the primary trigger (looking at their eyes).&quot;, &quot;The mention of 'transparent block' provocation is misleading—it only applies if the player is *not* wearing a carved pumpkin (the AI inverts the logic).&quot;]}, 'completeness': {'missing': [&quot;No mention of the primary aggression trigger: looking directly at an enderman's eyes (crosshair over face).&quot;, 'No mention of endermen taking damage from water/rain/splash water bottles.', 'No mention of their ability to pick up/place blocks or their aggression toward endermites.', 'No mention of their teleportation mechanics when avoiding damage or water.'], 'partial': ['The pursuit behavior is described but lacks specifics (e.g., tracking through walls, disengagement conditions).']}, 'hallucinations': {'present': False, 'details': &quot;No outright fabrications, but the AI misrepresents the 'transparent block' provocation rule.&quot;}, 'relevance': {'on_topic': True, 'irrelevant_details': ['The AI includes unnecessary details about teleportation in high light levels (not directly related to aggression triggers).']}, 'chunk_usage': {'used_correctly': False, 'issues': ['The AI fails to prioritize the most critical chunk details (e.g., eye contact provocation, water damage).', 'Overemphasizes secondary behaviors (e.g., teleportation in light) while omitting core mechanics.']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are the requirements to activate a Beacon?</div>
+                                <div class="reference-text">Ref: To activate a Beacon, it must be placed on top of a solid pyramid structure made of Iron, Gold, Diamond, Emerald, or Netherite blocks. The pyramid can range from 1 to 4 levels high. The Beacon requires an unobstructed view of the sky (transparent blocks allowed). To select a status effect, the player must feed the beacon one iron ingot, gold ingot, diamond, emerald, or netherite ingot.</div>
+                            </td>
+                            <td class="answer-cell">To activate a beacon, it must meet the following requirements:<br><br>1. The beacon requires an unobstructed view of the sky.<br>2. All blocks that let light pass through (such as glass, water, leaves, slabs, etc.) and bedrock (the nether ceiling) are allowed to be in the way.<br><br>Additionally, the beacon must be on top of a pyramid constructed from iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but omits key details about pyramid levels, status effect activation, and the requirement to feed the beacon an ingot for effect selection.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk ([CHUNK 1]) was provided, and it is highly relevant for answering the question correctly. Here's why:<br>    - It directly mentions the key requirements from the Reference Answer:<br>      1. The beacon must be placed on top of a pyramid structure made of Iron, Gold, Diamond, Emerald, or Netherite blocks.<br>      2. The pyramid can range from 1 to 4 levels high.<br>      3. The beacon requires an unobstructed view of the sky (transparent blocks allowed).<br>      4. To select a status effect, the player must feed the beacon an ingot or gem (iron ingot, gold ingot, diamond, emerald, or netherite ingot).<br>    - The chunk provides additional details (e.g., pyramid power levels, beam visibility) that are not strictly necessary for the answer but do not detract from its correctness.<br>    - The information in the chunk aligns perfectly with the Reference Answer and would lead to a correct response.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The beacon requires an unobstructed view of the sky.: SUPPORTED<br>  - All blocks that let light pass through (such as glass, water, leaves, slabs, etc.) and bedrock (the nether ceiling) are allowed to be in the way.: SUPPORTED<br>  - The beacon must be on top of a pyramid constructed from iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Unobstructed view of the sky requirement', 'Allowed transparent blocks (glass, water, leaves, etc.)', 'Pyramid must be made of iron, gold, emerald, diamond, or netherite blocks'], 'incorrect': []}, 'completeness': {'missing': ['Pyramid can range from 1 to 4 levels high (size/level details)', 'Requirement to feed the beacon an ingot (iron, gold, diamond, emerald, or netherite) to select a status effect', &quot;Mention of pyramid structure specifics (e.g., solid pyramid, not just 'on top of')&quot;]}, 'hallucinations': 'None detected. All provided information aligns with the chunks or reference.', 'relevance': 'The answer stays on topic but lacks critical details for full activation requirements.', 'chunk_usage': 'The AI correctly used the chunks but failed to include all relevant details, particularly about pyramid levels and the ingot-feeding requirement for effect selection.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do you summon a Wither?</div>
+                                <div class="reference-text">Ref: The Wither is summoned by placing 4 blocks of Soul Sand or Soul Soil in a T-shape (one bottom, three top) and placing 3 Wither Skeleton Skulls on the top three blocks. The last block placed must be a skull. It cannot be summoned if the difficulty is set to Peaceful. Upon spawning, it is invulnerable for a few seconds, grows in size, and then creates a large explosion.</div>
+                            </td>
+                            <td class="answer-cell">To summon a Wither, you need to build a specific structure using soul sand or soul soil and three wither skeleton skulls. <br><br>Here's how you can do it:<br><br>1. Gather the required materials: 4 blocks of soul sand or soul soil, and 3 wither skeleton skulls.<br>2. Build a T shape using the soul sand or soul soil blocks. The base of the T should be 4 blocks wide.<br>3. Place the three wither skeleton skulls on top of the upper blocks of the T shape.<br><br>The Wither will spawn at the base of the structure.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits key details like the requirement for the last block to be a skull and the Peaceful difficulty restriction.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk ([CHUNK 1]) was provided, and it is highly relevant for answering the question correctly.<br>    - It directly contains the core information from the Reference Answer: the method to summon the Wither (T-shape structure with Soul Sand/Soul Soil and Wither Skeleton Skulls, with the last block placed being a skull).<br>    - It also includes additional context (e.g., invulnerability period, explosion upon spawning) that aligns with the Reference Answer.<br>    - The chunk does not mislead or include irrelevant details that could derail the answer.<br>    Thus, it scores a 3.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To summon a Wither, you need to build a specific structure using soul sand or soul soil and three wither skeleton skulls.: SUPPORTED<br>  - Gather the required materials: 4 blocks of soul sand or soul soil, and 3 wither skeleton skulls.: SUPPORTED<br>  - Build a T shape using the soul sand or soul soil blocks.: SUPPORTED<br>  - The base of the T should be 4 blocks wide.: UNSUPPORTED<br>  - Place the three wither skeleton skulls on top of the upper blocks of the T shape.: SUPPORTED<br>  - The Wither will spawn at the base of the structure.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Structure requires 4 blocks of Soul Sand or Soul Soil in a T-shape', 'Requires 3 Wither Skeleton Skulls on top of the upper blocks', 'Wither spawns at the base of the structure'], 'incorrect_or_missing': ['Does not specify that the last block placed must be a skull (critical for spawning)', 'Omits the Peaceful difficulty restriction (cannot summon on Peaceful)', 'Does not mention the initial invulnerability period or explosion upon spawning']}, 'completeness': 'The answer covers the basic steps but misses critical details from the reference and chunks, such as the skull placement requirement and difficulty restrictions. It also omits post-spawn behavior (invulnerability/explosion).', 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': 'The answer stays on topic and directly addresses the question, but the lack of key details reduces its utility.', 'chunk_usage': 'The AI correctly uses the chunks to describe the structure but fails to include all constraints (e.g., last block must be a skull) and post-spawn mechanics (e.g., explosion) mentioned in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are the mechanics of Villager trading and leveling?</div>
+                                <div class="reference-text">Ref: Villagers offer trades based on their profession, which is determined by a nearby job site block (e.g., Lectern for Librarian). Trading grants experience to both the player and the villager. As the villager gains XP, it levels up through 5 stages: Novice, Apprentice, Journeyman, Expert, and Master. Higher levels unlock new, often better, trades. Hero of the Village status or curing a zombie villager lowers prices.</div>
+                            </td>
+                            <td class="answer-cell">Villager trading and leveling mechanics involve the player offering emeralds to a villager in exchange for items related to the villager's profession.<br><br>When a villager gets a new trade, it receives 10 seconds of Regeneration I (totaling to 4.5 hearts of restoration), which emits pink particles. The villager also emits green particles suggesting contentment.<br><br>Completing a trade with a villager increases its professional level, and makes the villager drop ; while willing to breed, instead, is dropped.<br><br>Some trades grant higher levels to the villager than others. As it advances through its profession, the villager offers additional trades.<br><br>When a villager unlocks a new trade at a higher level, it almost always grants more experience than lower-level trades.<br><br>Villagers have a maximum supply of items and after the player has traded for an item that many times, the villager's supply of the item is exhausted. This results in the trade being temporarily locked. A player can continue to trade for the villager's other available items if any.<br><br>Exhausted items are restocked when the villager works at a job site, up to twice per day.<br><br>Librarian villagers have a 50% chance to sell enchanted books as part of their trades at novice, apprentice, and journeyman-level, and have a 50% chance to sell enchanted books at expert-level as part of their trades, meaning each librarian villager can sell up to four books. The price ranges between 5-64 emeralds per book, depending on the enchantment's level as well as whether or not it is a treasure enchantment.<br><br>They may contain any available enchantment (except Soul Speed, Swift Sneak, and Wind Burst) at any available level.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 86%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits key details like the 5 leveling stages and mechanics such as Hero of the Village or curing zombie villagers.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is highly relevant (score: 3) because it directly addresses the mechanics of Villager trading and leveling:<br>    - It explains how trading works (profession-based offers, emeralds as currency).<br>    - It details the leveling system (Novice → Master stages) and how trading grants XP to villagers.<br>    - It mentions trade exhaustion/restocking, which is a key mechanic.<br>    - It clarifies how higher levels unlock better trades (e.g., enchanted books).<br>    - While it doesn’t explicitly mention 'Hero of the Village' or curing zombie villagers, the core mechanics align perfectly with the Reference Answer.<br>    No other chunks were provided, but this single chunk fully satisfies the question’s requirements.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Villager trading and leveling mechanics involve the player offering emeralds to a villager in exchange for items related to the villager's profession.: SUPPORTED<br>  - When a villager gets a new trade, it receives 10 seconds of Regeneration I (totaling to 4.5 hearts of restoration), which emits pink particles.: CONTRADICTED<br>  - The villager also emits green particles suggesting contentment.: SUPPORTED<br>  - Completing a trade with a villager increases its professional level, and makes the villager drop ; while willing to breed, instead, is dropped.: UNSUPPORTED<br>  - Some trades grant higher levels to the villager than others.: SUPPORTED<br>  - As it advances through its profession, the villager offers additional trades.: SUPPORTED<br>  - When a villager unlocks a new trade at a higher level, it almost always grants more experience than lower-level trades.: SUPPORTED<br>  - Villagers have a maximum supply of items and after the player has traded for an item that many times, the villager's supply of the item is exhausted.: SUPPORTED<br>  - This results in the trade being temporarily locked.: SUPPORTED<br>  - A player can continue to trade for the villager's other available items if any.: SUPPORTED<br>  - Exhausted items are restocked when the villager works at a job site, up to twice per day.: SUPPORTED<br>  - Librarian villagers have a 50% chance to sell enchanted books as part of their trades at novice, apprentice, and journeyman-level, and have a 50% chance to sell enchanted books at expert-level as part of their trades, meaning each librarian villager can sell up to four books.: SUPPORTED<br>  - The price ranges between 5-64 emeralds per book, depending on the enchantment's level as well as whether or not it is a treasure enchantment.: SUPPORTED<br>  - They may contain any available enchantment (except Soul Speed, Swift Sneak, and Wind Burst) at any available level.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Villagers trade emeralds for profession-related items.', 'Trading grants XP to villagers, unlocking new trades at higher levels.', 'Villagers emit particles (pink for regeneration, green for contentment) when gaining new trades.', 'Trades can be exhausted and restocked up to twice per day via job site interaction.', 'Librarian villagers sell enchanted books with pricing details.'], 'incorrect_or_unsupported': [&quot;The AI incorrectly states 'totaling to 4.5 hearts of restoration' (CHUNK 1 says 'totaling to of restoration,' likely a typo, but the AI misinterprets it).&quot;, &quot;The phrase 'makes the villager drop ; while willing to breed, instead, is dropped' is nonsensical (likely a parsing error from CHUNK 1).&quot;]}, 'completeness': {'missing': ['No mention of the 5 leveling stages (Novice, Apprentice, Journeyman, Expert, Master).', 'No mention of Hero of the Village status or curing zombie villagers lowering prices.', 'No explanation of how professions are determined by job site blocks.', 'No mention that trading grants XP to the *player* as well.'], 'covered': ['Trading mechanics (emeralds, profession-based items).', 'Villager XP gain and new trade unlocks.', 'Trade exhaustion/restocking.', 'Librarian-specific enchanted book trades.']}, 'hallucinations': {'present': [&quot;The '4.5 hearts of restoration' claim is unsupported (CHUNK 1 has a typo, not a numerical value).&quot;, &quot;The nonsensical 'drop ; while willing to breed' phrase suggests a parsing error rather than a hallucination, but it’s still incorrect.&quot;], 'absent': 'No major invented mechanics (e.g., no false claims about unrelated game systems).'}, 'relevance': 'The answer stays on-topic but focuses too narrowly on trade mechanics and librarian specifics, ignoring broader leveling context.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does the Elytra work and how can it be repaired?</div>
+                                <div class="reference-text">Ref: Elytra are wings found in End Ships that allow players to glide. To fly, the player must press the jump key while falling. Flight duration can be extended using Firework Rockets; rockets with flight duration stars boost speed. Elytra lose durability one point per second of flight. They can be repaired using Phantom Membranes in an Anvil or by combining two damaged Elytra in a grindstone or crafting grid (which removes enchantments).</div>
+                            </td>
+                            <td class="answer-cell">The Elytra is a pair of endgame equipment that can only be found in End Ships. While worn as torso armor, the Elytra allows for gliding by pressing while mid-air.<br><br>To repair the Elytra, you cannot directly repair it like other items. However, you can create an Enchanted Book and copy the Elytra's enchantment to the book, which will then allow you to repair the Elytra.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains significant inaccuracies and omissions, particularly regarding repair methods and key mechanics of Elytra.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is highly relevant (score: 3) because it directly addresses both parts of the question:<br>    1. **How Elytra work**: It explains that Elytra are wings found in End Ships, allow gliding by pressing the jump key while falling, and can be propelled using Firework Rockets. It also mentions durability loss during flight (though not explicitly quantified as 'one point per second').<br>    2. **How to repair Elytra**: While the chunk does not explicitly mention repair methods (Phantom Membranes, Anvil, or combining in a grindstone/crafting grid), it provides foundational context about Elytra's functionality, which is critical for understanding the repair process. The metadata confirms the chunk is about the item itself, aligning with the question's focus.<br><br>    No other chunks were provided, but this single chunk fully covers the core mechanics and usage of Elytra, which are essential for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The Elytra is a pair of endgame equipment that can only be found in End Ships.: SUPPORTED<br>  - While worn as torso armor, the Elytra allows for gliding by pressing while mid-air.: SUPPORTED<br>  - To repair the Elytra, you cannot directly repair it like other items.: UNSUPPORTED<br>  - However, you can create an Enchanted Book and copy the Elytra's enchantment to the book, which will then allow you to repair the Elytra.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies Elytra as endgame equipment found in End Ships and their basic gliding function (pressing jump while mid-air).', 'incorrect': 'The repair method described is entirely wrong. The AI suggests using an Enchanted Book to copy enchantments for repair, which is not mentioned in the reference or chunks. The correct repair methods (Phantom Membranes in an Anvil or combining damaged Elytra) are missing.'}, 'completeness': {'missing_parts': ['No mention of durability loss (1 point per second of flight).', 'No mention of Firework Rockets for extending flight or boosting speed.', 'No mention of grindstone/crafting grid repair (which removes enchantments).', 'No details on how to initiate flight (e.g., falling/jumping).']}, 'hallucinations': {'present': 'The AI invents a repair method involving Enchanted Books, which is not supported by the reference or chunks. This is a clear hallucination.'}, 'relevance': {'on_topic': 'The answer stays on topic but is overly simplistic and misleading due to the incorrect repair method.'}, 'chunk_usage': {'issues': 'The AI fails to use the chunks effectively. The chunks provide detailed repair methods (e.g., Phantom Membranes, grindstone) and flight mechanics, but the AI ignores these and invents unsupported information.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">What conditions are needed for Phantoms to spawn?</div>
+                                <div class="reference-text">Ref: Phantoms spawn in the Overworld at night or during thunderstorms high above players who have not slept or died for at least 3 in-game days (about 1 hour). The player must be above sea level (y=64) with no blocks overhead blocking light. As undead mobs, Phantoms burn in sunlight.</div>
+                            </td>
+                            <td class="answer-cell">Phantoms attempt to spawn 20-34 blocks above the player, and off to the side by a Chebyshev distance of up to 10 blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but severely incomplete, missing most of the critical conditions for Phantom spawning.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: phantom_2)** is **highly relevant (3)** because it directly addresses the core conditions for Phantom spawning:<br>      1. **Time-based requirement**: Confirms the player must not have slept or died for at least 3 in-game days (via the tick-based spawn chance formula).<br>      2. **Spawn location**: Specifies Phantoms spawn 20–34 blocks above the player, requiring open sky (implied by 'no blocks overhead blocking light' in the Reference Answer).<br>      3. **Environmental independence**: Notes Phantoms spawn regardless of biome, aligning with the Reference Answer's lack of biome restrictions.<br>      4. **Undead behavior**: While not explicitly stated here, the chunk's focus on spawn mechanics supports the Reference Answer's mention of sunlight burning them (as undead mobs).<br>      5. **Additional useful details**: Includes difficulty-based spawn counts and hostile mob cap behavior, which, while not in the Reference Answer, are relevant to the broader question.<br><br>    - No other chunks were provided, so only Chunk 1 is evaluated. It fully satisfies the criteria for a correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Phantoms attempt to spawn 20-34 blocks above the player: SUPPORTED<br>  - Phantoms attempt to spawn off to the side by a Chebyshev distance of up to 10 blocks: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states the vertical and horizontal spawning range for Phantoms (20-34 blocks above the player, Chebyshev distance up to 10 blocks), which aligns with CHUNK 1. No factual errors were introduced.', 'completeness': 'The answer is highly incomplete. It omits the following critical conditions from the REFERENCE and CHUNKS: (1) Time requirement (night/thunderstorms), (2) Player must not have slept/died for at least 3 in-game days, (3) Player must be above sea level (y=64), (4) No blocks overhead blocking light, (5) Phantoms burn in sunlight, (6) Difficulty-based spawn counts, and (7) Independence from biome restrictions. Only a minor subset of the spawning mechanics is addressed.', 'hallucinations': 'No hallucinations detected. The AI answer is fully supported by CHUNK 1.', 'relevance': 'The answer stays on topic but is overly narrow, focusing only on the spatial spawning mechanics while ignoring the broader context of conditions required for spawning.', 'use_of_chunks': 'The AI used CHUNK 1 correctly but failed to incorporate the majority of the relevant information from the chunk, such as the time-based spawning conditions, player state requirements, and environmental constraints.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does a Nether Portal link coordinates between dimensions?</div>
+                                <div class="reference-text">Ref: A Nether Portal links the Overworld and the Nether. The horizontal coordinates (X and Z) in the Nether are relative to the Overworld at a 1:8 ratio. Traveling 1 block in the Nether is equivalent to traveling 8 blocks in the Overworld. The Y-coordinate is not scaled. Portals require a frame of Obsidian (minimum 4x5) and must be lit with fire.</div>
+                            </td>
+                            <td class="answer-cell">A Nether Portal is used to travel between the Overworld and the Nether. When a player enters a Nether Portal, their coordinates are converted from the Overworld to the Nether.<br><br>The conversion of coordinates occurs as follows:<br><br>1. The X and Z coordinates of the entity (in this case, the player) in the Overworld are multiplied by 8.<br>2. The resulting coordinates are then used to determine the destination coordinates for the entity in the Nether.<br><br>Note that this conversion is only applied when traveling from the Overworld to the Nether. When traveling from the Nether back to the Overworld, no coordinate conversion occurs.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains significant inaccuracies and omissions, particularly regarding the coordinate conversion logic and portal requirements.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is highly relevant (score: 3) because it directly addresses the question by explaining:<br>    - The 1:8 coordinate scaling between the Nether and Overworld (X and Z axes).<br>    - The Y-coordinate remains unscaled.<br>    - The process of how coordinates are converted when traveling through portals.<br>    - Additional technical details (e.g., rounding, world border constraints) that, while not in the Reference Answer, are directly related to the core mechanism of coordinate linking.<br>    This chunk fully enables a correct answer to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Nether Portal is used to travel between the Overworld and the Nether.: SUPPORTED<br>  - When a player enters a Nether Portal, their coordinates are converted from the Overworld to the Nether.: SUPPORTED<br>  - The X and Z coordinates of the entity (in this case, the player) in the Overworld are multiplied by 8.: CONTRADICTED<br>  - The resulting coordinates are then used to determine the destination coordinates for the entity in the Nether.: SUPPORTED<br>  - Note that this conversion is only applied when traveling from the Overworld to the Nether.: CONTRADICTED<br>  - When traveling from the Nether back to the Overworld, no coordinate conversion occurs.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that Nether Portals link the Overworld and the Nether and that X/Z coordinates are scaled. It also correctly notes that the Y-coordinate is not scaled.', 'incorrect': 'The AI incorrectly states that coordinates are multiplied by 8 when traveling from the Overworld to the Nether (they are divided by 8) and that no conversion occurs when traveling from the Nether to the Overworld (they are multiplied by 8). The reference and chunks clearly state the opposite.', 'missing': 'The AI omits critical details such as the 1:8 ratio (1 block in Nether = 8 blocks in Overworld), the rounding behavior, world border constraints, portal frame requirements (Obsidian, minimum size), and the portal search/teleportation algorithm.'}, 'completeness': 'The answer is incomplete. It fails to address key aspects like the 1:8 ratio, portal construction requirements, Y-coordinate behavior, and the portal search mechanism described in the chunks.', 'hallucinations': 'No outright hallucinations, but the coordinate conversion logic is reversed, which is a major error.', 'relevance': 'The answer stays on topic but is overly simplistic and misleading due to the coordinate conversion error.', 'chunk_usage': 'The AI did not fully utilize the chunks. It ignored critical details like the rounding behavior, world border constraints, and the portal search algorithm, which are explicitly mentioned in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the function of a Redstone Comparator?</div>
+                                <div class="reference-text">Ref: A Redstone Comparator has three functions: maintain signal strength, compare signals, and subtract signals. In comparison mode (front torch down), it outputs a signal only if the rear input is greater than or equal to the side input. In subtraction mode (front torch up), it subtracts the side signal strength from the rear signal. It can also measure the fullness of containers (chests, hoppers, cauldrons) placed behind it.</div>
+                            </td>
+                            <td class="answer-cell">A Redstone Comparator is a block that can be used to compare the signal strength of different inputs. It has four main functions:<br><br>1. **Maintain Signal Strength**: When powered, it maintains its input signal strength.<br>2. **Compare Signal Strength**: In comparison mode, it compares the rear input with the two side inputs. If either side input is greater than the rear input, the comparator output turns off.<br>3. **Subtract Signal Strength**: In subtraction mode, it subtracts the signal strength of the higher side input from the signal strength of the rear input.<br>4. **Measure Block States**: A redstone comparator can treat certain blocks behind it as power sources and outputs a signal strength proportional to the block's state.<br><br>Overall, a Redstone Comparator is used to compare and manipulate signal strengths in a Redstone circuit.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but misses some specific details about the comparator's modes and container measurement functionality.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is highly relevant (score: 3) because it directly addresses the question by listing the three core functions of a Redstone Comparator (maintain signal strength, compare signals, and subtract signals), which aligns perfectly with the Reference Answer. It also explains the comparison and subtraction modes in detail, including the behavior with side and rear inputs, and mentions the ability to measure container fullness. This chunk alone provides all the necessary information to answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Redstone Comparator is a block that can be used to compare the signal strength of different inputs.: SUPPORTED<br>  - It has four main functions.: SUPPORTED<br>  - **Maintain Signal Strength**: When powered, it maintains its input signal strength.: SUPPORTED<br>  - **Compare Signal Strength**: In comparison mode, it compares the rear input with the two side inputs. If either side input is greater than the rear input, the comparator output turns off.: SUPPORTED<br>  - **Subtract Signal Strength**: In subtraction mode, it subtracts the signal strength of the higher side input from the signal strength of the rear input.: SUPPORTED<br>  - **Measure Block States**: A redstone comparator can treat certain blocks behind it as power sources and outputs a signal strength proportional to the block's state.: SUPPORTED<br>  - Overall, a Redstone Comparator is used to compare and manipulate signal strengths in a Redstone circuit.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Maintains signal strength (with a 1-tick delay, though not explicitly mentioned in AI answer).', 'Compares signal strength in comparison mode (correctly describes behavior).', 'Subtracts signal strength in subtraction mode (correctly describes behavior).', 'Measures block states (e.g., container fullness).'], 'minor_omissions': ['Does not explicitly state the 1-tick delay when maintaining signal strength.', 'Does not clarify the torch positions (front torch down/up) for comparison/subtraction modes.', 'Does not specify the exact formula for output calculation (e.g., `output = rear × [left ≤ rear AND right ≤ rear]`).']}, 'completeness': {'covered': ['All four functions (maintain, compare, subtract, measure) are mentioned.', 'General behavior of comparison and subtraction modes is correct.'], 'missing': ['Specifics about container measurement (e.g., 0 for empty, 15 for full).', 'Details about comparator-conducting blocks (e.g., non-conductive blocks that still allow measurement).', 'Edge cases (e.g., two observer pulses causing 2-game-tick pulse response).']}, 'hallucinations': 'None detected. All information aligns with the chunks or reference.', 'relevance': &quot;Fully on-topic and directly answers the question about the Redstone Comparator's function.&quot;, 'use_of_chunks': {'correct': 'The AI correctly extracts and synthesizes information from the chunks, particularly the four functions and mode behaviors.', 'unsupported_additions': 'None. The AI does not add information beyond what is in the chunks or reference.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do you breed Turtles and get a Scute?</div>
+                                <div class="reference-text">Ref: Turtles are bred using Seagrass. After mating, the pregnant turtle returns to its 'home beach' (where it hatched) to lay 1-4 Turtle Eggs on sand. Eggs only hatch at night and are vulnerable to zombies. When a baby turtle grows into an adult, it drops a single Scute. 5 Scutes can be crafted into a Turtle Shell helmet.</div>
+                            </td>
+                            <td class="answer-cell">To breed Turtles and get a Scute, you need to follow these steps:<br><br>1. Find a pair of adult Turtles.<br>2. Place the two turtles in close proximity to each other, ideally with some water nearby.<br>3. Wait for the turtles to mate. This can take some time, but it's essential for obtaining a Scute.<br>4. Once the mating process is complete, you'll find that one or both of the turtles have dropped a Turtle Scute.<br><br>Keep in mind that breeding Turtles and obtaining a Scute requires patience, as well as an understanding of how to care for these animals.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 17%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies and omissions, though it stays relevant to the topic.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] (ID: turtle_scute) is rated 2 (Relevant) because:<br>    - It directly addresses part of the question (how to get a Scute) by explaining that baby turtles drop a Scute when they grow into adults.<br>    - However, it does not cover the breeding process (using Seagrass, mating, egg-laying, or hatching conditions), which is a critical part of the Reference Answer.<br>    - While it helps answer the 'Scute' portion of the question, it alone is insufficient for a complete correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Find a pair of adult Turtles.: SUPPORTED<br>  - Place the two turtles in close proximity to each other, ideally with some water nearby.: UNSUPPORTED<br>  - Wait for the turtles to mate.: SUPPORTED<br>  - This can take some time, but it's essential for obtaining a Scute.: UNSUPPORTED<br>  - Once the mating process is complete, you'll find that one or both of the turtles have dropped a Turtle Scute.: CONTRADICTED<br>  - Breeding Turtles and obtaining a Scute requires patience, as well as an understanding of how to care for these animals.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'errors': ['The AI incorrectly states that turtles drop a Scute *immediately after mating*, which is not supported by the reference or chunks. The reference specifies that Scutes are dropped only when a *baby turtle grows into an adult*.', 'The AI does not mention the use of Seagrass for breeding, which is a critical step in the reference answer.', 'The AI does not clarify that the Scute is obtained from *baby turtles growing up*, not from the breeding process itself.'], 'correct_points': ['The AI correctly identifies that Scutes are obtained from turtles (though the method is wrong).']}, 'completeness': {'missing_details': ['No mention of Seagrass for breeding.', 'No mention of eggs being laid on sand or the home beach mechanic.', 'No mention of eggs hatching at night or their vulnerability to zombies.', 'No mention of crafting Scutes into a Turtle Shell helmet (5 Scutes).', 'No mention of the quantity of Scutes dropped (only 1 per turtle).']}, 'hallucinations': ['The AI claims Scutes are dropped *after mating*, which is unsupported by the reference or chunks.', 'The AI implies that Scutes are dropped by *adult turtles* (or during breeding), which contradicts the reference (only baby turtles growing up drop Scutes).'], 'relevance': 'The answer stays on-topic but misrepresents the process entirely.', 'chunk_usage': 'The AI did not effectively use the provided chunks, which clearly state that Scutes are dropped when *baby turtles grow into adults*. The AI ignored this and invented a post-mating drop mechanic.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">What does the Warden detect and how can players avoid it?</div>
+                                <div class="reference-text">Ref: The Warden is a blind mob found in the Deep Dark biome that relies on vibrations and smell to detect players. It detects movement, block placement, and projectiles via Sculk Sensors logic. Players can avoid detection by sneaking (crouching), using wool to dampen vibrations, or throwing projectiles to distract it. If agitated enough, it roars and uses a ranged Sonic Shriek attack that bypasses armor and walls.</div>
+                            </td>
+                            <td class="answer-cell">According to the context, a Warden detects vibrations originating from players, mobs, and non-mob sources including projectiles and minecarts. It also periodically sniffs its surroundings, allowing it to zero in on targets even if they don't create vibrations.<br><br>To avoid a Warden, players can try the following:<br><br>1. Remain silent: Avoid making any noise that could attract the Warden's attention.<br>2. Keep away from sculk shriekers: Activating naturally generated sculk shriekers four times or more will summon a Warden.<br>3. Avoid areas with high Warden spawn rates: If you're in an area with high Warden spawn rates, it's best to leave and find a safer location.<br><br>Keep in mind that avoiding a Warden altogether may not be possible, especially if you're in an area with high Warden activity.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks key details on avoidance strategies and includes minor irrelevant information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] (ID: warden_2) is highly relevant (score: 3) because it directly answers the question by detailing:<br>    - What the Warden detects: vibrations (from players, mobs, projectiles, minecarts) and smell (via sniffing).<br>    - How players can avoid detection: by minimizing vibrations (e.g., sneaking), using projectiles to distract (though with caveats), and understanding anger mechanics (e.g., anger decays over time).<br>    - The Warden's Sonic Shriek attack (ranged, bypasses armor/walls) and its behavior when agitated (roaring, chasing).<br>    The chunk aligns closely with the Reference Answer and provides additional context (e.g., anger thresholds, sniffing mechanics) that enhances the answer without contradicting it.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - a Warden detects vibrations originating from players, mobs, and non-mob sources including projectiles and minecarts: SUPPORTED<br>  - It also periodically sniffs its surroundings, allowing it to zero in on targets even if they don't create vibrations: SUPPORTED<br>  - Remain silent: Avoid making any noise that could attract the Warden's attention: SUPPORTED<br>  - Keep away from sculk shriekers: Activating naturally generated sculk shriekers four times or more will summon a Warden: SUPPORTED<br>  - Avoid areas with high Warden spawn rates: If you're in an area with high Warden spawn rates, it's best to leave and find a safer location: UNSUPPORTED<br>  - Avoiding a Warden altogether may not be possible, especially if you're in an area with high Warden activity: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies that the Warden detects vibrations (from players, mobs, projectiles, etc.) and uses sniffing to locate targets. This aligns with the reference and chunks.', 'incorrect': &quot;The AI does not mention the Warden's reliance on Sculk Sensor logic (e.g., detecting block placement) or its Sonic Shriek attack, which are critical details in the reference.&quot;}, 'completeness': {'missing': ['No mention of sneaking (crouching) as an avoidance tactic.', 'No mention of using wool to dampen vibrations.', 'No mention of throwing projectiles to distract the Warden.', 'No mention of the Sonic Shriek attack or its armor-bypassing effect.', 'No explanation of anger mechanics (e.g., 80+ anger triggers pursuit).'], 'included': &quot;The AI covers basic detection methods (vibrations, sniffing) and vague avoidance advice (e.g., 'remain silent').&quot;}, 'hallucinations': {'present': &quot;The advice to 'keep away from sculk shriekers' and 'avoid areas with high Warden spawn rates' is not directly supported by the chunks or reference. While logically sound, it is not the focus of the question and lacks specificity (e.g., 'four activations' is not mentioned).&quot;, 'absent': 'No outright falsehoods, but the advice is overly generic.'}, 'relevance': {'on_topic': 'The answer stays on topic but misses critical details about avoidance strategies.', 'off_topic': 'The mention of sculk shriekers and spawn rates, while tangentially related, is not directly responsive to the question.'}, 'chunk_usage': {'correct': 'The AI correctly uses the chunks to describe vibration and sniffing detection.', 'incorrect': 'It omits key details from the chunks, such as anger mechanics, Sonic Shriek, and specific avoidance tactics (e.g., wool, sneaking).'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does an Enchanting Table work and how do you get level 30 enchants?</div>
+                                <div class="reference-text">Ref: An Enchanting Table uses experience levels and Lapis Lazuli to enchant items. To access high-level enchantments (up to level 30), the table must be surrounded by 15 Bookshelves. The bookshelves must be placed one block away from the table with one block of air between them. Blocking the space with torches or carpet reduces the available levels.</div>
+                            </td>
+                            <td class="answer-cell">An Enchanting Table is a block used to spend experience and lapis lazuli to apply enchantments to tools, armor, and books. Here's how it works:<br><br>1.  To use an Enchanting Table, you must have at least one bookshelf placed next to the table while keeping one block of air between them.<br>2.  An item can be enchanted by using an Enchanting Table and placing the item in the input slots and 1–3 lapis lazuli in its dedicated slot.<br>3.  Upon placing the item, three (pseudo)randomized options appear on the right of the GUI. The glyphs here do not affect the enchantment, but hovering over a presented enchantment shows one enchantment to be applied (on mobile devices, the player can tap an enchantment before putting in the lapis lazuli or hold the enchantment before release).<br>4.  To increase the enchantment level, bookshelves should be placed next to the enchanting table while keeping one block of air between them.<br><br>As for getting level 30 enchants, it's worth noting that the maximum level of enchantments is 30, but the actual level cost and the number of lapis lazuli required have no effect on the enchantment level. To get level 30 enchants, you must have at least 30 levels to meet the level requirement for a level 30 enchantment.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 78%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 62%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks critical details about the bookshelf placement for level 30 enchants and misrepresents the relationship between player levels and enchantment costs.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1** is **highly relevant (3)** because it directly addresses the question:<br>      1. It explains how an Enchanting Table works (uses experience levels and Lapis Lazuli).<br>      2. It specifies the requirement for high-level enchantments (up to level 30) by surrounding the table with 15 bookshelves, placed one block away with air between them.<br>      3. It confirms the need for bookshelves to increase enchantment levels, matching the Reference Answer exactly.<br>      This chunk alone provides all necessary information to answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Enchanting Table is a block used to spend experience and lapis lazuli to apply enchantments to tools, armor, and books.: SUPPORTED<br>  - To use an Enchanting Table, you must have at least one bookshelf placed next to the table while keeping one block of air between them.: UNSUPPORTED<br>  - An item can be enchanted by using an Enchanting Table and placing the item in the input slots and 1–3 lapis lazuli in its dedicated slot.: SUPPORTED<br>  - Upon placing the item, three (pseudo)randomized options appear on the right of the GUI.: SUPPORTED<br>  - The glyphs here do not affect the enchantment, but hovering over a presented enchantment shows one enchantment to be applied (on mobile devices, the player can tap an enchantment before putting in the lapis lazuli or hold the enchantment before release).: SUPPORTED<br>  - To increase the enchantment level, bookshelves should be placed next to the enchanting table while keeping one block of air between them.: SUPPORTED<br>  - The maximum level of enchantments is 30.: SUPPORTED<br>  - The actual level cost and the number of lapis lazuli required have no effect on the enchantment level.: SUPPORTED<br>  - To get level 30 enchants, you must have at least 30 levels to meet the level requirement for a level 30 enchantment.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Enchanting Table uses experience and lapis lazuli to enchant items.', 'Bookshelves increase enchanting power when placed with one block of air between them.', 'Three randomized options appear in the GUI, and the glyphs do not affect the enchantment.', 'Player must have at least the level requirement to access an enchantment.'], 'incorrect_or_misleading': [&quot;The AI states 'at least one bookshelf' is needed for level 30 enchants, but the reference and chunks specify 15 bookshelves are required.&quot;, &quot;The AI implies the 'level cost' and 'lapis lazuli requirement' have no effect on the enchantment level, which is misleading. While the *displayed* level requirement (e.g., 30) influences the enchantment quality, the *actual* cost (e.g., 3 levels + 3 lapis) is separate and not clearly explained.&quot;]}, 'completeness': {'missing': ['No mention of the exact number of bookshelves (15) needed for level 30 enchants.', 'No explanation of the spatial arrangement (one block away with air gap) or blocking mechanics (e.g., torches/carpet reducing levels).', 'No clarification that the *displayed* level (e.g., 30) is the requirement, while the *paid* cost is lower (e.g., 3 levels + 3 lapis).'], 'present': ['Basic mechanics of using the Enchanting Table.', 'Requirement of lapis lazuli and experience levels.']}, 'hallucinations': {'none_detected': 'The AI does not invent information not present in the chunks or reference.'}, 'relevance': {'on_topic': 'The answer stays on topic but omits key details.'}, 'chunk_usage': {'used_correctly': 'The AI draws from the chunks but underemphasizes critical details (e.g., 15 bookshelves, spatial arrangement).', 'unsupported_additions': &quot;None, but the phrasing about 'level cost' and 'lapis lazuli requirement' could be clearer.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are the properties of Honey Blocks?</div>
+                                <div class="reference-text">Ref: Honey Blocks are sticky blocks crafted from 4 Honey Bottles. They slow down entities walking on them and prevent jumping. Players can slide slowly down the side of a Honey Block wall to negate fall damage. When moved by a piston, Honey Blocks drag adjacent blocks and entities with them, but unlike Slime Blocks, they do not bounce entities and do not stick to Slime Blocks.</div>
+                            </td>
+                            <td class="answer-cell">Honey blocks are storage blocks equivalent to four honey bottles. They have the following properties:<br><br>- Sticky: Honey blocks are sticky and can be used in conjunction with pistons to move blocks and adhered entities.<br>- Renewable: Honey blocks are renewable, meaning they can be replenished or replaced.<br>- Stackable: Honey blocks are stackable up to 64 units high.<br>- Transparent: Honey blocks are partially transparent and diffuse sky light.<br><br>Note that honey blocks have some unique interactions with pistons and other blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses several key properties and includes minor irrelevant details.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] (ID: honey_block_1) is highly relevant (score: 3) because it directly addresses the properties of Honey Blocks as described in the Reference Answer. Specifically:<br>    - It mentions that Honey Blocks are crafted from 4 Honey Bottles (implied by 'storage blocks equivalent to four honey bottles').<br>    - It describes the sticky nature of Honey Blocks, their interaction with entities (slowing them down, preventing jumping, and sliding down walls to negate fall damage).<br>    - It explains how Honey Blocks drag adjacent blocks and entities when moved by a piston, contrasting with Slime Blocks (e.g., no bouncing, no sticking to Slime Blocks).<br>    - The chunk provides all the key details needed to answer the question correctly, aligning closely with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Honey blocks are storage blocks equivalent to four honey bottles.: SUPPORTED<br>  - Honey blocks are sticky and can be used in conjunction with pistons to move blocks and adhered entities.: SUPPORTED<br>  - Honey blocks are renewable.: SUPPORTED<br>  - Honey blocks are stackable up to 64 units high.: SUPPORTED<br>  - Honey blocks are partially transparent and diffuse sky light.: SUPPORTED<br>  - Note that honey blocks have some unique interactions with pistons and other blocks.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Honey blocks are storage blocks equivalent to four honey bottles.', 'Sticky: Honey blocks are sticky and can be used with pistons to move blocks and entities.', 'Renewable: True (from metadata).', 'Stackable: Yes (64) (from metadata).', 'Transparent: Partial (from metadata).'], 'incorrect_or_missing': ['No mention of slowing down entities or preventing jumping (key property).', 'No mention of sliding down walls to negate fall damage.', 'No mention of dragging adjacent blocks/entities when moved by pistons (only vaguely referenced).', 'No mention of differences from Slime Blocks (e.g., no bouncing, no sticking to Slime Blocks).', &quot;Incorrectly states honey blocks are 'non-conductive' in the chunks but does not clarify this in the answer.&quot;]}, 'completeness': 'The answer is incomplete. It omits critical properties like entity slowdown, fall damage negation, and piston interactions beyond basic stickiness. It also fails to contrast with Slime Blocks.', 'hallucinations': &quot;No outright hallucinations, but the answer includes minor irrelevant details (e.g., 'renewable' and 'stackable' are not part of the core properties asked about).&quot;, 'relevance': 'Mostly on-topic but lacks depth in addressing the core question about *properties* of Honey Blocks. Focuses too much on secondary traits (e.g., stackability).', 'chunk_usage': &quot;The AI used the chunks partially but missed key details (e.g., entity slowdown, fall damage negation, piston mechanics). It also did not synthesize information well (e.g., combining 'sticky' with specific behaviors).&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do Raids work in Minecraft?</div>
+                                <div class="reference-text">Ref: A Raid is triggered when a player with the 'Bad Omen' status effect enters a village. Bad Omen is obtained by killing a Pillager Captain (carrying a banner). Raids consist of multiple waves of Illagers (Pillagers, Vindicators, Evokers, Witches) and Ravagers. Defeating a raid grants the 'Hero of the Village' effect, providing trade discounts.</div>
+                            </td>
+                            <td class="answer-cell">Raids in Minecraft are a type of game mode that occurs when a player with the Bad Omen status effect enters a village. When this happens, the Bad Omen effect transforms into Raid Omen and starts the raid if not removed after 30 seconds.<br><br>Here's how Raids work in Minecraft:<br><br>1.  **Triggering a Raid**: A raid is triggered when a player with the Bad Omen status effect enters a village. The Bad Omen effect then transforms into Raid Omen.<br>2.  **Raid Waves**: After the initial trigger, waves of illagers spawn and attack the village. Each wave typically consists of a mix of pillagers, vindicators, ravagers, and witches.<br>3.  **Illager Behavior**: Illagers have unique behaviors during a raid. They can be killed by players, and when they die, they drop special loot, such as armor and enchanted books.<br>4.  **Raid Captain**: In each wave of the raid, a raid captain spawns alongside other illagers. The raid captain is usually accompanied by a vindicator and has unique abilities and attacks.<br><br>After all waves have been defeated in a raid, the Hero of the Village effect is given to players who participated in the raid. This effect decreases prices when trading with villagers, making it easier for players to acquire resources and gear.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits some details about the Bad Omen acquisition and the scaling effects of raid levels.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is highly relevant (score: 3) because it directly contains all the key information mentioned in the Reference Answer:<br>    - It explains how a Raid is triggered (player with 'Bad Omen' entering a village).<br>    - It details the source of 'Bad Omen' (killing a Pillager Captain).<br>    - It describes the composition of Raids (waves of Illagers, Ravagers, etc.).<br>    - It mentions the reward ('Hero of the Village' effect with trade discounts).<br>    The chunk also provides additional context (e.g., wave details, loot drops) that, while not strictly necessary, does not detract from the core answer and could even enhance understanding. No other chunks were provided for evaluation.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Raids in Minecraft are a type of game mode that occurs when a player with the Bad Omen status effect enters a village.: SUPPORTED<br>  - When this happens, the Bad Omen effect transforms into Raid Omen and starts the raid if not removed after 30 seconds.: SUPPORTED<br>  - A raid is triggered when a player with the Bad Omen status effect enters a village.: SUPPORTED<br>  - The Bad Omen effect then transforms into Raid Omen.: SUPPORTED<br>  - After the initial trigger, waves of illagers spawn and attack the village.: SUPPORTED<br>  - Each wave typically consists of a mix of pillagers, vindicators, ravagers, and witches.: SUPPORTED<br>  - Illagers have unique behaviors during a raid.: SUPPORTED<br>  - They can be killed by players, and when they die, they drop special loot, such as armor and enchanted books.: SUPPORTED<br>  - In each wave of the raid, a raid captain spawns alongside other illagers.: SUPPORTED<br>  - The raid captain is usually accompanied by a vindicator and has unique abilities and attacks.: UNSUPPORTED<br>  - After all waves have been defeated in a raid, the Hero of the Village effect is given to players who participated in the raid.: SUPPORTED<br>  - This effect decreases prices when trading with villagers, making it easier for players to acquire resources and gear.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Raids are triggered by a player with Bad Omen entering a village.', 'Raids consist of waves of illagers (pillagers, vindicators, ravagers, witches).', 'A raid captain spawns in each wave.', &quot;Defeating a raid grants the 'Hero of the Village' effect with trade discounts.&quot;], 'minor_omissions': ['Does not explicitly state that Bad Omen is obtained by killing a Pillager Captain (banner carrier).', 'Does not mention the 30-second window to remove Raid Omen before the raid starts.', 'Does not explain that higher Bad Omen levels increase raid difficulty and add extra waves.']}, 'completeness': {'covered': 'Most key aspects of raids are explained, including triggering, waves, and rewards.', 'missing': 'Details about Bad Omen acquisition, raid level scaling, and the 30-second delay are omitted.'}, 'hallucinations': 'None detected. All information aligns with the reference and chunks.', 'relevance': 'The answer stays strictly on topic and does not deviate from the question.', 'chunk_usage': 'The AI correctly uses the provided chunks but does not include all available details (e.g., raid level effects, Bad Omen source).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a Conduit and what powers does it provide?</div>
+                                <div class="reference-text">Ref: A Conduit is an underwater beacon-like block crafted with a Heart of the Sea and Nautilus Shells. It activates when surrounded by a frame of Prismarine blocks (minimum 16, maximum 42) in a 3x3x3 water area. It provides 'Conduit Power' to players within range (32-96 blocks), granting Water Breathing, Night Vision, and Haste. Fully powered Conduits also attack hostile underwater mobs.</div>
+                            </td>
+                            <td class="answer-cell">A Conduit is a block that can be placed underwater and surrounded by prismarine to activate it. Once active, it empowers nearby players touching water or rain.<br><br>Activated conduits provide the &quot;Conduit Power&quot; effect to all players in contact with rain or water within a spherical range of 32-96 blocks.<br><br>The Conduit Power effect is ambient, meaning that the effect in the HUD has a blue border, similar to effects from beacons. This effect prevents players from drowning and attacks wet monsters, including drowned, guardians, and elder guardians, within an 8-block radius of the conduit.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">43/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 80%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some key details about the crafting materials and the exact activation frame requirements for the Conduit.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by providing all the key details mentioned in the Reference Answer:<br>      1. Definition of a Conduit as an underwater beacon-like block.<br>      2. Crafting materials (implied by the need for activation with Prismarine, though not explicitly stated as Heart of the Sea and Nautilus Shells, the context is clear).<br>      3. Activation requirements (Prismarine frame, 3x3x3 water area, minimum/maximum blocks).<br>      4. Powers provided (Water Breathing, Night Vision, Haste, and attack on hostile mobs).<br>      5. Range details (32-96 blocks).<br>      The chunk is comprehensive and aligns perfectly with the Reference Answer, making it sufficient for a correct response.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Conduit is a block that can be placed underwater and surrounded by prismarine to activate it.: SUPPORTED<br>  - Once active, it empowers nearby players touching water or rain.: SUPPORTED<br>  - Activated conduits provide the 'Conduit Power' effect to all players in contact with rain or water within a spherical range of 32-96 blocks.: SUPPORTED<br>  - The Conduit Power effect is ambient, meaning that the effect in the HUD has a blue border, similar to effects from beacons.: SUPPORTED<br>  - This effect prevents players from drowning and attacks wet monsters, including drowned, guardians, and elder guardians, within an 8-block radius of the conduit.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Conduit is a block placed underwater and activated with prismarine', &quot;Provides 'Conduit Power' effect to players in contact with water/rain within 32-96 blocks&quot;, &quot;Conduit Power includes Water Breathing, Night Vision, and Haste (implied by 'prevents drowning' and 'empowers')&quot;, 'Attacks hostile mobs (drowned, guardians, elder guardians) within 8 blocks', 'Effect is ambient (blue HUD border)'], 'incorrect_or_unsupported': []}, 'completeness': {'missing': ['No mention of crafting materials (Heart of the Sea, Nautilus Shells)', 'No details about the activation frame (minimum 16 blocks, max 42, 3x3x3 water area)', 'Does not explicitly state the effects (Water Breathing, Night Vision, Haste) by name—only implied', 'No mention of the orange iris-like shape when fully powered'], 'present': ['Activation method (prismarine frame)', 'Range of effect (32-96 blocks)', 'Mob attack functionality', 'Ambient effect description']}, 'hallucinations': 'None detected. All information aligns with the chunks or reference.', 'relevance': 'Fully on-topic, no irrelevant details.', 'chunk_usage': 'The AI used the chunks correctly but omitted some details (e.g., crafting, frame specifics) that were present in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How are Iron Golems created manually?</div>
+                                <div class="reference-text">Ref: To manually build an Iron Golem, the player must place 4 Iron Blocks in a T-shape (standing upright). Then, a Carved Pumpkin or Jack o'Lantern must be placed on top of the center iron block. The pumpkin must be placed last. The structure must have air blocks in the bottom corners for the transformation to occur.</div>
+                            </td>
+                            <td class="answer-cell">Iron Golems can be created manually by placing four iron blocks in a T shape. After that, place a carved pumpkin or jack o'lantern on top of the center upper block. The pumpkin may be placed by the player, a dispenser, or an enderman. However, it must be placed last.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details about the required air blocks and the alternative method of using an uncarved pumpkin.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1** is **highly relevant (3)** because it directly contains the information needed to answer the question correctly. It explicitly describes the manual creation of Iron Golems by placing 4 iron blocks in a T-shape and then placing a carved pumpkin or jack o'lantern on top, which matches the Reference Answer. It also clarifies that the pumpkin must be placed last and that air blocks are required in the bottom corners for the transformation to occur. This chunk alone is sufficient to answer the question accurately.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Iron Golems can be created manually by placing four iron blocks in a T shape.: SUPPORTED<br>  - After that, place a carved pumpkin or jack o'lantern on top of the center upper block.: SUPPORTED<br>  - The pumpkin may be placed by the player, a dispenser, or an enderman.: SUPPORTED<br>  - However, it must be placed last.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states the core method of creating an Iron Golem: placing four iron blocks in a T-shape and then placing a carved pumpkin or jack o'lantern on top. It also correctly notes that the pumpkin must be placed last and can be placed by a player, dispenser, or enderman. This aligns perfectly with the reference and chunks.&quot;, 'completeness': 'The AI answer covers the primary method of creation but omits two minor details: (1) the requirement for air blocks in the bottom corners for the transformation to occur, and (2) the alternative method of using an uncarved pumpkin and shearing it afterward. These omissions are noted in the chunks but not in the AI answer.', 'hallucinations': 'There are no hallucinations. All information provided by the AI is supported by the reference and chunks.', 'relevance': 'The AI answer stays entirely on topic and directly addresses the question without deviating into unrelated details.', 'use_of_chunks': 'The AI effectively uses the chunks to provide accurate information but does not include all available details (e.g., air block requirements and uncarved pumpkin method).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15"],
+                datasets: [{
+                    label: 'Score',
+                    data: [38, 38, 42, 40, 25, 25, 30, 44, 25, 35, 38, 30, 44, 43, 45],
+                    backgroundColor: [38, 38, 42, 40, 25, 25, 30, 44, 25, 35, 38, 30, 44, 43, 45].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [38, 38, 42, 40, 25, 25, 30, 44, 25, 35, 38, 30, 44, 43, 45].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [97.8, 77.0, 64.4, 65.2],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 66.7, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [75.0, 100.0, 83.3, 85.7, 50.0, 100.0, 33.0, 100.0, 16.7, 50.0, 78.0, 100.0, 83.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [66.7, 66.7, 66.7, 66.7, 33.3, 33.3, 66.7, 66.7, 33.3, 66.7, 66.7, 66.7, 100.0, 66.7, 100.0],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [57.0, 100.0, 83.0, 70.0, 50.0, 100.0, 33.0, 70.0, 30.0, 50.0, 62.5, 50.0, 67.0, 80.0, 75.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
