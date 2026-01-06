@@ -293,6 +293,202 @@ async def health_check():
     return {"status": "healthy"}
 
 
+# ============================================================
+# COVERAGE MAP API
+# ============================================================
+
+COVERAGE_DATA_DIR = BASE_DIR / "coverage_data"
+
+
+def load_coverage_data(filename: str) -> dict:
+    """Load a coverage data file."""
+    filepath = COVERAGE_DATA_DIR / filename
+    if filepath.exists():
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+
+@app.get("/coverage")
+async def coverage_page():
+    """Serve the coverage map page."""
+    coverage_path = BASE_DIR / "coverage.html"
+    if coverage_path.exists():
+        return FileResponse(coverage_path)
+    # Fallback to inline HTML if file doesn't exist
+    return HTMLResponse(content="""
+    <html>
+    <head><title>Coverage Map - Coming Soon</title></head>
+    <body style="background:#1a1a2e;color:white;font-family:sans-serif;text-align:center;padding:50px;">
+        <h1>Coverage Map</h1>
+        <p>Coverage visualization coming soon...</p>
+        <p><a href="/" style="color:#00ff00;">Back to Dashboard</a></p>
+    </body>
+    </html>
+    """)
+
+
+@app.get("/api/coverage")
+async def get_coverage():
+    """Get coverage results."""
+    return load_coverage_data("coverage_results.json")
+
+
+@app.get("/api/coverage/stats")
+async def get_coverage_stats():
+    """Get coverage statistics summary."""
+    coverage = load_coverage_data("coverage_results.json")
+    index = load_coverage_data("chunks_index.json")
+
+    if not coverage and not index:
+        return {
+            "overall": {
+                "total_chunks": 0,
+                "tested_chunks": 0,
+                "coverage_percent": 0,
+                "rag_accuracy": 0,
+                "llm_avg_score": 0
+            },
+            "by_category": {},
+            "last_updated": None
+        }
+
+    # Build category stats
+    category_stats = {}
+    results = coverage.get("results", {})
+    chunks = index.get("chunks", {})
+
+    for chunk_id, chunk_info in chunks.items():
+        category = chunk_info.get("category", "Other")
+        if category not in category_stats:
+            category_stats[category] = {
+                "total": 0,
+                "tested": 0,
+                "rag_found": 0
+            }
+
+        category_stats[category]["total"] += 1
+
+        if chunk_id in results:
+            result = results[chunk_id]
+            category_stats[category]["tested"] += 1
+            if result.get("rag_found_chunk", False):
+                category_stats[category]["rag_found"] += 1
+
+    # Calculate percentages
+    for cat, stats in category_stats.items():
+        stats["coverage_percent"] = round(
+            (stats["tested"] / stats["total"]) * 100, 2
+        ) if stats["total"] > 0 else 0
+        stats["rag_accuracy"] = round(
+            (stats["rag_found"] / stats["tested"]) * 100, 2
+        ) if stats["tested"] > 0 else 0
+
+    return {
+        "overall": {
+            "total_chunks": coverage.get("total_chunks", index.get("total_chunks", 0)),
+            "tested_chunks": coverage.get("tested_chunks", 0),
+            "coverage_percent": coverage.get("coverage_percent", 0),
+            "rag_accuracy": coverage.get("rag_accuracy", 0),
+            "llm_avg_score": coverage.get("llm_avg_score", 0)
+        },
+        "by_category": category_stats,
+        "last_updated": coverage.get("last_updated")
+    }
+
+
+@app.get("/api/coverage/chunks")
+async def get_chunks_index():
+    """Get chunks index."""
+    return load_coverage_data("chunks_index.json")
+
+
+@app.get("/api/coverage/tree")
+async def get_coverage_tree():
+    """Get coverage data as a tree structure for visualization."""
+    coverage = load_coverage_data("coverage_results.json")
+    index = load_coverage_data("chunks_index.json")
+
+    results = coverage.get("results", {})
+    chunks = index.get("chunks", {})
+
+    # Build tree: Category -> Article -> Chunks
+    tree = {}
+
+    for chunk_id, chunk_info in chunks.items():
+        category = chunk_info.get("category", "Other")
+        article = chunk_info.get("article", "Unknown")
+
+        if category not in tree:
+            tree[category] = {
+                "name": category,
+                "articles": {},
+                "stats": {"total": 0, "tested": 0, "rag_found": 0}
+            }
+
+        if article not in tree[category]["articles"]:
+            tree[category]["articles"][article] = {
+                "name": article,
+                "chunks": [],
+                "stats": {"total": 0, "tested": 0, "rag_found": 0}
+            }
+
+        # Determine chunk status
+        result = results.get(chunk_id)
+        if result:
+            if result.get("rag_found_chunk"):
+                status = "rag_found"
+                tree[category]["stats"]["rag_found"] += 1
+                tree[category]["articles"][article]["stats"]["rag_found"] += 1
+            else:
+                status = "rag_missed"
+            tree[category]["stats"]["tested"] += 1
+            tree[category]["articles"][article]["stats"]["tested"] += 1
+        else:
+            status = "untested"
+
+        tree[category]["stats"]["total"] += 1
+        tree[category]["articles"][article]["stats"]["total"] += 1
+
+        tree[category]["articles"][article]["chunks"].append({
+            "id": chunk_id,
+            "status": status,
+            "preview": chunk_info.get("text_preview", "")[:100] if chunk_info.get("text_preview") else ""
+        })
+
+    # Convert articles dict to list
+    for category in tree.values():
+        category["articles"] = list(category["articles"].values())
+
+    return {
+        "categories": list(tree.values()),
+        "stats": {
+            "total": index.get("total_chunks", 0),
+            "tested": coverage.get("tested_chunks", 0),
+            "coverage_percent": coverage.get("coverage_percent", 0),
+            "rag_accuracy": coverage.get("rag_accuracy", 0)
+        }
+    }
+
+
+@app.get("/api/coverage/chunk/{chunk_id}")
+async def get_chunk_details(chunk_id: str):
+    """Get details for a specific chunk."""
+    coverage = load_coverage_data("coverage_results.json")
+    index = load_coverage_data("chunks_index.json")
+
+    chunk_info = index.get("chunks", {}).get(chunk_id)
+    if not chunk_info:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    result = coverage.get("results", {}).get(chunk_id)
+
+    return {
+        "chunk": chunk_info,
+        "test_result": result
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
