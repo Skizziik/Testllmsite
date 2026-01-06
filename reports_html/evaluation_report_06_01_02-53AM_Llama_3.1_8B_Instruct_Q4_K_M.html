@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-06 02:53 | Questions: 15 | Model: Llama 3.1 8B Instruct (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.1 8B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br>Do NOT use &lt;think&gt; tags or internal reasoning. Respond directly with the answer.<br><br>Your task is to answer the player's question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>CRITICAL - Anti-Hallucination Rules:<br>- NEVER add information not present in the context, even if you &quot;know&quot; it from training.<br>- If the context says X is immune to fire, do NOT say X is weak to fire.<br>- Do NOT invent mechanics, numbers, or behaviors not explicitly stated in context.<br>- When unsure, say &quot;I don't have enough information&quot; instead of guessing.<br><br>Completeness Rules:<br>- Include ALL relevant details from the context (numbers, percentages, levels, ranges).<br>- Quote specific mechanics exactly as stated in context.<br>- Do not over-summarize — if context has 5 key facts, include all 5.<br><br>General Rules:<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers factual and well-structured.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Detailed factual answer (GOOD)<br>Context: Creepers have 20 health points. They chase players within 16 blocks. When within 3 blocks, they stop, hiss, flash, and explode after 1.5 seconds. The explosion destroys blocks and deals massive damage. When struck by lightning, a Creeper becomes charged with doubled explosion power.<br>Question: What is a Creeper and how does it attack?<br>Assistant: A Creeper is a hostile mob with 20 health points. It chases players within 16 blocks. When within 3 blocks of a player, it stops moving, hisses, flashes, and explodes after 1.5 seconds. The explosion destroys nearby blocks and deals massive damage. If struck by lightning, it becomes a charged Creeper with doubled explosion power.<br><br>Example 2 — Complete answer with numbers (GOOD)<br>Context: Diamond ore is found at level 15 or lower, most commonly between -50 and -64. Levels -58 and -59 are best for mining. Fortune III can yield up to 4 diamonds per ore block.<br>Question: Where do I find diamonds?<br>Assistant: Diamond ore is found at level 15 or lower, with the highest concentration between levels -50 and -64. The optimal mining levels are -58 and -59. Using Fortune III enchantment can yield up to 4 diamonds per ore block.<br><br>Example 3 — Avoiding hallucination (GOOD)<br>Context: The Ender Dragon has 200 health points. It is immune to fire, drowning, and poison. End crystals on obsidian pillars heal the dragon.<br>Question: How do I defeat the Ender Dragon?<br>Assistant: The Ender Dragon has 200 health points and is immune to fire, drowning, and poison. To defeat it, you must destroy the End crystals on obsidian pillars that heal the dragon, then attack the dragon directly.<br><br>Example 4 — Irrelevant context retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 5 — No context retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 6 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 7 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can't help with that request.<br><br>Example 8 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don't understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br>Extract and include ALL relevant facts, numbers, and mechanics from the context.<br><br>Context:<br>{context}<br><br>Question to answer:<br></div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text" style="font-family: monospace; white-space: pre;">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 4,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.1,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #f59e0b">587/750</div>
+                <div class="subtext">78.3% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #f59e0b">39.1</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">70.6%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #ef4444">56.7%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">86.4%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">72.5%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a Creeper and how does it attack?</div>
+                                <div class="reference-text">Ref: A Creeper is a hostile mob that quietly approaches players and explodes. It has 20 health points and chases players within 16 blocks. When within 3 blocks of a player, it stops moving, hisses, flashes and expands, then explodes after 1.5 seconds. The explosion destroys blocks and deals massive damage. When struck by lightning, a Creeper becomes a charged creeper with twice the explosion power.</div>
+                            </td>
+                            <td class="answer-cell">A Creeper is a common hostile mob in Minecraft. It has 20 health points and is known for its distinctive appearance.<br><br>When within 16 blocks of a player, the creeper will chase the player at a 14-block radius when the player is crouching.<br><br>When within 3 blocks of the player, the creeper stops moving, hisses, flashes, and expands before exploding after 1.5 seconds (30 ticks), destroying nearby blocks and dealing significant damage to the player.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 58%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks key details about the Creeper's behavior, explosion mechanics, and charged creepers, leading to an incomplete response.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (creeper_1)**: Highly relevant (Score: 3). Contains core information about what a Creeper is, its health points, attack behavior (quiet approach, explosion mechanics), detection range (16 blocks), and the charged creeper variant. Directly answers the question.<br>    - **Chunk 2 (creeper_3)**: Highly relevant (Score: 3). Provides additional details about the Creeper's retaliation behavior, explosion effects, and charged creeper mechanics (e.g., explosion power, mob head drops). Complements Chunk 1 and aligns with the Reference Answer.<br>    - **Chunk 3 (creeper_head)**: Completely irrelevant (Score: 0). Focuses on the creeper head block (obtaining, placement, effects) rather than the Creeper mob's attack behavior. Does not address the question.<br>    - **Chunk 4 (creeper_4)**: Somewhat related (Score: 1). Includes tangential details like entity data, explosion power, and cultural references (e.g., memes, merchandise). While it mentions explosion mechanics, it lacks the core attack behavior description needed for the answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Creeper is a common hostile mob in Minecraft.: SUPPORTED<br>  - It has 20 health points.: SUPPORTED<br>  - It is known for its distinctive appearance.: SUPPORTED<br>  - When within 16 blocks of a player, the creeper will chase the player.: SUPPORTED<br>  - The creeper chases the player at a 14-block radius when the player is crouching.: SUPPORTED<br>  - When within 3 blocks of the player, the creeper stops moving, hisses, flashes, and expands before exploding after 1.5 seconds (30 ticks).: SUPPORTED<br>  - The explosion destroys nearby blocks and deals significant damage to the player.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Creeper is a hostile mob with 20 health points', 'Chases players within 16 blocks (14 blocks when crouching)', 'Stops moving, hisses, flashes, and explodes after 1.5 seconds when within 3 blocks'], 'incorrect_or_missing': ['No mention of explosion destroying blocks or dealing massive damage (key detail)', 'No mention of charged creepers (lightning-struck variant with double explosion power)', 'No mention of explosion radius or damage scaling with difficulty', 'No mention of retaliation behavior when attacked by other mobs']}, 'completeness': &quot;The answer addresses the basic behavior but omits critical details about the explosion's effects, charged creepers, and retaliation mechanics. The question asks 'how does it attack?', which requires more depth than provided.&quot;, 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': &quot;The answer stays on topic but is too superficial for the question's scope.&quot;, 'chunk_usage': 'The AI used parts of [CHUNK 1] but ignored [CHUNK 2] (charged creepers, retaliation) and [CHUNK 4] (explosion power details), which are highly relevant to the question.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is an Allay and what does it do?</div>
+                                <div class="reference-text">Ref: An Allay is a small flying passive mob that spawns in pillager outposts and woodland mansions. When given an item by a player, it follows them and collects dropped instances of the same item, delivering them to the player. If it hears a note block play, it delivers items to the note block instead for 30 seconds. Allays can be duplicated by giving them an amethyst shard while they are dancing near a playing jukebox.</div>
+                            </td>
+                            <td class="answer-cell">An Allay is a small, flying passive mob in Minecraft. It has 20 health points and follows the player who has given it an item.<br><br>The Allay's primary function is to collect dropped items of the same type as the item given to it by the player. The Allay will then deliver these collected items to the player or a note block that it is following.<br><br>When given an amethyst shard, the Allay duplicates itself, creating a new Allay with the same properties and behavior as the original.<br><br>The Allay can be found in Pillager Outposts and Woodland Mansions during world generation. Once spawned, the Allay can be duplicated and controlled by players.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 88%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits some key details about the Allay's behavior with note blocks and duplication cooldown.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (allay_1)**: Highly relevant (score: 3). It directly answers the question by explaining what an Allay is (a small flying passive mob), where it spawns (pillager outposts and woodland mansions), its core behavior (following the player to collect dropped items of the same type), and its interaction with note blocks. This chunk covers all key points in the Reference Answer except for the duplication mechanic, which is addressed in Chunk 2.<br><br>    - **Chunk 2 (allay_2)**: Highly relevant (score: 3). While it expands on details not strictly required for the Reference Answer (e.g., totems of undying, portal interactions), it explicitly includes the critical duplication mechanic (using an amethyst shard while dancing near a jukebox), which is part of the Reference Answer. The rest of the chunk provides supplementary but non-contradictory information that could enhance the answer without detracting from correctness.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Allay is a small, flying passive mob in Minecraft.: SUPPORTED<br>  - It has 20 health points.: SUPPORTED<br>  - It follows the player who has given it an item.: SUPPORTED<br>  - The Allay's primary function is to collect dropped items of the same type as the item given to it by the player.: SUPPORTED<br>  - The Allay will then deliver these collected items to the player or a note block that it is following.: SUPPORTED<br>  - When given an amethyst shard, the Allay duplicates itself, creating a new Allay with the same properties and behavior as the original.: SUPPORTED<br>  - The Allay can be found in Pillager Outposts and Woodland Mansions during world generation.: SUPPORTED<br>  - Once spawned, the Allay can be duplicated and controlled by players.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Allay is a small, flying passive mob in Minecraft with 20 health points.', 'Follows the player who gives it an item and collects dropped instances of the same item.', 'Can be duplicated using an amethyst shard while dancing near a jukebox.', 'Spawns in Pillager Outposts and Woodland Mansions.'], 'minor_omissions': ['Does not mention the 30-second note block interaction or how the Allay switches targets.', 'Does not specify the 5-minute cooldown for duplication after splitting.']}, 'completeness': {'covered': ['Basic description, primary function, duplication, and spawn locations.'], 'missing': ['Note block interaction mechanics (30-second focus, vibration particles, wool blocking).', 'Duplication cooldown details.', 'Behavior when jukebox stops or when underwater items are present.', 'Lead/tethering mechanics.']}, 'hallucinations': 'None detected. All information is supported by the chunks or reference.', 'relevance': 'The answer stays strictly on-topic and does not deviate from the question.', 'chunk_usage': 'The AI correctly used the chunks but did not fully incorporate all available details (e.g., note block mechanics, cooldowns).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is an Anvil used for?</div>
+                                <div class="reference-text">Ref: An Anvil is used to rename items, combine enchantments, and repair items without losing enchantments. It requires 31 iron ingots to craft. Players can repair items by combining two similar items or using repair materials like iron ingots for iron tools. The anvil has a 12% chance to become damaged with each use, going from normal to chipped to damaged before breaking. It has a repair cost limit of 39 levels.</div>
+                            </td>
+                            <td class="answer-cell">An Anvil is a utility block used for various purposes in Minecraft. The main uses of an Anvil are:<br><br>1. **Repairing Items**: Using materials originally required to craft the item, you can repair it in an Anvil.<br><br>2. **Enchanting Tools and Armor**: You can add enchantments to tools and armor using an Anvil.<br><br>3. **Renaming Items**: Using an Anvil, you can rename any item, which is useful for organizing your inventory.<br><br>4. **Combining Enchantments**: When combining two items with identical enchantments in an Anvil, the resulting item will retain both enchantments.<br><br>These are the main uses of an Anvil in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits several key details from the reference and chunks, such as crafting requirements, durability mechanics, and repair cost limits.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 1)**: This chunk discusses a 'deprecated anvil,' which is not the standard anvil and is only obtainable via commands. While it mentions that it functions identically to a regular anvil, it does not provide the core information needed for the question (e.g., renaming items, combining enchantments, repair mechanics, or crafting requirements). It is tangentially related but not useful for the correct answer.<br>    - **CHUNK 2 (Score: 3)**: This chunk is highly relevant. It directly addresses the primary uses of an anvil (renaming items, combining enchantments, repairing items without losing enchantments), crafting requirements (31 iron ingots), durability mechanics (chipped/damaged states), and repair methods. It fully aligns with the Reference Answer.<br>    - **CHUNK 3 (Score: 2)**: This chunk is relevant but contains some extraneous information. It covers the 12% chance of damage per use, the repair cost limit (though not explicitly stated as 39 levels), and durability mechanics. However, it also includes unrelated details like falling anvil mechanics and creative mode behavior, which are not part of the Reference Answer. It partially helps but is not as concise or complete as Chunk 2.<br>    - **CHUNK 4 (Score: 0)**: This chunk is completely irrelevant. It discusses the stone axe, its uses, and repair methods in an anvil, but does not answer the question about what an anvil is used for. It could mislead or confuse the answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Anvil is a utility block used for various purposes in Minecraft.: SUPPORTED<br>  - Repairing Items: Using materials originally required to craft the item, you can repair it in an Anvil.: SUPPORTED<br>  - Enchanting Tools and Armor: You can add enchantments to tools and armor using an Anvil.: SUPPORTED<br>  - Renaming Items: Using an Anvil, you can rename any item, which is useful for organizing your inventory.: SUPPORTED<br>  - Combining Enchantments: When combining two items with identical enchantments in an Anvil, the resulting item will retain both enchantments.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Repairing items using materials or combining similar items', 'Enchanting tools and armor (combining enchantments)', 'Renaming items'], 'incorrect': [], 'unsupported': []}, 'completeness': {'missing_details': ['Crafting requirement of 31 iron ingots', '12% chance to become damaged per use (durability mechanics)', 'Repair cost limit of 39 levels', 'Anvil damage states (chipped, damaged, breaking)', 'Repairing with materials restores 25% durability per material', 'Anvil can break from falling damage', 'Specifics about combining items (e.g., retaining enchantments)'], 'covered': ['Repairing items', 'Combining enchantments', 'Renaming items']}, 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': 'The answer stays strictly on-topic and does not deviate from the question.', 'chunk_usage': {'used_correctly': 'The AI correctly extracted the primary uses of an anvil from the chunks but missed many secondary details (e.g., durability, crafting, repair limits).', 'unsupported_additions': 'None. All claims are verifiable in the chunks.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is an Armadillo and where does it spawn?</div>
+                                <div class="reference-text">Ref: An Armadillo is a passive mob with 12 health points that spawns in badlands and savanna biomes. It rolls up in response to being hurt or being near undead mobs or sprinting players. While rolled up, it takes reduced damage. It drops armadillo scutes every 5-10 minutes or when brushed. Armadillos can be bred using spider eyes and repel spiders and cave spiders when not rolled up.</div>
+                            </td>
+                            <td class="answer-cell">An Armadillo is a passive mob found in Badlands, Eroded Badlands, Savannas, Savanna Plateaus, Windswept Savannas, and Wooded Badlands. It can spawn in groups of two to three or four in savannas, and in groups of one to two in badlands.<br><br>Armadillos have a 5% chance to spawn as babies. They spawn at light levels of 9 or more and a light level of 7 or more.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks several key details about the Armadillo's behavior, health, and interactions, making it incomplete.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (armadillo_1)**: Score 3 - Highly relevant. Directly answers both parts of the question: what an Armadillo is (passive mob with 12 health points, behavior, and scute drops) and where it spawns (badlands and savanna biomes, with specific sub-biomes and group sizes). Contains all key details from the Reference Answer.<br>    - **Chunk 2 (armadillo_2)**: Score 2 - Relevant but partially helpful. Adds details about breeding, unrolling behavior, and threat detection, which are related to the Armadillo's behavior but not directly asked in the question. Missing core spawning details (already covered in Chunk 1).<br>    - **Chunk 3 (spider_eye)**: Score 1 - Somewhat related. Mentions spider eyes for breeding Armadillos, which is tangentially related to the mob's behavior but irrelevant to the question (what it is and where it spawns). Could mislead if used alone.<br>    - **Chunk 4 (mob_1)**: Score 0 - Completely irrelevant. General information about mobs in Minecraft, with no specific details about Armadillos or their spawning mechanics. Could cause confusion if relied upon.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Armadillo is a passive mob found in Badlands, Eroded Badlands, Savannas, Savanna Plateaus, Windswept Savannas, and Wooded Badlands.: SUPPORTED<br>  - It can spawn in groups of two to three or four in savannas.: SUPPORTED<br>  - It can spawn in groups of one to two in badlands.: SUPPORTED<br>  - Armadillos have a 5% chance to spawn as babies.: SUPPORTED<br>  - They spawn at light levels of 9 or more and a light level of 7 or more.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies the Armadillo as a passive mob and accurately lists its spawn biomes (Badlands, Eroded Badlands, Savannas, Savanna Plateaus, Windswept Savannas, Wooded Badlands) and group sizes. It also correctly mentions the 5% chance to spawn as a baby and the light level requirements (9 or more, 7 or more).', 'incorrect': 'No factual inaccuracies detected.'}, 'completeness': {'missing_details': ['Health points (12 HP) are omitted.', 'Behavioral traits (rolling up in response to threats, reduced damage while rolled up, repelling spiders, dropping scutes) are not mentioned.', 'Breeding mechanics (using spider eyes) and growth acceleration are missing.', 'Interaction with undead mobs or sprinting players is not described.', 'Scute drop mechanics (every 5-10 minutes or when brushed) are omitted.'], 'covered': 'Spawn biomes, group sizes, baby spawn chance, and light level requirements are covered.'}, 'hallucinations': 'None detected. All provided information is supported by the chunks.', 'relevance': &quot;The answer stays on topic but is overly focused on spawn conditions at the expense of other critical details about the Armadillo's behavior and interactions.&quot;, 'chunk_usage': {'used_correctly': 'The AI correctly extracts spawn-related information from [CHUNK 1] and [CHUNK 2].', 'unsupported_additions': 'None. The AI does not add information beyond what is in the chunks.', 'underutilized': 'The AI ignores most of the behavioral and interaction details in [CHUNK 1] and [CHUNK 2], as well as the breeding/growth mechanics in [CHUNK 3].'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the Aqua Affinity enchantment?</div>
+                                <div class="reference-text">Ref: Aqua Affinity is an enchantment applied to helmets that removes the mining speed reduction that occurs when underwater. Normally, mining underwater takes 5 times longer than on land. Wearing armor with Aqua Affinity grants 400% submerged mining speed, negating this penalty. It can be found in enchanting tables, from librarian villagers, and in various structure loot chests.</div>
+                            </td>
+                            <td class="answer-cell">The Aqua Affinity enchantment is applied to helmets in Minecraft. It removes the mining speed reduction that occurs when underwater. With Aqua Affinity, a player's submerged mining speed is increased by 400%, negating the normal penalty for mining underwater.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details about sources of the enchantment and the floating mining penalty.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. Directly answers the question by explaining what Aqua Affinity is, its effect on mining speed underwater, and how it can be obtained. All key points from the Reference Answer are covered.<br>    - **Chunk 2 (Score: 1)**: Somewhat related. Discusses enchanting mechanics broadly but does not specifically address Aqua Affinity or its effects. While it mentions sources of enchanted items (e.g., librarians, loot chests), it lacks the core details needed for the answer.<br>    - **Chunk 3 (Score: 2)**: Relevant but partial. Explains the effect of Aqua Affinity on mining speed underwater (400% boost) and clarifies the floating penalty, which is useful context. However, it omits details about how to obtain the enchantment and focuses more on water mechanics.<br>    - **Chunk 4 (Score: 0)**: Completely irrelevant. Discusses stacking enchantments (Breach) and has no connection to Aqua Affinity or the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The Aqua Affinity enchantment is applied to helmets in Minecraft.: SUPPORTED<br>  - It removes the mining speed reduction that occurs when underwater.: SUPPORTED<br>  - With Aqua Affinity, a player's submerged mining speed is increased by 400%, negating the normal penalty for mining underwater.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that Aqua Affinity is applied to helmets and removes the mining speed reduction underwater, increasing submerged mining speed by 400%. This aligns perfectly with the REFERENCE and CHUNK 1.', 'completeness': 'The answer is mostly complete but misses two minor details: (1) the normal underwater mining penalty is 5x slower (though this is implied by the 400% speed increase), and (2) the sources of the enchantment (e.g., enchanting tables, librarian villagers, loot chests) are not mentioned. CHUNK 1 provides these details, but the AI did not include them.', 'hallucinations': 'No hallucinations detected. All information is supported by the REFERENCE and CHUNKS.', 'relevance': 'The answer stays strictly on topic and does not deviate from the question.', 'use_of_chunks': 'The AI effectively used CHUNK 1 but did not incorporate all available details (e.g., sources, floating penalty). CHUNK 3 also mentions Aqua Affinity but focuses more on water mechanics, which the AI appropriately ignored for this question.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do Bats spawn and what are their characteristics?</div>
+                                <div class="reference-text">Ref: Bats are flying ambient passive mobs that spawn in the Overworld at light level 3 or less. They spawn on stone, granite, diorite, andesite, tuff, or deepslate blocks in groups of 8 or 2. Bats have 6 health points and hang upside down on solid blocks when idle. They cannot be bred, transported by leads, or put in minecarts or boats. Between October 20 and November 3, they can spawn at light level 6 or less.</div>
+                            </td>
+                            <td class="answer-cell">According to the retrieved context, bats are a type of mob that can spawn in the Overworld. They require specific conditions to spawn:<br><br>1. The light level must be 3 or less in neighboring blocks.<br>2. Bats spawn between October 20 and November 3, they require a light level of 6 or less to spawn.<br><br>Bats have certain characteristics:<br><br>* They are passive mobs that can fly.<br>* They can spawn in groups of 8 or 2.<br>* Bats require at least 1.5 air blocks above them to spawn.<br>* They do not count toward the hostile mob cap as they are considered ambient mobs.<br>* When a bat is idle, it hangs upside down on the underside of a solid block.<br>* Bats have entity data associated with them that contain various properties.<br><br>I hope this information helps you understand where and how bats spawn in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 89%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some key details from the reference and chunks, such as health points, specific spawn blocks, and behavioral constraints.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: bat)**: Highly relevant (Score: 3). This chunk directly answers the question by providing detailed information about bat spawning conditions, health points, behavior, and characteristics, all of which are mentioned in the Reference Answer.<br>    - **Chunk 2 (ID: forest)**: Completely irrelevant (Score: 0). This chunk describes the forest biome and its features but does not mention bats or any information related to the question.<br>    - **Chunk 3 (ID: mob_1)**: Somewhat related (Score: 1). This chunk provides general information about mobs, including spawning mechanics, but does not specifically address bats or their characteristics. It is tangentially related but not useful for answering the question.<br>    - **Chunk 4 (ID: biome_4)**: Completely irrelevant (Score: 0). This chunk describes various biomes and their features but does not mention bats or any information relevant to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Bats are a type of mob that can spawn in the Overworld.: SUPPORTED<br>  - They require specific conditions to spawn: The light level must be 3 or less in neighboring blocks.: SUPPORTED<br>  - Bats spawn between October 20 and November 3, they require a light level of 6 or less to spawn.: SUPPORTED<br>  - They are passive mobs that can fly.: SUPPORTED<br>  - They can spawn in groups of 8 or 2.: SUPPORTED<br>  - Bats require at least 1.5 air blocks above them to spawn.: SUPPORTED<br>  - They do not count toward the hostile mob cap as they are considered ambient mobs.: SUPPORTED<br>  - When a bat is idle, it hangs upside down on the underside of a solid block.: SUPPORTED<br>  - Bats have entity data associated with them that contain various properties.: SUPPORTED<br>  - Bats spawn on blocks of stone, granite, diorite, andesite, tuff, or deepslate.: UNSUPPORTED<br>  - Bats cannot be bred, transported by leads, or put in minecarts or boats.: UNSUPPORTED<br>  - Bats have 6 health points.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Bats spawn in the Overworld at light level 3 or less (6 or less between Oct 20-Nov 3).', 'Bats are passive mobs that can fly.', 'They spawn in groups of 8 or 2.', 'Require at least 1.5 air blocks to spawn.', 'Do not count toward hostile mob cap (ambient).', 'Hang upside down when idle.', 'Have entity data properties.'], 'missing': ['Specific spawn blocks (stone, granite, diorite, andesite, tuff, deepslate).', 'Health points (6 HP).', 'Cannot be bred, transported by leads, or put in minecarts/boats.', 'Despawn when &gt;32 blocks away from player.', 'Cannot interact with redstone or players (collision box details).', 'Cannot hang on transparent/non-solid blocks.']}, 'completeness': 'The answer covers the core spawning conditions and some characteristics but misses several critical details about behavior, health, and spawn mechanics.', 'hallucinations': 'No hallucinations detected; all provided information is supported by the chunks or reference.', 'relevance': 'The answer stays on topic and does not deviate into unrelated details (e.g., biome or general mob info from other chunks).', 'chunk_usage': 'The AI effectively used [CHUNK 1] but did not incorporate all available details (e.g., health points from metadata). Other chunks were irrelevant and correctly ignored.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do Beacons work in Minecraft?</div>
+                                <div class="reference-text">Ref: Beacons are blocks placed on top of pyramids made of iron, gold, emerald, diamond, or netherite blocks. They project a vertical beam visible from far away and provide status effects to nearby players. The pyramid can have 1-4 levels, affecting range and available powers. Powers include Speed, Haste, Resistance, Jump Boost, and Strength. At level 4, Regeneration can be added or primary power raised to level II. Beacons emit light level 15.</div>
+                            </td>
+                            <td class="answer-cell">Beacons are a block that can be placed in view of the sky, on top of a pyramid made of valuable mineral blocks. Once active, it projects a beam upward and can provide constant status effects to all players within a certain radius around it.<br><br>A beacon's range and available effects depend on the size of its pyramid base, between one and four layers.<br><br>To activate a beacon, the beacon must meet the following requirements:<br><br>1.  It requires an unobstructed view of the sky.<br>2.  All the blocks that let light pass through (glass, water, leaves, slabs, etc.) and bedrock (the nether ceiling) are allowed.<br>3.  The beacon is on top of a pyramid constructed from iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks.<br><br>Once activated, the player can feed one item to select the status effects given to players within range of the beacon. This process must be followed again to change the beacon's powers.<br><br>Beacons cannot go through most blocks but can go through bedrock (to allow beacons to be used in the Nether) and end portal frames.<br><br>Once the beacon is emitting a beam, it can then be fed one iron ingot, gold ingot, emerald, diamond, or netherite ingot to select the status effects given to players within range of the beacon.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 75%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 79%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some key details about status effects, pyramid levels, and the secondary power options at level 4.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 3)**: Highly relevant. It directly answers the core question by explaining how beacons work, including pyramid construction, activation requirements, status effects, range, and beam visibility. All key points from the Reference Answer are covered here.<br>    - **CHUNK 2 (Score: 3)**: Highly relevant. It complements CHUNK 1 by detailing how to select and activate status effects (including Regeneration at level 4), the GUI interaction, and the impact of pyramid integrity. This fills gaps in CHUNK 1 and aligns with the Reference Answer.<br>    - **CHUNK 3 (Score: 1)**: Somewhat related. While it mentions light emission and piston interactions, these details are tangential to the question. They don’t address how beacons work in terms of pyramids, effects, or activation.<br>    - **CHUNK 4 (Score: 2)**: Relevant but redundant. It explains how diamond blocks (and other mineral blocks) can be used in beacon pyramids, which is part of the Reference Answer. However, this information is already covered in CHUNK 1, and the chunk focuses more on diamond blocks than beacons themselves.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Beacons are a block that can be placed in view of the sky, on top of a pyramid made of valuable mineral blocks.: SUPPORTED<br>  - Once active, it projects a beam upward and can provide constant status effects to all players within a certain radius around it.: SUPPORTED<br>  - A beacon's range and available effects depend on the size of its pyramid base, between one and four layers.: SUPPORTED<br>  - To activate a beacon, the beacon must meet the following requirements:: SUPPORTED<br>  - It requires an unobstructed view of the sky.: SUPPORTED<br>  - All the blocks that let light pass through (glass, water, leaves, slabs, etc.) and bedrock (the nether ceiling) are allowed.: SUPPORTED<br>  - The beacon is on top of a pyramid constructed from iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks.: SUPPORTED<br>  - Once activated, the player can feed one item to select the status effects given to players within range of the beacon.: SUPPORTED<br>  - This process must be followed again to change the beacon's powers.: SUPPORTED<br>  - Beacons cannot go through most blocks but can go through bedrock (to allow beacons to be used in the Nether) and end portal frames.: SUPPORTED<br>  - Once the beacon is emitting a beam, it can then be fed one iron ingot, gold ingot, emerald, diamond, or netherite ingot to select the status effects given to players within range of the beacon.: SUPPORTED<br>  - The type of block used in the pyramid is purely cosmetic, having no effect on the pyramid's power level or the range and strength of the status effect.: UNSUPPORTED<br>  - At level 4, the pyramid gives the option to increase the primary effect's strength to Level II in the beacon's GUI.: UNSUPPORTED<br>  - The available powers include Speed, Haste, Resistance, Jump Boost, Strength, and Regeneration (at level 4).: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Beacons require an unobstructed view of the sky and a pyramid of valuable mineral blocks.', 'Pyramid size affects range and available effects (1-4 layers).', 'Beacons project a beam upward and provide status effects to nearby players.', 'Activation requires feeding an item (iron ingot, gold ingot, emerald, diamond, or netherite ingot).', 'Beacon beams can pass through bedrock and end portal frames but not most blocks.'], 'minor_errors': [&quot;The AI does not clarify that the beam is visible from far away (though it mentions the beam's vertical projection).&quot;, 'The AI does not specify that the pyramid blocks can be mixed (though this is implied).']}, 'completeness': {'missing_details': ['No mention of specific status effects (Speed, Haste, Resistance, Jump Boost, Strength, Regeneration).', 'No explanation of the secondary power options at level 4 (Regeneration or Level II primary power).', 'No mention of light level 15 emission.', 'No detail on how pyramid levels affect range/strength (e.g., level 4 unlocks Regeneration).']}, 'hallucinations': 'None detected. All information is supported by the chunks or reference.', 'relevance': 'The answer stays on topic and does not deviate into unrelated details.', 'chunk_usage': {'supported': 'The AI correctly uses information from [CHUNK 1] and [CHUNK 2] but omits some details from both.', 'unsupported_additions': 'None. The AI does not add information not present in the chunks.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens when you try to sleep in a bed in the Nether?</div>
+                                <div class="reference-text">Ref: Attempting to sleep in a bed in the Nether causes it to explode and set fire to surrounding blocks. The explosion has power 5, which is stronger than TNT but not as strong as a charged creeper or end crystal. The explosion centers on the head part of the bed. Upon death from a bed explosion, the message 'Player was killed by [Intentional Game Design]' appears. Villagers can sleep normally in any dimension without the bed exploding.</div>
+                            </td>
+                            <td class="answer-cell">When you try to sleep in a bed in the Nether, the bed explodes. This explosion can be used as any other explosion, to demolish blocks or deal damage, with the advantage of being extremely cheap compared to TNT or end crystals, and being instantaneous.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks key details about the explosion's power, effects, and edge cases (e.g., death message, villager behavior).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: bed_2)**: Score 0 - This chunk discusses general bed mechanics (e.g., sleeping conditions, villager interactions, respawn points) but does not mention the Nether or bed explosions. It is irrelevant to the question.<br>    - **Chunk 2 (ID: bed_3)**: Score 0 - This chunk covers bed obstructions, respawn mechanics, and weather effects but does not address the Nether or explosive behavior. It is irrelevant to the question.<br>    - **Chunk 3 (ID: weapon_4)**: Score 3 - This chunk explicitly states that beds explode when used in the wrong dimension (e.g., the Nether) and compares the explosion to other explosive items. It directly answers the question and aligns with the Reference Answer.<br>    - **Chunk 4 (ID: bed_5)**: Score 3 - This chunk confirms that beds explode in the Nether (and End) and describes their use as cheap explosives. It also mentions the explosion's utility for mining or combat, which is relevant to the question's context.<br>    The average score is 1.5 because only two of the four chunks are highly relevant, while the other two are unrelated to the Nether or bed explosions.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - When you try to sleep in a bed in the Nether, the bed explodes.: SUPPORTED<br>  - This explosion can be used as any other explosion, to demolish blocks or deal damage.: SUPPORTED<br>  - The advantage of using a bed explosion is that it is extremely cheap compared to TNT or end crystals.: SUPPORTED<br>  - The explosion is instantaneous.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that beds explode in the Nether and can be used as explosions.', 'incorrect_or_missing': ['Missing explosion power (5, stronger than TNT).', &quot;Missing explosion centering on the bed's head part.&quot;, &quot;Missing death message ('Player was killed by [Intentional Game Design]').&quot;, 'Missing note that villagers can sleep normally in the Nether without explosions.']}, 'completeness': &quot;The answer is incomplete. It omits critical details about the explosion's mechanics, consequences, and exceptions (e.g., villagers).&quot;, 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': &quot;The answer stays on topic but is overly simplistic given the question's scope.&quot;, 'chunk_usage': {'used': 'The AI correctly references [CHUNK 4] for the explosion effect but ignores other relevant chunks (e.g., [CHUNK 3] for dimension-specific behavior).', 'unsupported_additions': 'None. The AI does not add information beyond the chunks.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is Bedrock and where is it found?</div>
+                                <div class="reference-text">Ref: Bedrock is an indestructible block found in all three dimensions. It comprises the five bottommost layers of the Overworld (at Y=-64) and the Nether in a rough pattern. In the Nether, bedrock also forms the top five layers at Y=127. In the End, bedrock generates on top of End spikes and as part of the exit portal. Beacon beams can pass through bedrock, and fire on bedrock in the End never extinguishes.</div>
+                            </td>
+                            <td class="answer-cell">Bedrock is an indestructible block found in all three dimensions of the Minecraft world: Overworld, Nether, and End. <br><br>In the Overworld and Nether, Bedrock forms the bottom 5 layers of each dimension. In the Nether, the top 5 layers are also composed of Bedrock.<br><br>The exact distribution of Bedrock is dependent on the world seed used to generate the Minecraft world.<br><br>Bedrock can be obtained in Creative mode or through commands. It cannot be destroyed by breaking and does not drop anything when destroyed.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks several key details about Bedrock's locations and properties, particularly in the End dimension.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: bedrock_1)**: Score 3 - Highly relevant. This chunk directly answers the question by explaining what Bedrock is, its indestructibility, and its locations in all three dimensions (Overworld, Nether, and End), including specific Y-level details and patterns. It covers all key points in the Reference Answer.<br>    - **CHUNK 2 (ID: java_edition_far_lands_infdev_20100327_to_beta_173_1)**: Score 0 - Completely irrelevant. This chunk discusses the Far Lands, a terrain generation quirk, and only mentions bedrock in passing as a minor compositional element. It does not address the core question about what Bedrock is or where it is found.<br>    - **CHUNK 3 (ID: structure_block_6)**: Score 0 - Completely irrelevant. This chunk describes the Structure Block, a technical block for saving/loading structures, and only mentions bedrock in a tangential reference to the Bedrock Edition level format. It provides no information about Bedrock itself.<br>    - **CHUNK 4 (ID: invisible_bedrock)**: Score 1 - Somewhat related. This chunk describes 'invisible bedrock,' a distinct block type used for world boundaries. While it shares the 'bedrock' name and is tangentially related, it does not answer the question about standard Bedrock or its locations in dimensions. It could mislead if conflated with the primary Bedrock block.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Bedrock is an indestructible block found in all three dimensions of the Minecraft world: Overworld, Nether, and End.: SUPPORTED<br>  - In the Overworld and Nether, Bedrock forms the bottom 5 layers of each dimension.: SUPPORTED<br>  - In the Nether, the top 5 layers are also composed of Bedrock.: SUPPORTED<br>  - The exact distribution of Bedrock is dependent on the world seed used to generate the Minecraft world.: SUPPORTED<br>  - Bedrock can be obtained in Creative mode or through commands.: SUPPORTED<br>  - It cannot be destroyed by breaking and does not drop anything when destroyed.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Bedrock is indestructible and found in all three dimensions (Overworld, Nether, End).', 'Bedrock forms the bottom 5 layers in the Overworld and Nether.', 'Bedrock can be obtained in Creative mode or via commands and cannot be destroyed by breaking.'], 'incorrect_or_missing': [&quot;No mention of Bedrock's top 5 layers in the Nether at Y=127.&quot;, &quot;No mention of Bedrock's role in the End (e.g., on End spikes, exit portal, or End gateways).&quot;, 'No mention of beacon beams passing through Bedrock or fire on Bedrock in the End never extinguishing.', &quot;The distribution's dependence on the world seed is mentioned but not its specific patterns (e.g., rough vs. flat layers).&quot;]}, 'completeness': {'missing_parts': [&quot;Bedrock's presence in the End (spikes, exit portal, gateways).&quot;, &quot;Bedrock's top layers in the Nether.&quot;, 'Unique properties (beacon beams, fire behavior).']}, 'hallucinations': 'None detected. All information is supported by the chunks or reference.', 'relevance': &quot;The answer stays on topic but omits critical details about Bedrock's locations and behaviors.&quot;, 'chunk_usage': {'used_correctly': 'The AI correctly used [CHUNK 1] for most of its answer but ignored key details from it (e.g., End-specific info).', 'unsupported_info': 'None. The AI did not add information outside the chunks.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are Bees and how do they behave?</div>
+                                <div class="reference-text">Ref: Bees are flying arthropodan neutral mobs with 10 health points that live in bee nests or beehives. They collect nectar from flowers and fill their homes with honey. If attacked, bees and nearby bees will attack using their stingers, losing the stinger and eventually dying. Bees venture up to 22 blocks from their hive. They can be bred using any flower and are considered arthropods, taking extra damage from Bane of Arthropods.</div>
+                            </td>
+                            <td class="answer-cell">Bees are flying arthropodan neutral mobs that live in a bee nest or beehive, and fill it with harvestable honey using nectar they gather from flowers.<br><br>Attacking a bee, or interfering with its home without proper precautions, causes it and all nearby bees to attack using their stingers. If a bee attacks something, it will lose its stinger and eventually die.<br><br>Bees are the only arthropod mob that can spawn in any difficulty including Peaceful.<br><br>Naturally generated bee nests generate with 3 bees in them. Naturally-generated birch or oak trees have equal chances to generate with a bee nest, depending on the biome: Birch, cherry, and oak trees grown from saplings that are within 2 blocks of any 1- or 2-block tall flowers, flowering azalea, cherry leaves, flowering azalea leaves, mangrove propagule, spore blossom, pink petals, or chorus flower have a 5% chance of having a bee nest containing 2–3 bees. Mangroves grown from mangrove propagules have a 1% chance of having a bee nest containing 2-3 bees.<br><br>Upon death, adult bees drop experience when killed by a player or a tamed wolf. Like other baby animals, killing a baby bee yields no experience.<br><br>Upon breeding with any flower successfully, is dropped. Bees do not fly (like ghasts or the ender dragon), but instead hover a few blocks above the ground similar to bats and parrots.<br><br>Bees are considered arthropods and take increased damage from the Bane of Arthropods enchantment. They also take damage when touching water.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 92%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 38%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits a few key details from the reference, such as health points, breeding mechanics, and the 22-block venture range.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: beehive)**: Score 1 - While it describes beehives (a habitat for bees), it does not directly answer the question about what bees are or their behavior. It is tangentially related but not useful for the core question.<br>    - **CHUNK 2 (ID: bee_nest)**: Score 1 - Similar to Chunk 1, it focuses on bee nests (another habitat) but does not provide details about bees themselves or their behavior. Only minimally relevant.<br>    - **CHUNK 3 (ID: bee_4)**: Score 3 - Highly relevant. It directly addresses bee behavior (breeding, aggression, pollination, stinging mechanics, and arthropod classification) and aligns closely with the Reference Answer.<br>    - **CHUNK 4 (ID: bee_1)**: Score 3 - Highly relevant. It provides a clear definition of bees (flying arthropodan neutral mobs), their behavior (attacking when provoked, stinging mechanics, pollination), and key traits (health, mobility, and arthropod classification). This chunk alone could answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Bees are flying arthropodan neutral mobs that live in a bee nest or beehive, and fill it with harvestable honey using nectar they gather from flowers.: SUPPORTED<br>  - Attacking a bee, or interfering with its home without proper precautions, causes it and all nearby bees to attack using their stingers.: SUPPORTED<br>  - If a bee attacks something, it will lose its stinger and eventually die.: SUPPORTED<br>  - Bees are the only arthropod mob that can spawn in any difficulty including Peaceful.: SUPPORTED<br>  - Naturally generated bee nests generate with 3 bees in them.: SUPPORTED<br>  - Naturally-generated birch or oak trees have equal chances to generate with a bee nest, depending on the biome: Birch, cherry, and oak trees grown from saplings that are within 2 blocks of any 1- or 2-block tall flowers, flowering azalea, cherry leaves, flowering azalea leaves, mangrove propagule, spore blossom, pink petals, or chorus flower have a 5% chance of having a bee nest containing 2–3 bees.: SUPPORTED<br>  - Mangroves grown from mangrove propagules have a 1% chance of having a bee nest containing 2-3 bees.: SUPPORTED<br>  - Upon death, adult bees drop experience when killed by a player or a tamed wolf.: SUPPORTED<br>  - Like other baby animals, killing a baby bee yields no experience.: SUPPORTED<br>  - Upon breeding with any flower successfully, is dropped.: UNSUPPORTED<br>  - Bees do not fly (like ghasts or the ender dragon), but instead hover a few blocks above the ground similar to bats and parrots.: SUPPORTED<br>  - Bees are considered arthropods and take increased damage from the Bane of Arthropods enchantment.: SUPPORTED<br>  - They also take damage when touching water.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Bees are flying arthropodan neutral mobs that live in bee nests or beehives.', 'They fill their homes with honey using nectar from flowers.', 'Attacking a bee or interfering with its home causes nearby bees to attack and lose their stingers, leading to death.', 'Bees are the only arthropod mob that can spawn in Peaceful difficulty.', 'Bees take increased damage from Bane of Arthropods and take damage in water.', 'Bees hover above the ground like bats and parrots.', 'Naturally generated bee nests contain 2-3 bees, with specific generation rules for trees.'], 'incorrect': []}, 'completeness': {'missing_details': ['Health points (10 HP) are not mentioned.', 'The 22-block venture range from the hive is omitted.', 'Breeding mechanics (using flowers, cooldown, baby growth) are not included.', 'Explicit mention of bees being arthropods (though implied by Bane of Arthropods).', 'Experience drops upon breeding (only death drops are mentioned).', 'Specific attack damage values and poison effects are not detailed.']}, 'hallucinations': 'None detected. All information is supported by the chunks or reference.', 'relevance': 'The answer stays strictly on-topic and does not deviate from the question or provided context.', 'chunk_usage': 'The AI effectively used CHUNK 3 and CHUNK 4 but did not fully incorporate details from CHUNK 1 and CHUNK 2 (e.g., hive/nest mechanics beyond basic housing).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the Basalt Deltas biome?</div>
+                                <div class="reference-text">Ref: The Basalt Deltas is the second rarest Nether biome, making up about 16% of the Nether. It has rough, volcanic terrain composed of basalt and blackstone with shallow lava pools and magma blocks. The biome has dull lilac fog and floating ash particles. Magma cubes spawn at higher rates here than any other biome. It's the only Nether biome without bastion remnants. Nether fortresses and ruined portals can generate here.</div>
+                            </td>
+                            <td class="answer-cell">The Basalt Deltas biome is a volcanic biome found in the Nether. It is the second rarest Nether biome, making up around 16% of the Nether by volume.<br><br>This biome's terrain features numerous deltas, shallow pools of lava, and magma blocks. The rough and jagged terrain is composed largely of basalt and blackstone. <br><br>The Basalt Deltas biome can generate next to any other Nether biome except for the Crimson Forest.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks several key details from the reference and chunks, resulting in an incomplete response.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers the question by covering all key points in the Reference Answer: rarity (second rarest Nether biome), terrain composition (basalt, blackstone, lava pools, magma blocks), fog/ash particles, higher magma cube spawn rates, absence of bastion remnants, and presence of nether fortresses/ruined portals.<br>    - **Chunk 2 (Score: 1)**: Somewhat related. While it describes the basalt block (a component of the biome), it focuses on block properties (mining, generation in other biomes, uses) rather than the biome itself. Only tangentially useful.<br>    - **Chunk 3 (Score: 2)**: Relevant. It details the delta structures (lava pools, blackstone rims, magma blocks) within the biome, which are part of the terrain description in the Reference Answer. However, it lacks broader biome context (e.g., rarity, mobs, fog).<br>    - **Chunk 4 (Score: 2)**: Relevant. It explains basalt columns (a terrain feature of the biome) and their generation, which aligns with the Reference Answer's mention of 'rough, volcanic terrain.' However, it omits most other biome characteristics (e.g., fog, mobs, rarity).<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The Basalt Deltas biome is a volcanic biome found in the Nether.: SUPPORTED<br>  - It is the second rarest Nether biome, making up around 16% of the Nether by volume.: SUPPORTED<br>  - This biome's terrain features numerous deltas, shallow pools of lava, and magma blocks.: SUPPORTED<br>  - The rough and jagged terrain is composed largely of basalt and blackstone.: SUPPORTED<br>  - The Basalt Deltas biome can generate next to any other Nether biome except for the Crimson Forest.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Basalt Deltas is a volcanic biome in the Nether.', 'It is the second rarest Nether biome, making up around 16% of the Nether.', 'Terrain features deltas, shallow lava pools, and magma blocks.', 'Composed largely of basalt and blackstone.', 'Cannot generate next to Crimson Forest.'], 'incorrect': []}, 'completeness': {'missing_details': ['Dull lilac fog and floating ash particles.', 'Higher spawn rate of magma cubes than any other biome.', 'Absence of bastion remnants (only Nether biome without them).', 'Nether fortresses and ruined portals can generate here.', 'Mention of glowstone blobs, mushrooms, ghasts, and striders.', 'Ore generation specifics (e.g., Nether quartz, gold, ancient debris).']}, 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': 'The answer stays on topic but omits many relevant details.', 'chunk_usage': 'The AI used [CHUNK 1] effectively but did not incorporate all available details from it or other chunks (e.g., [CHUNK 3] and [CHUNK 4] were not utilized).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do Apples work in Minecraft?</div>
+                                <div class="reference-text">Ref: Apples are food items that can be eaten or crafted into golden apples. Oak and dark oak leaves have a 0.5% chance of dropping an apple when broken or decayed. Fortune enchantment increases drop chances up to 0.833% with Fortune III. Eating an apple restores 4 hunger points and 2.4 saturation. Apples take 1.6 seconds to consume. Placing an apple in a composter has a 65% chance of raising the compost level by 1.</div>
+                            </td>
+                            <td class="answer-cell">Apples are food items that can be eaten by the player or crafted into golden apples.<br><br>Oak and dark oak leaves have a 0.5% chance of dropping an apple when decayed or broken, but not if burned.<br><br>Breaking leaves with a tool enchanted with the Fortune enchantment increases the chances of dropping an apple:<br><br>* 0.556% (1/180) with Fortune I<br>* 0.625% (1/160) with Fortune II<br>* 0.833% (1/120) with Fortune III<br><br>Eating an apple restores hunger and 2.4 saturation.<br><br>Golden apples can be crafted from apples in a crafting table.<br><br>Enchanted golden apples are uncraftable but provide much more powerful effects than the golden apple, including Absorption IV for 2 minutes, Regeneration level II for 20 seconds or 30 seconds, Fire Resistance I for 5 minutes, and Resistance I for 5 minutes.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 89%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details like the exact hunger restoration value and the apple's consumption time.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 3)**: Highly relevant. It directly answers the question by covering all key points in the Reference Answer: how apples are obtained (from oak/dark oak leaves), drop chances with Fortune enchantment, hunger/saturation restoration, consumption time, and composter interaction.<br>    - **CHUNK 2 (Score: 0)**: Completely irrelevant. Focuses on enchanted golden apples, which are unrelated to the basic mechanics of regular apples in Minecraft.<br>    - **CHUNK 3 (Score: 1)**: Somewhat related. Mentions golden apples (a crafted variant of apples) but does not address the core question about regular apples. While tangentially related, it could mislead if used alone.<br>    - **CHUNK 4 (Score: 0)**: Completely irrelevant. Discusses potato fruit, a different food item with no connection to apples.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Apples are food items that can be eaten by the player or crafted into golden apples.: SUPPORTED<br>  - Oak and dark oak leaves have a 0.5% chance of dropping an apple when decayed or broken, but not if burned.: SUPPORTED<br>  - Breaking leaves with a tool enchanted with the Fortune enchantment increases the chances of dropping an apple:: SUPPORTED<br>  - 0.556% (1/180) with Fortune I: SUPPORTED<br>  - 0.625% (1/160) with Fortune II: SUPPORTED<br>  - 0.833% (1/120) with Fortune III: SUPPORTED<br>  - Eating an apple restores hunger and 2.4 saturation.: SUPPORTED<br>  - Golden apples can be crafted from apples in a crafting table.: UNSUPPORTED<br>  - Enchanted golden apples are uncraftable but provide much more powerful effects than the golden apple, including Absorption IV for 2 minutes, Regeneration level II for 20 seconds or 30 seconds, Fire Resistance I for 5 minutes, and Resistance I for 5 minutes.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Apples are food items that can be eaten or crafted into golden apples.', 'Oak and dark oak leaves have a 0.5% chance of dropping an apple when decayed or broken (not if burned).', 'Fortune enchantment increases drop chances (0.556% with Fortune I, 0.625% with Fortune II, 0.833% with Fortune III).', 'Eating an apple restores hunger and 2.4 saturation (though exact hunger points are omitted).', &quot;Golden apples can be crafted from apples (implied by 'crafted into golden apples').&quot;, 'Enchanted golden apples are uncraftable and provide powerful effects (though some effect durations are omitted).'], 'incorrect': []}, 'completeness': {'missing_details': ['Exact hunger restoration value (4 hunger points) is omitted.', 'Time to consume an apple (1.6 seconds) is not mentioned.', 'Composter interaction (65% chance to raise compost level by 1) is omitted.', 'Some effect durations for enchanted golden apples are not fully specified (e.g., Regeneration II duration).'], 'covered': ['Apple drop mechanics (including Fortune enchantment).', 'Basic apple functionality (eating, crafting into golden apples).', 'Enchanted golden apple properties (though not all details).']}, 'hallucinations': 'None detected. All information is supported by the reference or chunks.', 'relevance': 'The answer stays strictly on-topic and does not deviate from the question about apples in Minecraft.', 'chunk_usage': 'The AI correctly uses [CHUNK 1] for apple mechanics and partially references [CHUNK 2] for enchanted golden apples, but omits some details from the chunks (e.g., composter interaction).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a Bastion Remnant?</div>
+                                <div class="reference-text">Ref: Bastion Remnants are large castle-like structures found in all Nether biomes except basalt deltas. They generate in four variants: bridges, hoglin stables, housing units, and treasure rooms. Piglins, piglin brutes, and hoglins spawn here upon generation and don't despawn naturally. Bastions are the only place to find gilded blackstone, the Pigstep music disc, the snout banner pattern, magma cube spawners, and netherite upgrade smithing templates.</div>
+                            </td>
+                            <td class="answer-cell">A Bastion Remnant is a large, castle-like structure found in the Nether. It generates naturally within the Nether biomes except Basalt Deltas.<br><br>Bastion remnants come in four distinct variants, each with its own unique structure and set of loot. They can be identified by their specific structures, such as bridges, hoglin stables, housing units, and treasure rooms.<br><br>Inside a Bastion Remnant, players will find various structures that contain valuable resources, including gilded blackstone, the Pigstep music disc, snout banner patterns, armor trim, monster spawners, and the Netherite upgrade smithing template.<br><br>Bastion remnants have specific spawning conditions, such as being generated in a region where neither a fortress nor a bastion can generate. The chance of a Bastion Remnant generating instead of a Fortress is 60%.<br><br>In terms of interaction with players, Bastion remnants are unique in that they do not prevent a player from sleeping. However, when attacked by a player or mob, all nearby hoglins retaliate.<br><br>Overall, a Bastion Remnant is a complex and unique structure in Minecraft's Nether world, offering players exciting opportunities for exploration, resource gathering, and combat.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 58%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some key details and includes minor unsupported or slightly misleading information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: bastion_remnant_2)**: Score 3 - Highly relevant. It directly answers the question by describing Bastion Remnants as large castle-like structures, their four variants (bridges, hoglin stables, housing units, treasure rooms), and mentions the mobs that spawn there (piglins, piglin brutes, hoglins). It also notes that these mobs don't despawn naturally, aligning with the Reference Answer.<br>     <br><br>    - **Chunk 2 (ID: bastion_remnant_1)**: Score 3 - Highly relevant. It provides a comprehensive description of Bastion Remnants, including their exclusivity in Nether biomes (except basalt deltas), their four variants, and the unique loot found there (gilded blackstone, Pigstep music disc, snout banner pattern, magma cube spawners, netherite upgrade smithing template). This matches the Reference Answer almost verbatim.<br>     <br><br>    - **Chunk 3 (ID: hoglin_2)**: Score 1 - Somewhat related. While it discusses hoglins (which spawn in Bastion Remnants), the chunk focuses on hoglin behavior, breeding, and transformation mechanics. This is tangential to the question and doesn't directly answer what a Bastion Remnant is.<br>     <br><br>    - **Chunk 4 (ID: blackstone_wall)**: Score 0 - Completely irrelevant. It describes the blackstone wall block, its properties, and generation in Bastion Remnants, but this is a minor detail unrelated to the core question about Bastion Remnants themselves.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Bastion Remnant is a large, castle-like structure found in the Nether.: SUPPORTED<br>  - It generates naturally within the Nether biomes except Basalt Deltas.: SUPPORTED<br>  - Bastion remnants come in four distinct variants, each with its own unique structure and set of loot.: SUPPORTED<br>  - They can be identified by their specific structures, such as bridges, hoglin stables, housing units, and treasure rooms.: SUPPORTED<br>  - Inside a Bastion Remnant, players will find various structures that contain valuable resources, including gilded blackstone, the Pigstep music disc, snout banner patterns, armor trim, monster spawners, and the Netherite upgrade smithing template.: SUPPORTED<br>  - Bastion remnants have specific spawning conditions, such as being generated in a region where neither a fortress nor a bastion can generate.: SUPPORTED<br>  - The chance of a Bastion Remnant generating instead of a Fortress is 60%.: CONTRADICTED<br>  - In terms of interaction with players, Bastion remnants are unique in that they do not prevent a player from sleeping.: UNSUPPORTED<br>  - However, when attacked by a player or mob, all nearby hoglins retaliate.: SUPPORTED<br>  - Overall, a Bastion Remnant is a complex and unique structure in Minecraft's Nether world, offering players exciting opportunities for exploration, resource gathering, and combat.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Bastion Remnants are large, castle-like structures in the Nether (excluding Basalt Deltas).', 'Four variants: bridges, hoglin stables, housing units, and treasure rooms.', 'Contain gilded blackstone, Pigstep music disc, snout banner pattern, and Netherite upgrade smithing template.', 'Piglins, piglin brutes, and hoglins spawn here and don’t despawn naturally.', '60% chance to generate instead of a Nether fortress.'], 'incorrect_or_misleading': ['The statement about Bastion Remnants not preventing sleep is irrelevant (from CHUNK 3, but unrelated to the core question).', 'The 60% generation chance is slightly misleading (CHUNK 2 mentions 60% and 66.6% in different contexts, but the AI simplifies it).', 'The AI implies hoglins retaliate when attacked by players/mobs in Bastion Remnants, but CHUNK 3 clarifies hoglins spawned in Bastions don’t provoke piglins (not directly about retaliation).']}, 'completeness': {'missing_details': ['No mention of Bastion Remnants being the *only* source for gilded blackstone, Pigstep, snout banner, magma cube spawners, or Netherite upgrade templates (key uniqueness from REFERENCE).', 'No explanation of Bastion Remnants floating above lava (CHUNK 1).', 'No mention of piglin brutes spawning exclusively in Bastions (CHUNK 1).', 'No detail on the regional generation mechanics (e.g., 432×432 blocks, 4-chunk separation).']}, 'hallucinations': {'none': 'No outright fabrications, but some tangential details (e.g., sleep mechanics) are irrelevant.'}, 'relevance': {'on_topic': 'Mostly stays on topic, but the sleep-related detail is off-focus.'}, 'chunk_usage': {'used_correctly': 'Mostly, but some details (e.g., retaliation behavior) are misinterpreted or overgeneralized.', 'unsupported_additions': 'The sleep detail is unsupported by the question’s context.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does armor protection work in Minecraft?</div>
+                                <div class="reference-text">Ref: Armor reduces incoming damage based on armor points and armor toughness values. There are eight armor materials from weakest to strongest: leather, copper, golden, chainmail, iron, diamond, and netherite. A full set requires 24 units of material to craft. Armor's effectiveness decreases as incoming damage increases. Netherite armor doesn't lose durability from fire or lava. Each piece of netherite armor provides 10% knockback resistance, totaling 40% with a full set.</div>
+                            </td>
+                            <td class="answer-cell">In Minecraft, armor protection works by reducing the damage taken from various sources. Each piece of armor provides a certain amount of armor and armor toughness.<br><br>The formula for calculating the total damage reduction from armor is:<br><br>Total Damage Reduction = (Armor Value + Armor Toughness) / (Incoming Damage Value)<br><br>Where:<br><br>* Armor Value: The base defensive value of worn armor.<br>* Armor Toughness: A measure of how effective the armor is at reducing damage.<br>* Incoming Damage Value: The amount of damage that would be taken without any armor.<br><br>The total damage reduction from armor cannot drop off below 20% of its maximum.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 58%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 57%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 57%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but oversimplifies the damage reduction formula, omits key details about armor materials and special properties, and lacks precision in explaining armor mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: armor_4)**: Score 2. This chunk provides useful but tangential information. It mentions netherite armor's knockback resistance (which is in the Reference Answer) and lists damage types not reduced by armor (not in the Reference Answer). While it touches on armor materials and enchantments, it doesn't directly answer the core question about how armor protection works.<br>    - **Chunk 2 (ID: protection)**: Score 1. This chunk focuses on the Protection enchantment, which is related but not the primary topic of the question. It explains how Protection works but doesn't cover armor materials, toughness, or the core mechanics of armor damage reduction.<br>    - **Chunk 3 (ID: armor_2)**: Score 3. This chunk is highly relevant. It directly explains how armor protection works, including armor points, armor toughness, and how damage reduction scales with incoming damage. It also mentions the different armor materials (though not explicitly listing them) and their stats, which aligns with the Reference Answer.<br>    - **Chunk 4 (ID: blast_protection)**: Score 1. This chunk is about the Blast Protection enchantment, which is only tangentially related to the question. It doesn't address the core mechanics of armor protection or materials.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - In Minecraft, armor protection works by reducing the damage taken from various sources.: SUPPORTED<br>  - Each piece of armor provides a certain amount of armor and armor toughness.: SUPPORTED<br>  - The formula for calculating the total damage reduction from armor is: Total Damage Reduction = (Armor Value + Armor Toughness) / (Incoming Damage Value).: UNSUPPORTED<br>  - Armor Value: The base defensive value of worn armor.: SUPPORTED<br>  - Armor Toughness: A measure of how effective the armor is at reducing damage.: SUPPORTED<br>  - Incoming Damage Value: The amount of damage that would be taken without any armor.: UNSUPPORTED<br>  - The total damage reduction from armor cannot drop off below 20% of its maximum.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Armor reduces incoming damage based on armor points and armor toughness.', 'Damage reduction is non-linear and depends on incoming damage strength.', 'Armor toughness mitigates the drop-off in effectiveness for higher damage values.'], 'incorrect_or_misleading': ['The formula provided is oversimplified and not accurate. The actual damage reduction calculation is more complex (see CHUNK 3) and involves a non-linear relationship with incoming damage, not a simple division.', 'The AI does not clarify that the minimum damage reduction is 20% of the maximum, not 20% absolute.']}, 'completeness': {'missing': ['No mention of armor materials (leather, copper, golden, chainmail, iron, diamond, netherite) or their ranking.', 'No mention of crafting requirements (24 units for a full set).', &quot;No mention of netherite armor's special properties (fire/lava durability immunity, knockback resistance).&quot;, 'No mention of damage types not reduced by armor (e.g., fall damage, void damage).', 'No mention of enchantments (Protection, Blast Protection, etc.) or their stacking limits.']}, 'hallucinations': {'present': False, 'details': 'No outright hallucinations, but the formula is misleadingly simplified.'}, 'relevance': {'on_topic': True, 'details': 'The answer stays on topic but lacks depth and key details.'}, 'use_of_chunks': {'utilized': 'Partially. The AI uses some concepts from CHUNK 3 (armor points, toughness, non-linear reduction) but ignores most other critical details from all chunks (e.g., materials, enchantments, special properties).'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do Arrows work in combat?</div>
+                                <div class="reference-text">Ref: Arrows serve as ammunition for bows, crossbows, and dispensers. They can be crafted into spectral or tipped arrows for status effects. Arrows shot by players in Creative mode can always be picked up, but arrows from Infinity bows or Multishot crossbow extras cannot. Crossbows shoot slightly faster arrows (3.15 vs 3.0 for fully drawn bows). Critical arrows from fully charged bows deal bonus damage. Arrows can activate wooden buttons, pressure plates, and targets.</div>
+                            </td>
+                            <td class="answer-cell">Arrows are projectiles used in combat by players and mobs. They can be shot from a bow, crossbow, or dispenser.<br><br>When an arrow is shot, it travels through the air until it hits an entity, such as a player or mob. The arrow's damage is then applied to the entity it hit.<br><br>There are several factors that affect how arrows work in combat:<br><br>1. **Damage**: Arrows have a base damage value, which can be increased by enchanting the bow or crossbow.<br>2. **Crit Chance**: Some bows and crossbows have a critical hit chance, which increases the damage dealt by the arrow.<br>3. **Arrow Speed**: The speed at which an arrow travels affects its range and accuracy.<br>4. **Entity Resistance**: Entities such as players and mobs may have resistance to arrow damage, which can reduce or eliminate the damage dealt.<br><br>In summary, arrows work in combat by dealing damage to entities they hit, with factors such as damage, crit chance, arrow speed, and entity resistance affecting their performance.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">28/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 44%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but lacks key details, omits critical mechanics, and includes minor inaccuracies or unsupported generalizations.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: piercing)**: Score 1 - While it provides detailed information about the Piercing enchantment for crossbows, this is tangential to the core question about how arrows work in combat. It does not address the basic functionality of arrows as described in the Reference Answer.<br>    - **CHUNK 2 (ID: arrow_3)**: Score 3 - Highly relevant. It covers critical aspects of arrows in combat, such as their interaction with blocks (buttons, pressure plates, targets), damage scaling, crit mechanics, and behavior when stuck in blocks. This directly aligns with the Reference Answer.<br>    - **CHUNK 3 (ID: arrow_1)**: Score 3 - Highly relevant. It explains the basic functionality of arrows, including their use as ammunition, crafting into spectral/tipped arrows, retrieval mechanics, and speed differences between bows and crossbows. This is core information needed for the Reference Answer.<br>    - **CHUNK 4 (ID: spectral_arrow)**: Score 1 - Somewhat related. While it describes spectral arrows (a subtype of arrows), it focuses on the Glowing effect and does not contribute to the broader question about how arrows work in combat generally. It is not essential for the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Arrows are projectiles used in combat by players and mobs.: SUPPORTED<br>  - They can be shot from a bow, crossbow, or dispenser.: SUPPORTED<br>  - When an arrow is shot, it travels through the air until it hits an entity, such as a player or mob.: SUPPORTED<br>  - The arrow's damage is then applied to the entity it hit.: SUPPORTED<br>  - Arrows have a base damage value, which can be increased by enchanting the bow or crossbow.: SUPPORTED<br>  - Some bows and crossbows have a critical hit chance, which increases the damage dealt by the arrow.: UNSUPPORTED<br>  - The speed at which an arrow travels affects its range and accuracy.: SUPPORTED<br>  - Entities such as players and mobs may have resistance to arrow damage, which can reduce or eliminate the damage dealt.: UNSUPPORTED<br>  - Crit Chance: Some bows and crossbows have a critical hit chance...: CONTRADICTED<br>  - Critical arrows from fully charged bows deal bonus damage.: UNSUPPORTED (mentioned in reference but not explicitly in AI answer as a claim)
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Arrows are projectiles used in combat by players and mobs.', 'Arrows can be shot from bows, crossbows, or dispensers.', 'Damage is a factor in arrow combat.'], 'incorrect_or_unsupported': [&quot;Crit Chance as a general mechanic is not explicitly supported by the chunks (critical arrows are tied to fully charged bows/crossbows, not a 'chance').&quot;, 'Entity Resistance is not mentioned in the reference or chunks as a factor for arrow damage.', 'Arrow Speed is oversimplified (no mention of crossbow vs. bow speed differences or dispenser speed).']}, 'completeness': {'missing_details': ['No mention of arrow retrieval rules (Creative mode, Infinity bows, Multishot extras).', 'No explanation of critical arrows (bonus damage from fully charged bows).', 'No details on tipped/spectral arrows or status effects.', 'No mention of arrow interactions with blocks (buttons, pressure plates, targets).', 'No comparison of crossbow vs. bow arrow speeds (3.15 vs. 3.0).', 'No note on arrows sticking in blocks or despawning mechanics.']}, 'hallucinations': ['Crit Chance is not a defined mechanic in the chunks/reference (critical arrows are deterministic, not probabilistic).', 'Entity Resistance is not referenced in the provided context.'], 'relevance': {'on_topic': 'The answer stays broadly on topic but lacks depth and specificity.', 'off_topic': 'None, but the answer is overly generic.'}, 'chunk_usage': {'underutilized': ['CHUNK 2 and CHUNK 3 contain critical details (e.g., arrow speed, retrieval rules, block interactions) that were ignored.', 'CHUNK 1 (Piercing) is irrelevant to the question but could have been excluded entirely.']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15"],
+                datasets: [{
+                    label: 'Score',
+                    data: [35, 44, 40, 35, 45, 42, 42, 35, 38, 44, 38, 44, 42, 35, 28],
+                    backgroundColor: [35, 44, 40, 35, 45, 42, 42, 35, 38, 44, 38, 44, 42, 35, 28].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [35, 44, 40, 35, 45, 42, 42, 35, 38, 44, 38, 44, 42, 35, 28].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [56.7, 86.4, 68.9, 72.5],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [58.3, 100.0, 50.0, 50.0, 50.0, 33.3, 75.0, 50.0, 33.3, 66.7, 66.7, 33.3, 58.3, 58.3, 66.7],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 100.0, 100.0, 100.0, 100.0, 75.0, 78.6, 100.0, 100.0, 92.3, 100.0, 88.8, 60.0, 57.0, 44.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [66.7, 66.7, 66.7, 66.7, 100.0, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [60.0, 87.5, 100.0, 50.0, 100.0, 89.0, 70.0, 50.0, 83.0, 38.0, 100.0, 83.0, 70.0, 57.0, 50.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

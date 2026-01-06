@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-05 22:20 | Questions: 3 | Model: Hermes 3 Llama 3.1 8B (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Hermes 3 Llama 3.1 8B (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br>Do NOT use &lt;think&gt; tags or internal reasoning. Respond directly with the answer.<br><br>Your task is to answer the player's question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>CRITICAL - Anti-Hallucination Rules:<br>- NEVER add information not present in the context, even if you &quot;know&quot; it from training.<br>- If the context says X is immune to fire, do NOT say X is weak to fire.<br>- Do NOT invent mechanics, numbers, or behaviors not explicitly stated in context.<br>- When unsure, say &quot;I don't have enough information&quot; instead of guessing.<br><br>Completeness Rules:<br>- Include ALL relevant details from the context (numbers, percentages, levels, ranges).<br>- Quote specific mechanics exactly as stated in context.<br>- Do not over-summarize — if context has 5 key facts, include all 5.<br><br>General Rules:<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers factual and well-structured.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Detailed factual answer (GOOD)<br>Context: Creepers have 20 health points. They chase players within 16 blocks. When within 3 blocks, they stop, hiss, flash, and explode after 1.5 seconds. The explosion destroys blocks and deals massive damage. When struck by lightning, a Creeper becomes charged with doubled explosion power.<br>Question: What is a Creeper and how does it attack?<br>Assistant: A Creeper is a hostile mob with 20 health points. It chases players within 16 blocks. When within 3 blocks of a player, it stops moving, hisses, flashes, and explodes after 1.5 seconds. The explosion destroys nearby blocks and deals massive damage. If struck by lightning, it becomes a charged Creeper with doubled explosion power.<br><br>Example 2 — Complete answer with numbers (GOOD)<br>Context: Diamond ore is found at level 15 or lower, most commonly between -50 and -64. Levels -58 and -59 are best for mining. Fortune III can yield up to 4 diamonds per ore block.<br>Question: Where do I find diamonds?<br>Assistant: Diamond ore is found at level 15 or lower, with the highest concentration between levels -50 and -64. The optimal mining levels are -58 and -59. Using Fortune III enchantment can yield up to 4 diamonds per ore block.<br><br>Example 3 — Avoiding hallucination (GOOD)<br>Context: The Ender Dragon has 200 health points. It is immune to fire, drowning, and poison. End crystals on obsidian pillars heal the dragon.<br>Question: How do I defeat the Ender Dragon?<br>Assistant: The Ender Dragon has 200 health points and is immune to fire, drowning, and poison. To defeat it, you must destroy the End crystals on obsidian pillars that heal the dragon, then attack the dragon directly.<br><br>Example 4 — Irrelevant context retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 5 — No context retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 6 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 7 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can't help with that request.<br><br>Example 8 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don't understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br>Extract and include ALL relevant facts, numbers, and mechanics from the context.<br><br>Context:<br>{context}<br><br>Question to answer:<br></div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #10b981">134/150</div>
+                <div class="subtext">89.3% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #10b981">44.7</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #10b981">87.0%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #10b981">83.3%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">100.0%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">74.0%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a Creeper and how does it attack?</div>
+                                <div class="reference-text">Ref: A Creeper is a hostile mob that quietly approaches players and explodes. It has 20 health points and chases players within 16 blocks. When within 3 blocks of a player, it stops moving, hisses, flashes and expands, then explodes after 1.5 seconds. The explosion destroys blocks and deals massive damage. When struck by lightning, a Creeper becomes a charged creeper with twice the explosion power.</div>
+                            </td>
+                            <td class="answer-cell">A Creeper is a common hostile mob in Minecraft. It has 20 health points and is 1.7 blocks high with a width of 0.6 blocks.<br><br>Creepers quietly approach players from a distance of up to 16 blocks away. When within a 3-block radius, the creeper stops moving, hisses, flashes, and expands before exploding after 1.5 seconds (30 ticks).<br><br>The explosion caused by a Creeper destroys nearby blocks and deals significant damage to any players caught in the blast area. The maximum attack strength of a regular Creeper is 22.5.<br><br>When struck by lightning within 4 blocks, a Creeper becomes a charged Creeper with an explosion power of 6, which is twice as powerful as that of a regular Creeper's explosion. Charged Creepers also cause any other mobs (except goats) killed in their explosion to drop their respective mob heads.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 89%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details like the exact explosion power comparison with TNT and the specific mob head drop mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (creeper_1): Score 3 - Highly relevant**<br>    - Directly answers the question by defining what a Creeper is (a hostile mob that quietly approaches players and explodes).<br>    - Includes key details from the Reference Answer: health points (20), chase range (16 blocks), behavior when within 3 blocks (hisses, flashes, explodes after 1.5 seconds), explosion effects, and the charged creeper mechanic (lightning strike).<br>    - Provides additional useful context (e.g., spawn conditions, retaliation behavior) without distracting from the core answer.<br><br>    **Chunk 2 (creeper_3): Score 2 - Relevant**<br>    - Partially helpful but focuses more on edge cases (e.g., retaliation to stray projectiles, status effects) and charged creeper mechanics (e.g., explosion power, mob head drops).<br>    - While it reinforces the charged creeper detail (already covered in Chunk 1), it lacks the foundational definition of a Creeper and its basic attack behavior.<br>    - Useful for expanding on the answer but not sufficient alone to fully address the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A Creeper is a common hostile mob in Minecraft.: SUPPORTED<br>  - It has 20 health points.: SUPPORTED<br>  - It is 1.7 blocks high with a width of 0.6 blocks.: SUPPORTED<br>  - Creepers quietly approach players from a distance of up to 16 blocks away.: SUPPORTED<br>  - When within a 3-block radius, the creeper stops moving, hisses, flashes, and expands before exploding after 1.5 seconds (30 ticks).: SUPPORTED<br>  - The explosion caused by a Creeper destroys nearby blocks and deals significant damage to any players caught in the blast area.: SUPPORTED<br>  - The maximum attack strength of a regular Creeper is 22.5.: SUPPORTED<br>  - When struck by lightning within 4 blocks, a Creeper becomes a charged Creeper with an explosion power of 6, which is twice as powerful as that of a regular Creeper's explosion.: SUPPORTED<br>  - Charged Creepers also cause any other mobs (except goats) killed in their explosion to drop their respective mob heads.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Creeper is a hostile mob with 20 health points.', 'Quietly approaches players within 16 blocks.', 'Stops, hisses, flashes, and explodes after 1.5 seconds when within 3 blocks.', 'Explosion destroys blocks and deals damage.', 'Charged Creeper is created by lightning and has twice the explosion power.', 'Charged Creepers cause mobs to drop heads (general idea).'], 'minor_omissions': [&quot;Does not explicitly state the explosion power of a charged Creeper is 50% more than TNT (though it mentions 'twice as powerful as a regular Creeper').&quot;, 'Does not specify that only certain mobs (zombies, skeletons, etc.) drop heads when killed by a charged Creeper.']}, 'completeness': {'covered': ['Definition of a Creeper.', 'Attack behavior and mechanics.', 'Charged Creeper mechanics.'], 'missing': ['Exact explosion power comparison with TNT (though implied).', 'Detailed mob head drop conditions (e.g., which mobs drop heads).', 'Light level spawning conditions (mentioned in chunks but not in AI answer).']}, 'hallucinations': 'None detected. All information is supported by the reference or chunks.', 'relevance': 'The answer stays strictly on topic and addresses the question fully.', 'chunk_usage': 'The AI effectively uses the provided chunks but omits some secondary details (e.g., spawning conditions, exact head drop mechanics).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is an Allay and what does it do?</div>
+                                <div class="reference-text">Ref: An Allay is a small flying passive mob that spawns in pillager outposts and woodland mansions. When given an item by a player, it follows them and collects dropped instances of the same item, delivering them to the player. If it hears a note block play, it delivers items to the note block instead for 30 seconds. Allays can be duplicated by giving them an amethyst shard while they are dancing near a playing jukebox.</div>
+                            </td>
+                            <td class="answer-cell">An Allay is a small, flying passive mob in Minecraft. It follows the player who has given it an item or any note block instrument it has heard within the last 30 seconds.<br><br>When following its player, the Allay collects dropped instances of the held item and drops them near the player or the nearest note block. The Allay returns to wandering around if a player takes its held item back using an empty hand on it. <br><br>An Allay locks onto the player who last gave it an item. It follows this player from up to a 64-block cubic area away while seeking items up to a 32-block cubic area away from the player. After dropping off items, the Allay has a delay of three seconds before it can seek out items again.<br><br>An Allay has only one inventory slot for holding a stack (usually 64 items) of the item given by its player. While an Allay does not discern enchantments, special item names, or items in shulker boxes when seeking items, it will still carry such items in separate trips if encountered.<br><br>If a Jukebox is playing music within 16 blocks of an Allay's location while it is delivering items, the Allay instead delivers its held items to the nearby Jukebox. The Allay then spends approximately 30 seconds around that specific Jukebox, seeking out items in the vicinity and returning them to the Jukebox instead of its player.<br><br>Once this 30-second period has elapsed, the Allay returns to targeting its original player again. While an Allay is focused on a nearby Jukebox, it only responds to sound emitted from that specific Jukebox, resetting the time until the Allay loses interest in the Jukebox.<br><br>This principle allows for multiple Allays to work in parallel with different nearby Jukeboxes playing various music discs in their vicinity. Additionally, placing wool between an Allay and a Jukebox can prevent this sound interaction from occurring.<br><br>An Allay can pick up items within approximately 1.3 blocks of itself and drop items up to around 3 blocks away from its player or the nearest Jukebox it is currently following. While an Allay is simply wandering around aimlessly without following any specific player, it does not perform any additional actions or behaviors.<br><br>If an Allay is given an Amethyst Shard while it is dancing due to a nearby Jukebox playing any music disc, then the Amethyst Shard will split into two Allays (itself and a new Allay) and cause the Amethyst Shard to be consumed in the process. After duplication, both Allays have a five-minute cooldown before they are able to duplicate again.<br><br>Allays do not have a baby form or any other alternate growth stages like many other mobs in Minecraft. Additionally, when a player teleports through a Nether Portal, then the player's Allay will teleport to them as well, even if it does not actually enter the portal itself along with its player.<br><br>Similarly, when a player teleports through an End Portal, then the Allay will only teleport to the End dimension and appear there alongside its player if that player has given the Allay an item before teleporting and if that player is nearby enough to the Allay as they both teleport together through the End Portal.<br><br>Finally, when a player teleports through either a Nether Portal or an End Portal while their Allay is tethered to a fence with a lead, then the Allay will not actually travel through the portal regardless of how close it may be to its player at that time as they both teleport together. Instead, the Allay remains tethered to the fence and does not move from its current location even if its player teleports away from it through a portal.<br><br>In summary, an Allay is a small, flying passive mob in Minecraft that follows the player who has given it an item or any note block instrument it has heard within the last 30 seconds. The main purpose of an Allay is to collect dropped items and deliver them back to its player or drop them off at nearby Jukeboxes if they are playing music within a certain distance range from the Allay's current location.<br><br>Additionally, when given specific types of items like Amethyst Shards, Allays can also perform special actions such as duplication, where giving an Allay an Amethyst Shard while it is dancing due to a nearby Jukebox playing music will cause the Allay and the Amethyst Shard to split into two separate Allays (itself and a new Allay), with one of them being the original Allay that was given the item and the other one being the newly duplicated Allay.<br><br>However, this duplication process does not occur indefinitely or continuously. Instead, once an Allay has been duplicated, both of the resulting Allays are then placed into a cooldown period where they cannot duplicate again for a certain amount of time, with five minutes typically being the default duration of this cooldown period before either of the two Allays that were duplicated can duplicate again.<br><br>Furthermore, while Allays do have</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">47/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and comprehensive, with only minor omissions and no hallucinations, though it slightly over-elaborates on some details.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (allay_1)**: Highly relevant (score: 3). It directly answers the question by explaining what an Allay is (a small flying passive mob), where it spawns (pillager outposts and woodland mansions), its core behavior (following the player to collect dropped items), and its interaction with note blocks. This chunk covers all key points in the Reference Answer except for the duplication mechanic, which is addressed in Chunk 2.<br><br>    - **Chunk 2 (allay_2)**: Highly relevant (score: 3). While it includes some tangential details (e.g., totem of undying, portal mechanics), it explicitly describes the Allay's duplication process (using an amethyst shard while dancing near a jukebox), which is a critical part of the Reference Answer. The rest of the chunk provides supplementary but non-essential information, but the duplication detail alone justifies a high score.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Allay is a small, flying passive mob in Minecraft.: SUPPORTED<br>  - It follows the player who has given it an item or any note block instrument it has heard within the last 30 seconds.: SUPPORTED<br>  - When following its player, the Allay collects dropped instances of the held item and drops them near the player or the nearest note block.: SUPPORTED<br>  - The Allay returns to wandering around if a player takes its held item back using an empty hand on it.: SUPPORTED<br>  - An Allay locks onto the player who last gave it an item.: SUPPORTED<br>  - It follows this player from up to a 64-block cubic area away while seeking items up to a 32-block cubic area away from the player.: SUPPORTED<br>  - After dropping off items, the Allay has a delay of three seconds before it can seek out items again.: SUPPORTED<br>  - An Allay has only one inventory slot for holding a stack (usually 64 items) of the item given by its player.: SUPPORTED<br>  - While an Allay does not discern enchantments, special item names, or items in shulker boxes when seeking items, it will still carry such items in separate trips if encountered.: SUPPORTED<br>  - If a Jukebox is playing music within 16 blocks of an Allay's location while it is delivering items, the Allay instead delivers its held items to the nearby Jukebox.: SUPPORTED<br>  - The Allay then spends approximately 30 seconds around that specific Jukebox, seeking out items in the vicinity and returning them to the Jukebox instead of its player.: SUPPORTED<br>  - Once this 30-second period has elapsed, the Allay returns to targeting its original player again.: SUPPORTED<br>  - While an Allay is focused on a nearby Jukebox, it only responds to sound emitted from that specific Jukebox, resetting the time until the Allay loses interest in the Jukebox.: SUPPORTED<br>  - This principle allows for multiple Allays to work in parallel with different nearby Jukeboxes playing various music discs in their vicinity.: SUPPORTED<br>  - Additionally, placing wool between an Allay and a Jukebox can prevent this sound interaction from occurring.: SUPPORTED<br>  - An Allay can pick up items within approximately 1.3 blocks of itself and drop items up to around 3 blocks away from its player or the nearest Jukebox it is currently following.: SUPPORTED<br>  - While an Allay is simply wandering around aimlessly without following any specific player, it does not perform any additional actions or behaviors.: SUPPORTED<br>  - If an Allay is given an Amethyst Shard while it is dancing due to a nearby Jukebox playing any music disc, then the Amethyst Shard will split into two Allays (itself and a new Allay) and cause the Amethyst Shard to be consumed in the process.: SUPPORTED<br>  - After duplication, both Allays have a five-minute cooldown before they are able to duplicate again.: SUPPORTED<br>  - Allays do not have a baby form or any other alternate growth stages like many other mobs in Minecraft.: SUPPORTED<br>  - Additionally, when a player teleports through a Nether Portal, then the player's Allay will teleport to them as well, even if it does not actually enter the portal itself along with its player.: SUPPORTED<br>  - Similarly, when a player teleports through an End Portal, then the Allay will only teleport to the End dimension and appear there alongside its player if that player has given the Allay an item before teleporting and if that player is nearby enough to the Allay as they both teleport together through the End Portal.: SUPPORTED<br>  - Finally, when a player teleports through either a Nether Portal or an End Portal while their Allay is tethered to a fence with a lead, then the Allay will not actually travel through the portal regardless of how close it may be to its player at that time as they both teleport together.: SUPPORTED<br>  - Instead, the Allay remains tethered to the fence and does not move from its current location even if its player teleports away from it through a portal.: SUPPORTED<br>  - The main purpose of an Allay is to collect dropped items and deliver them back to its player or drop them off at nearby Jukeboxes if they are playing music within a certain distance range from the Allay's current location.: SUPPORTED<br>  - Additionally, when given specific types of items like Amethyst Shards, Allays can also perform special actions such as duplication, where giving an Allay an Amethyst Shard while it is dancing due to a nearby Jukebox playing music will cause the Allay and the Amethyst Shard to split into two separate Allays (itself and a new Allay), with one of them being the original Allay that was given the item and the other one being the newly duplicated Allay.: SUPPORTED<br>  - However, this duplication process does not occur indefinitely or continuously. Instead, once an Allay has been duplicated, both of the resulting Allays are then placed into a cooldown period where they cannot duplicate again for a certain amount of time, with five minutes typically being the default duration of this cooldown period before either of the two Allays that were duplicated can duplicate again.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Allay is a small flying passive mob in Minecraft.', 'Spawns in pillager outposts and woodland mansions.', 'Follows the player who gives it an item and collects dropped instances of the same item.', 'Delivers items to the player or a note block if heard within 16 blocks.', 'Can be duplicated with an amethyst shard while dancing near a jukebox.', 'Has a 30-second focus on a note block after hearing it.', 'Teleports with the player through portals under specific conditions.', 'Cannot duplicate again for 5 minutes after duplication.', 'Does not have a baby form.'], 'minor_omissions': ['Does not explicitly mention the 50% spawn chance in cages/jail cells (though implied).', 'Does not mention the 1-3 group spawn size.', &quot;Does not mention the allay's luminous texture or its inability to illuminate surroundings.&quot;], 'no_hallucinations': 'All information is supported by the reference or chunks.'}, 'completeness': {'covers_all_major_points': 'Yes, all core functionalities (item collection, note block interaction, duplication, portal behavior) are included.', 'over-elaboration': 'Some details (e.g., portal mechanics, cooldown specifics) are expanded beyond the reference but are factually correct per the chunks.'}, 'relevance': {'stays_on_topic': &quot;Yes, the answer focuses entirely on the Allay's behavior and mechanics.&quot;, 'no_tangents': 'No irrelevant information is included.'}, 'use_of_chunks': {'correctly_used': 'The AI leverages both chunks effectively, incorporating details like vibration particles, wool blocking sound, and entity data (though the latter is not critical).', 'unsupported_info': 'None. All details are traceable to the chunks or reference.'}, 'missing_info': ['Exact spawn group sizes (1-3) and spawn chance (50%) are not mentioned.', 'Luminous texture and lack of illumination are omitted.', 'Three-second delay after delivering items is mentioned but not emphasized as in the reference.']}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is an Anvil used for?</div>
+                                <div class="reference-text">Ref: An Anvil is used to rename items, combine enchantments, and repair items without losing enchantments. It requires 31 iron ingots to craft. Players can repair items by combining two similar items or using repair materials like iron ingots for iron tools. The anvil has a 12% chance to become damaged with each use, going from normal to chipped to damaged before breaking. It has a repair cost limit of 39 levels.</div>
+                            </td>
+                            <td class="answer-cell">An Anvil is a utility block used in Minecraft for several purposes:<br><br>1. Renaming Items: Using an Anvil, players can rename any item, not just items with durability.<br><br>2. Combining Enchantments: The Anvil allows players to combine two similar enchanted items. This process retains the existing enchantments and may also add new enchantments from the sacrificed items.<br><br>3. Repairing Items: Using materials originally required in the crafting of an item (such as iron ingots for repairing iron tools, or diamonds for repairing diamond tools), players can repair a single item with a durability rating. One material can repair 25% of an item's maximum durability.<br><br>These are some key functions and uses of an Anvil in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits key details such as crafting requirements, durability mechanics, and repair cost limits.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: deprecated_anvil)**: Score 1 - This chunk is somewhat related but not useful for answering the question. It focuses on a deprecated variant of the anvil, which is not the standard anvil and is only obtainable via commands. While it mentions that the deprecated anvil functions identically to a regular anvil, it does not provide the core information about the anvil's primary uses (renaming, combining enchantments, repairing items) or its crafting requirements, which are critical to the reference answer.<br><br>    - **Chunk 2 (ID: anvil_1)**: Score 3 - This chunk is highly relevant and contains all the key information needed for the correct answer. It explicitly mentions the anvil's uses (renaming items, combining enchantments, repairing items without losing enchantments), its crafting requirements (31 iron ingots), durability mechanics (chipped/damaged states), and repair methods (combining items or using materials). This chunk directly aligns with the reference answer and would enable a correct response to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An Anvil is a utility block used in Minecraft for several purposes.: SUPPORTED<br>  - Using an Anvil, players can rename any item, not just items with durability.: SUPPORTED<br>  - The Anvil allows players to combine two similar enchanted items.: SUPPORTED<br>  - This process retains the existing enchantments and may also add new enchantments from the sacrificed items.: SUPPORTED<br>  - Using materials originally required in the crafting of an item (such as iron ingots for repairing iron tools, or diamonds for repairing diamond tools), players can repair a single item with a durability rating.: SUPPORTED<br>  - One material can repair 25% of an item's maximum durability.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Renaming items (any item, not just durable ones)', 'Combining enchantments (retains and may add new enchantments)', 'Repairing items using original materials (25% durability per material)'], 'missing': ['Crafting requirement (31 iron ingots)', 'Durability mechanics (12% chance to damage per use, stages: normal → chipped → damaged → broken)', 'Repair cost limit (39 levels)', 'Repairing by combining two similar items (mentioned in chunks but not in AI answer)', 'Falling damage mechanics (anvil becomes chipped if dropped too far)']}, 'completeness': 'The AI answer covers the primary uses of an anvil but misses several critical details from the reference and chunks, such as crafting, durability, and repair limits.', 'hallucinations': 'None detected. All information in the AI answer is supported by the chunks or reference.', 'relevance': 'The answer stays on topic and directly addresses the question about anvil uses.', 'chunk_usage': 'The AI correctly used [CHUNK 2] for its answer but did not incorporate all relevant details from it, such as crafting requirements or durability mechanics.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3"],
+                datasets: [{
+                    label: 'Score',
+                    data: [45, 47, 42],
+                    backgroundColor: [45, 47, 42].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [45, 47, 42].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [83.3, 100.0, 77.8, 74.0],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [83.3, 100.0, 66.7],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [100.0, 66.7, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [89.0, 50.0, 83.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
