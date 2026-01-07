@@ -659,6 +659,7 @@
                             <th>Accuracy</th>
                             <th>Model</th>
                             <th>RAG k</th>
+                            <th>Threshold</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -675,6 +676,7 @@
                                 </td>
                                 <td>${report.model_name || 'N/A'}</td>
                                 <td>${report.rag_chunks_number || 'N/A'}</td>
+                                <td>${report.rag_score_threshold !== undefined ? report.rag_score_threshold : 'N/A'}</td>
                                 <td>
                                     <a href="#" onclick="showDetails(${idx}); return false;" class="view-link">View Details</a>
                                 </td>
@@ -705,28 +707,20 @@
             return 'accuracy-low';
         }
 
-        let serverConfig = null;
-
-        async function loadServerConfig() {
-            if (serverConfig) return serverConfig;
-            try {
-                const response = await fetch('/api/server-config');
-                serverConfig = await response.json();
-                return serverConfig;
-            } catch (e) {
-                console.error('Failed to load server config:', e);
-                return null;
-            }
-        }
+        let currentReportConfig = null;
 
         function showDetails(idx) {
             const report = allReports[idx];
+            currentReportConfig = report.server_config || null;
+
             document.getElementById('detailModal').classList.add('show');
             document.body.style.overflow = 'hidden';
 
             document.getElementById('modalTitle').textContent = `Test Run: ${formatTimestamp(report.timestamp)}`;
 
             const results = report.results || [];
+            const hasConfig = currentReportConfig !== null;
+
             let html = `
                 <div style="margin-bottom: 20px; padding: 16px; background: rgba(0,0,0,0.3); border-radius: 10px;">
                     <p><strong>Total Tests:</strong> ${report.total_tests}</p>
@@ -734,12 +728,15 @@
                     <p><strong>Accuracy:</strong> ${report.accuracy?.toFixed(1)}%</p>
                     <p><strong>Model:</strong> ${report.model_name || 'N/A'}</p>
                     <p><strong>RAG Chunks (k):</strong> ${report.rag_chunks_number || 'N/A'}</p>
+                    <p><strong>RAG Score Threshold:</strong> ${report.rag_score_threshold !== undefined ? report.rag_score_threshold : 'N/A'}</p>
                     <p><strong>Question Gen Model:</strong> ${report.mistral_model || 'N/A'}</p>
-                    <button class="config-btn" onclick="toggleServerConfig()">Show Server Config</button>
-                    <div class="config-panel" id="configPanel">
-                        <h4>TryllServer Configuration</h4>
-                        <pre id="configContent">Loading...</pre>
-                    </div>
+                    ${hasConfig ? `
+                        <button class="config-btn" onclick="toggleServerConfig()">Show Server Config</button>
+                        <div class="config-panel" id="configPanel">
+                            <h4>TryllServer Configuration (at test time)</h4>
+                            <pre id="configContent">${JSON.stringify(currentReportConfig, null, 2)}</pre>
+                        </div>
+                    ` : `<p style="margin-top: 12px; color: rgba(255,255,255,0.5); font-size: 0.85rem;">Server config not available (run a new test to include it)</p>`}
                 </div>
                 <h3 style="margin-bottom: 16px; color: #F6F0EB;">Individual Results</h3>
             `;
@@ -782,20 +779,10 @@
             }
         }
 
-        async function toggleServerConfig() {
+        function toggleServerConfig() {
             const panel = document.getElementById('configPanel');
-            const content = document.getElementById('configContent');
-
-            if (panel.classList.contains('show')) {
-                panel.classList.remove('show');
-            } else {
-                panel.classList.add('show');
-                const config = await loadServerConfig();
-                if (config) {
-                    content.textContent = JSON.stringify(config, null, 2);
-                } else {
-                    content.textContent = 'Failed to load server configuration';
-                }
+            if (panel) {
+                panel.classList.toggle('show');
             }
         }
 
