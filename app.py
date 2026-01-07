@@ -597,14 +597,13 @@ async def get_rag_dynamic_sessions():
 
 @app.get("/api/rag-dynamic-session/{timestamp}")
 async def get_rag_dynamic_session(timestamp: str):
-    """Get details of a specific dynamic RAG test session."""
+    """Get details of a specific dynamic RAG test session (summary only, no runs)."""
     session_dir = RAG_DYNAMIC_DIR / timestamp
 
     if not session_dir.exists() or not session_dir.is_dir():
         raise HTTPException(status_code=404, detail="Session not found")
 
     summary_file = session_dir / "summary.json"
-    results_file = session_dir / "results.json"
 
     if not summary_file.exists():
         raise HTTPException(status_code=404, detail="Session summary not found")
@@ -612,13 +611,45 @@ async def get_rag_dynamic_session(timestamp: str):
     with open(summary_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    # Add runs from results.json if available
-    if results_file.exists():
-        with open(results_file, 'r', encoding='utf-8') as f:
-            results = json.load(f)
-            data["runs"] = results.get("runs", [])
+    # Check if runs folder exists (new format with lazy loading)
+    runs_dir = session_dir / "runs"
+    data["has_lazy_runs"] = runs_dir.exists() and runs_dir.is_dir()
+
+    # For backwards compatibility: load runs from results.json if no runs folder
+    if not data["has_lazy_runs"]:
+        results_file = session_dir / "results.json"
+        if results_file.exists():
+            with open(results_file, 'r', encoding='utf-8') as f:
+                results = json.load(f)
+                data["runs"] = results.get("runs", [])
 
     return data
+
+
+@app.get("/api/rag-dynamic-run/{timestamp}/{k}/{threshold}")
+async def get_rag_dynamic_run(timestamp: str, k: int, threshold: float):
+    """Get a specific run data for lazy loading."""
+    session_dir = RAG_DYNAMIC_DIR / timestamp
+    runs_dir = session_dir / "runs"
+
+    if not runs_dir.exists():
+        # Fallback: try to load from results.json
+        results_file = session_dir / "results.json"
+        if results_file.exists():
+            with open(results_file, 'r', encoding='utf-8') as f:
+                results = json.load(f)
+                for run in results.get("runs", []):
+                    if run["rag_chunks_number"] == k and run["rag_score_threshold"] == threshold:
+                        return run
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # New format: load from individual file
+    run_file = runs_dir / f"k{k}_t{threshold}.json"
+    if not run_file.exists():
+        raise HTTPException(status_code=404, detail="Run file not found")
+
+    with open(run_file, 'r', encoding='utf-8') as f:
+        return json.load(f)
 
 
 if __name__ == "__main__":

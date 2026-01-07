@@ -825,25 +825,46 @@
             return ts;
         }
 
-        function showCellDetails(k, threshold) {
-            if (!currentSession || !currentSession.runs) return;
+        async function showCellDetails(k, threshold) {
+            if (!currentSession) return;
 
-            // Find the run with matching k and threshold
-            const run = currentSession.runs.find(r =>
-                r.rag_chunks_number === k &&
-                r.rag_score_threshold.toFixed(1) === threshold
-            );
-
-            if (!run) {
-                console.log('Run not found for k=', k, 'threshold=', threshold);
-                return;
-            }
-
-            // Set params badges
+            // Show modal with loading state
             document.getElementById('modalParams').innerHTML = `
                 <span class="param-badge">k = ${k}</span>
                 <span class="param-badge">threshold = ${threshold}</span>
             `;
+            document.getElementById('modalStats').innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Loading...</p></div>';
+            document.getElementById('modalResults').innerHTML = '';
+            document.querySelector('.modal-body').scrollTop = 0;
+            document.getElementById('cellModal').classList.add('active');
+
+            let run = null;
+
+            // Check if we have lazy loading (new format) or old format
+            if (currentSession.has_lazy_runs) {
+                // Fetch run data on demand
+                try {
+                    const response = await fetch(`/api/rag-dynamic-run/${currentSession.timestamp}/${k}/${threshold}`);
+                    if (!response.ok) {
+                        throw new Error('Run not found');
+                    }
+                    run = await response.json();
+                } catch (error) {
+                    document.getElementById('modalStats').innerHTML = `<div class="empty-state"><h3>Error</h3><p>${error.message}</p></div>`;
+                    return;
+                }
+            } else if (currentSession.runs) {
+                // Old format: find run in already loaded data
+                run = currentSession.runs.find(r =>
+                    r.rag_chunks_number === k &&
+                    r.rag_score_threshold.toFixed(1) === threshold
+                );
+            }
+
+            if (!run) {
+                document.getElementById('modalStats').innerHTML = '<div class="empty-state"><h3>Run not found</h3></div>';
+                return;
+            }
 
             // Set stats
             const correct = run.correct || run.results.filter(r => r.found).length;
@@ -899,10 +920,6 @@
             });
 
             document.getElementById('modalResults').innerHTML = resultsHtml;
-
-            // Reset scroll position and show modal
-            document.querySelector('.modal-body').scrollTop = 0;
-            document.getElementById('cellModal').classList.add('active');
         }
 
         function closeModal() {
