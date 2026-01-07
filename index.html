@@ -777,23 +777,36 @@
         let currentSort = { field: 'date', asc: false };
         const REPORTS_PER_PAGE = 25;
         let visibleCount = REPORTS_PER_PAGE;
+        let totalReports = 0;
+        let hasMoreOnServer = false;
+        let isLoading = false;
 
         // Load reports on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadReports();
         });
 
-        async function loadReports() {
+        async function loadReports(append = false) {
+            if (isLoading) return;
+            isLoading = true;
+
             try {
-                const response = await fetch('/api/reports');
-                allReports = await response.json();
-                // Sort by date (newest first)
-                allReports.sort((a, b) => {
-                    const dateA = a.date ? new Date(a.date + ' ' + (a.time || '00:00')) : new Date(0);
-                    const dateB = b.date ? new Date(b.date + ' ' + (b.time || '00:00')) : new Date(0);
-                    return dateB - dateA;
-                });
-                populateFilters();
+                const offset = append ? allReports.length : 0;
+                const response = await fetch(`/api/reports?offset=${offset}&limit=${REPORTS_PER_PAGE}`);
+                const data = await response.json();
+
+                if (append) {
+                    allReports = [...allReports, ...data.reports];
+                } else {
+                    allReports = data.reports;
+                }
+
+                totalReports = data.total;
+                hasMoreOnServer = data.has_more;
+
+                if (!append) {
+                    populateFilters();
+                }
                 renderReports(allReports);
             } catch (error) {
                 document.getElementById('reportsContainer').innerHTML = `
@@ -802,6 +815,8 @@
                         <p>${error.message}</p>
                     </div>
                 `;
+            } finally {
+                isLoading = false;
             }
         }
 
@@ -947,14 +962,16 @@
                         `).join('')}
                     </tbody>
                 </table>
-                ${hasMore ? `
+                ${hasMore || hasMoreOnServer ? `
                     <div class="show-more-container">
-                        <button class="show-more-btn" onclick="showMore()">Show more</button>
-                        <div class="reports-count">Showing ${visibleReports.length} of ${reports.length} reports</div>
+                        <button class="show-more-btn" onclick="showMore()" ${isLoading ? 'disabled' : ''}>
+                            ${isLoading ? 'Loading...' : 'Show more'}
+                        </button>
+                        <div class="reports-count">Showing ${visibleReports.length} of ${totalReports} reports</div>
                     </div>
-                ` : (reports.length > REPORTS_PER_PAGE ? `
+                ` : (totalReports > REPORTS_PER_PAGE ? `
                     <div class="show-more-container">
-                        <div class="reports-count">Showing all ${reports.length} reports</div>
+                        <div class="reports-count">Showing all ${totalReports} reports</div>
                     </div>
                 ` : '')}
             `;
@@ -962,6 +979,10 @@
         }
 
         function showMore() {
+            // If we need more data from server
+            if (hasMoreOnServer && allReports.length <= visibleCount) {
+                loadReports(true);
+            }
             visibleCount += REPORTS_PER_PAGE;
             applyFilters(false);
         }

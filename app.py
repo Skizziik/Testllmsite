@@ -181,20 +181,30 @@ async def root():
 
 
 @app.get("/api/reports")
-async def get_reports():
-    """Get list of all reports with metadata."""
-    reports = []
-
+async def get_reports(offset: int = 0, limit: int = 25):
+    """Get list of reports with pagination."""
     if not REPORTS_DIR.exists():
-        return reports
+        return {"reports": [], "total": 0, "has_more": False}
 
-    for filepath in sorted(REPORTS_DIR.glob("*.html"), key=lambda x: x.stat().st_mtime, reverse=True):
+    # Get all files sorted by modification time
+    all_files = sorted(REPORTS_DIR.glob("*.html"), key=lambda x: x.stat().st_mtime, reverse=True)
+    total = len(all_files)
+
+    # Paginate
+    paginated_files = all_files[offset:offset + limit]
+
+    reports = []
+    for filepath in paginated_files:
         report_data = parse_html_report(filepath)
         # Don't include full questions in list view
         report_data.pop('questions', None)
         reports.append(report_data)
 
-    return reports
+    return {
+        "reports": reports,
+        "total": total,
+        "has_more": offset + limit < total
+    }
 
 
 @app.get("/api/compare")
