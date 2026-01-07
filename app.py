@@ -542,6 +542,17 @@ async def get_rag_test_detail(test_id: str):
         return json.load(f)
 
 
+@app.get("/api/server-config")
+async def get_server_config():
+    """Get TryllServer configuration."""
+    config_path = Path("C:/Users/utente/AppData/Local/Tryll/server/config.json")
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="Server config not found")
+
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))

@@ -392,6 +392,56 @@
             text-decoration: underline;
         }
 
+        /* Config Button */
+        .config-btn {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 12px;
+        }
+
+        .config-btn:hover {
+            background: #3B82F6;
+            color: #ffffff;
+        }
+
+        /* Config Panel */
+        .config-panel {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            display: none;
+        }
+
+        .config-panel.show {
+            display: block;
+        }
+
+        .config-panel h4 {
+            color: #3B82F6;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .config-panel pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.8);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -562,6 +612,7 @@
                             <th>Correct</th>
                             <th>Accuracy</th>
                             <th>Model</th>
+                            <th>RAG k</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -576,7 +627,8 @@
                                         ${report.accuracy !== undefined ? report.accuracy.toFixed(1) + '%' : 'N/A'}
                                     </span>
                                 </td>
-                                <td>${report.mistral_model || 'N/A'}</td>
+                                <td>${report.model_name || 'N/A'}</td>
+                                <td>${report.rag_chunks_number || 'N/A'}</td>
                                 <td>
                                     <a href="#" onclick="showDetails(${idx}); return false;" class="view-link">View Details</a>
                                 </td>
@@ -607,6 +659,20 @@
             return 'accuracy-low';
         }
 
+        let serverConfig = null;
+
+        async function loadServerConfig() {
+            if (serverConfig) return serverConfig;
+            try {
+                const response = await fetch('/api/server-config');
+                serverConfig = await response.json();
+                return serverConfig;
+            } catch (e) {
+                console.error('Failed to load server config:', e);
+                return null;
+            }
+        }
+
         function showDetails(idx) {
             const report = allReports[idx];
             document.getElementById('detailModal').classList.add('show');
@@ -620,7 +686,14 @@
                     <p><strong>Total Tests:</strong> ${report.total_tests}</p>
                     <p><strong>Correct:</strong> ${report.correct}</p>
                     <p><strong>Accuracy:</strong> ${report.accuracy?.toFixed(1)}%</p>
-                    <p><strong>Mistral Model:</strong> ${report.mistral_model || 'N/A'}</p>
+                    <p><strong>Model:</strong> ${report.model_name || 'N/A'}</p>
+                    <p><strong>RAG Chunks (k):</strong> ${report.rag_chunks_number || 'N/A'}</p>
+                    <p><strong>Question Gen Model:</strong> ${report.mistral_model || 'N/A'}</p>
+                    <button class="config-btn" onclick="toggleServerConfig()">Show Server Config</button>
+                    <div class="config-panel" id="configPanel">
+                        <h4>TryllServer Configuration</h4>
+                        <pre id="configContent">Loading...</pre>
+                    </div>
                 </div>
                 <h3 style="margin-bottom: 16px; color: #F6F0EB;">Individual Results</h3>
             `;
@@ -647,6 +720,23 @@
             });
 
             document.getElementById('modalBody').innerHTML = html;
+        }
+
+        async function toggleServerConfig() {
+            const panel = document.getElementById('configPanel');
+            const content = document.getElementById('configContent');
+
+            if (panel.classList.contains('show')) {
+                panel.classList.remove('show');
+            } else {
+                panel.classList.add('show');
+                const config = await loadServerConfig();
+                if (config) {
+                    content.textContent = JSON.stringify(config, null, 2);
+                } else {
+                    content.textContent = 'Failed to load server configuration';
+                }
+            }
         }
 
         function closeModal() {
