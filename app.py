@@ -553,6 +553,64 @@ async def get_server_config():
         return json.load(f)
 
 
+# ============================================================
+# RAG DYNAMIC TESTS API
+# ============================================================
+
+RAG_DYNAMIC_DIR = BASE_DIR / "rag_results_dinamic"
+
+
+@app.get("/rag-dynamic")
+async def rag_dynamic_page():
+    """Serve the RAG dynamic tests page."""
+    rag_dynamic_path = BASE_DIR / "rag-dynamic.html"
+    if rag_dynamic_path.exists():
+        return FileResponse(rag_dynamic_path)
+    raise HTTPException(status_code=404, detail="RAG dynamic tests page not found")
+
+
+@app.get("/api/rag-dynamic-sessions")
+async def get_rag_dynamic_sessions():
+    """Get list of all dynamic RAG test sessions."""
+    sessions = []
+
+    if not RAG_DYNAMIC_DIR.exists():
+        return sessions
+
+    for session_dir in sorted(RAG_DYNAMIC_DIR.iterdir(), key=lambda x: x.name, reverse=True):
+        if session_dir.is_dir():
+            summary_file = session_dir / "summary.json"
+            if summary_file.exists():
+                try:
+                    with open(summary_file, 'r', encoding='utf-8') as f:
+                        summary = json.load(f)
+                        sessions.append({
+                            "timestamp": session_dir.name,
+                            "questions_count": summary.get("questions_count", 0),
+                            "total_runs": summary.get("total_runs", 0)
+                        })
+                except (json.JSONDecodeError, Exception) as e:
+                    print(f"Error loading {summary_file}: {e}")
+
+    return sessions
+
+
+@app.get("/api/rag-dynamic-session/{timestamp}")
+async def get_rag_dynamic_session(timestamp: str):
+    """Get details of a specific dynamic RAG test session."""
+    session_dir = RAG_DYNAMIC_DIR / timestamp
+
+    if not session_dir.exists() or not session_dir.is_dir():
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    summary_file = session_dir / "summary.json"
+    if not summary_file.exists():
+        raise HTTPException(status_code=404, detail="Session summary not found")
+
+    with open(summary_file, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
