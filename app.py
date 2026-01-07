@@ -489,6 +489,59 @@ async def get_chunk_details(chunk_id: str):
     }
 
 
+# ============================================================
+# RAG-ONLY TESTS API
+# ============================================================
+
+RAG_TESTS_DIR = BASE_DIR / "rag_results"
+
+
+@app.get("/rag-tests")
+async def rag_tests_page():
+    """Serve the RAG tests page."""
+    rag_tests_path = BASE_DIR / "rag-tests.html"
+    if rag_tests_path.exists():
+        return FileResponse(rag_tests_path)
+    raise HTTPException(status_code=404, detail="RAG tests page not found")
+
+
+@app.get("/api/rag-tests")
+async def get_rag_tests():
+    """Get list of all RAG-only test results."""
+    results = []
+
+    if not RAG_TESTS_DIR.exists():
+        return results
+
+    for filepath in sorted(RAG_TESTS_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                results.append(data)
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"Error loading {filepath}: {e}")
+
+    return results
+
+
+@app.get("/api/rag-tests/{test_id}")
+async def get_rag_test_detail(test_id: str):
+    """Get details of a specific RAG test."""
+    filepath = RAG_TESTS_DIR / f"{test_id}.json"
+    if not filepath.exists():
+        # Try to find by timestamp
+        for f in RAG_TESTS_DIR.glob("*.json"):
+            if test_id in f.stem:
+                filepath = f
+                break
+
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="RAG test not found")
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
