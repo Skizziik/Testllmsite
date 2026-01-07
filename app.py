@@ -604,11 +604,21 @@ async def get_rag_dynamic_session(timestamp: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     summary_file = session_dir / "summary.json"
+    results_file = session_dir / "results.json"
+
     if not summary_file.exists():
         raise HTTPException(status_code=404, detail="Session summary not found")
 
     with open(summary_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = json.load(f)
+
+    # Add runs from results.json if available
+    if results_file.exists():
+        with open(results_file, 'r', encoding='utf-8') as f:
+            results = json.load(f)
+            data["runs"] = results.get("runs", [])
+
+    return data
 
 
 if __name__ == "__main__":
