@@ -526,6 +526,28 @@
             margin-top: 8px;
         }
 
+        /* Sort Button */
+        .sort-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            margin-left: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .sort-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3B82F6;
+        }
+
+        .sort-btn.active {
+            color: #3B82F6;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -599,6 +621,7 @@
         let allReports = [];
         const REPORTS_PER_PAGE = 25;
         let displayedCount = REPORTS_PER_PAGE;
+        let currentSort = { field: 'date', asc: false };
 
         document.addEventListener('DOMContentLoaded', () => {
             loadReports();
@@ -704,9 +727,9 @@
                     <thead>
                         <tr>
                             <th>Date/Time</th>
-                            <th>Tests</th>
-                            <th>Correct</th>
-                            <th>Accuracy</th>
+                            <th>Tests <button class="sort-btn" onclick="sortReports('tests')">↕</button></th>
+                            <th>Correct <button class="sort-btn" onclick="sortReports('correct')">↕</button></th>
+                            <th>Accuracy <button class="sort-btn" onclick="sortReports('accuracy')">↕</button></th>
                             <th>RAG k</th>
                             <th>Threshold</th>
                             <th>Action</th>
@@ -749,6 +772,70 @@
         function showMore() {
             displayedCount += REPORTS_PER_PAGE;
             renderReports();
+        }
+
+        function sortReports(field) {
+            // Three states: desc -> asc -> reset (back to date desc)
+            if (currentSort.field === field) {
+                if (!currentSort.asc) {
+                    // Was desc, go to asc
+                    currentSort.asc = true;
+                } else {
+                    // Was asc, reset to date desc
+                    currentSort.field = 'date';
+                    currentSort.asc = false;
+                    allReports.sort((a, b) => {
+                        const tsA = parseTimestamp(a.timestamp);
+                        const tsB = parseTimestamp(b.timestamp);
+                        return tsB.localeCompare(tsA);
+                    });
+                    renderReports();
+                    updateSortButtons();
+                    return;
+                }
+            } else {
+                currentSort.field = field;
+                currentSort.asc = false;
+            }
+
+            allReports.sort((a, b) => {
+                let valA, valB;
+
+                if (field === 'tests') {
+                    valA = a.total_tests || 0;
+                    valB = b.total_tests || 0;
+                } else if (field === 'correct') {
+                    valA = a.correct || 0;
+                    valB = b.correct || 0;
+                } else if (field === 'accuracy') {
+                    valA = a.accuracy || 0;
+                    valB = b.accuracy || 0;
+                }
+
+                if (currentSort.asc) {
+                    return valA > valB ? 1 : -1;
+                } else {
+                    return valA < valB ? 1 : -1;
+                }
+            });
+
+            renderReports();
+            updateSortButtons();
+        }
+
+        function updateSortButtons() {
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.textContent = '↕';
+            });
+            if (currentSort.field !== 'date' || currentSort.asc) {
+                // Find the button for current sort field
+                const btn = document.querySelector(`.sort-btn[onclick="sortReports('${currentSort.field}')"]`);
+                if (btn) {
+                    btn.classList.add('active');
+                    btn.textContent = currentSort.asc ? '↑' : '↓';
+                }
+            }
         }
 
         function formatTimestamp(ts) {
