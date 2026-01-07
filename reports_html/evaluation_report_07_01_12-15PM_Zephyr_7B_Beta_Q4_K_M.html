@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-07 12:15 | Questions: 25 | Model: Zephyr 7B Beta (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Zephyr 7B Beta (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 1,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.2,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 2200,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #f59e0b">988/1250</div>
+                <div class="subtext">79.0% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #f59e0b">39.5</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">78.1%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #10b981">92.0%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #f59e0b">71.7%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">64.8%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I make a 1-bit ALU do multiplication?</div>
+                                <div class="reference-text">Ref: You can add multiplication to a 1-bit ALU with modifications, but it requires extra logic circuits.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: In the context provided, to make a 1-bit ALU do multiplication, you can repeatedly bitshift the first number to the location of each 1 in the second number and sum it. This is a more efficient way of multiplying than adding the first number to a variable B amount of times. Here's pseudomachine code for it:<br><br>```<br>JUMP IF (B &gt; 0) TO LINE 2<br><br>LINE 1:<br>- Load A into register X<br>- Load B into register Y<br>- Set carry flag to 0<br>- Loop until B = 0<br>    - Bitwise AND B with 1 (to get the rightmost bit)<br>    - If carry flag is set, skip this iteration<br>    - Bitwise OR result of previous multiplication with X shifted right by the number of bits in B<br>    - Set carry flag to the result of the previous OR operation<br>    - Store the result in a register or memory location<br>- Return from subroutine<br><br>LINE 2:<br>- Load A into register X<br>- Load B into register Y<br>- Set carry flag to 0<br>- Loop until B = 0<br>    - Bitwise AND B with 1 (to get the rightmost bit)<br>    - If carry flag is set, skip this iteration<br>    - Bitwise OR result of previous multiplication with X shifted right by the number of bits in B<br>    - Set carry flag to the result of the previous OR operation<br>    - Store the result in a register or memory location<br>- Return from subroutine<br>```<br><br>This implementation uses two identical loops, one for when the second input is positive and another for when it's negative (two's complement). The carry flag is used to determine whether the current bit is set or not. This method is more efficient than repeated addition because it avoids overflow issues that can occur with large numbers.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but includes significant hallucinations and unnecessary complexity for a 1-bit ALU, deviating from the retrieved chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    CHUNK 1:<br>    - Score: 2 (Relevant - partially helpful, contains related information)<br>    - Reasoning: This chunk discusses multiplication in the context of an ALU, specifically mentioning that multiplication can be implemented as repeated addition or via bitshifting and summing. While it does not explicitly address a 1-bit ALU, the general approach to multiplication (repeated addition or bitshifting) is relevant and could be adapted to a 1-bit ALU with extra logic circuits. However, it does not directly confirm the need for modifications or extra logic, which is key to the reference answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To make a 1-bit ALU do multiplication, you can repeatedly bitshift the first number to the location of each 1 in the second number and sum it.: SUPPORTED<br>  - This is a more efficient way of multiplying than adding the first number to a variable B amount of times.: SUPPORTED<br>  - Here's pseudomachine code for it: [pseudocode with JUMP IF (B &gt; 0) TO LINE 2, LINE 1, LINE 2, loops, bitwise operations, carry flag usage].: UNSUPPORTED<br>  - This implementation uses two identical loops, one for when the second input is positive and another for when it's negative (two's complement).: UNSUPPORTED<br>  - The carry flag is used to determine whether the current bit is set or not.: UNSUPPORTED<br>  - This method is more efficient than repeated addition because it avoids overflow issues that can occur with large numbers.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct_elements': &quot;The AI correctly references the concept of multiplication via bitshifting and repeated addition, which aligns with the chunks (e.g., 'repeatedly bitshift the first number to the location of each 1 in the second number and sum it').&quot;, 'incorrect_elements': &quot;The pseudocode and implementation details (e.g., carry flags, two's complement handling, loops for negative numbers) are overly complex for a 1-bit ALU and not supported by the chunks. The chunks emphasize simplicity for multiplication (e.g., 'repeated addition' or bitshifting), but the AI adds unsupported logic for multi-bit operations, which is irrelevant to a 1-bit ALU.&quot;, 'reference_comparison': &quot;The reference answer states that multiplication requires 'extra logic circuits,' which the AI partially addresses but overcomplicates. The chunks do not mention carry flags or two's complement for multiplication in a 1-bit context.&quot;}, 'completeness': {'answer_coverage': &quot;The AI answers the question but goes beyond the scope of a 1-bit ALU, which is unnecessary. It misses the simplicity implied by the reference (e.g., 'modifications' could mean adding a small multiplier circuit, not full multi-bit logic).&quot;, 'missing_info': 'No clear explanation of how to *specifically* modify a 1-bit ALU (e.g., adding a small multiplier circuit or using a lookup table, as hinted in the chunks). The answer is too abstract for a 1-bit system.'}, 'hallucinations': {'invented_details': &quot;The pseudocode, carry flags, and two's complement handling for negative numbers are not mentioned in the chunks or relevant to a 1-bit ALU. These are hallucinations or extrapolations from multi-bit ALU designs.&quot;, 'unsupported_claims': &quot;The AI claims this method 'avoids overflow issues,' which is irrelevant for a 1-bit ALU (overflow is trivial in 1-bit operations).&quot;}, 'relevance': {'on_topic': 'The answer stays on topic (multiplication in a 1-bit ALU) but drifts into multi-bit logic, which is not applicable.', 'chunk_usage': &quot;The AI uses the chunks' mention of bitshifting and repeated addition but ignores the context of a 1-bit ALU, leading to an overly complex answer.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does Mining Fatigue affect my attack speed?</div>
+                                <div class="reference-text">Ref: Mining Fatigue reduces attack speed by 10% per level, so level III slows it down by 30%.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Mining Fatigue is an effect in Minecraft that reduces attack speed, opposite to the Haste effect. The reduction in attack speed increases by 10% per level of the effect. For the default level III, attack speed decreases by 30%. This means that your attack speed will be reduced by 30% when affected by Mining Fatigue level III. At this level, your attack speed will decrease by a factor of 0.3 for each block you mine, which is equivalent to reducing the mining speed to 0.3^level of the normal mining speed. However, due to a bug, increasing the effect level from II to III reduces the mining speed by a factor of 0.03 instead of 0.3, resulting in a much slower mining speed for level III. At this level, your attack speed will be reduced to 0.0027 times the normal speed, which takes approximately 370 times longer than usual to break a block with its proper tool. Attack speed can still decrease all the way to 0% at level 10. While affected by Mining Fatigue, you can still craft and ride entities as usual but cannot remove most vehicles due to how slowly the vehicle can be broken. The effect is cured by drinking milk, although milk does not prevent a subsequent affliction by an elder guardian, which can happen within a few seconds or immediately when you are close to it. Elder guardians in the vicinity search for any player within 50 blocks to afflict with Mining Fatigue III once per minute. Concealment behind blocks, underground, or by a potion of Invisibility offers no defense against this attack. Drinking milk to remove the effect results in re-infliction immediately after drinking the milk. Withers and ender dragons are immune to Mining fatigue. All mobs are unaffected by Mining fatigue as they cannot mine blocks. Axolotls can remove a player's mining fatigue if the player assisted it killing a mob.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 81%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but includes excessive detail about mining speed and other tangential information, slightly reducing clarity and focus on the core question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant to the question. The chunk explicitly states that Mining Fatigue reduces attack speed by 10% per level, with level III slowing it down by 30%, which directly matches the Reference Answer. This information is sufficient to answer the question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Mining Fatigue is an effect in Minecraft that reduces attack speed, opposite to the Haste effect.: SUPPORTED<br>  - The reduction in attack speed increases by 10% per level of the effect.: SUPPORTED<br>  - For the default level III, attack speed decreases by 30%.: SUPPORTED<br>  - This means that your attack speed will be reduced by 30% when affected by Mining Fatigue level III.: SUPPORTED<br>  - At this level, your attack speed will decrease by a factor of 0.3 for each block you mine, which is equivalent to reducing the mining speed to 0.3^level of the normal mining speed.: UNSUPPORTED<br>  - However, due to a bug, increasing the effect level from II to III reduces the mining speed by a factor of 0.03 instead of 0.3, resulting in a much slower mining speed for level III.: SUPPORTED<br>  - At this level, your attack speed will be reduced to 0.0027 times the normal speed, which takes approximately 370 times longer than usual to break a block with its proper tool.: CONTRADICTED<br>  - Attack speed can still decrease all the way to 0% at level 10.: SUPPORTED<br>  - While affected by Mining Fatigue, you can still craft and ride entities as usual but cannot remove most vehicles due to how slowly the vehicle can be broken.: SUPPORTED<br>  - The effect is cured by drinking milk, although milk does not prevent a subsequent affliction by an elder guardian, which can happen within a few seconds or immediately when you are close to it.: SUPPORTED<br>  - Elder guardians in the vicinity search for any player within 50 blocks to afflict with Mining Fatigue III once per minute.: SUPPORTED<br>  - Concealment behind blocks, underground, or by a potion of Invisibility offers no defense against this attack.: SUPPORTED<br>  - Drinking milk to remove the effect results in re-infliction immediately after drinking the milk.: SUPPORTED<br>  - Withers and ender dragons are immune to Mining fatigue.: SUPPORTED<br>  - All mobs are unaffected by Mining fatigue as they cannot mine blocks.: SUPPORTED<br>  - Axolotls can remove a player's mining fatigue if the player assisted it killing a mob.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'core_answer': 'Correct - The AI accurately states that Mining Fatigue reduces attack speed by 10% per level, with level III reducing it by 30%. This matches the REFERENCE and CHUNKS.', 'additional_details': 'While the additional details about mining speed (e.g., the bug, level 10 effects) are factually correct per the CHUNKS, they are not directly relevant to the question about attack speed.'}, 'completeness': {'core_question_answered': 'Yes - The AI fully answers the question about attack speed reduction.', 'unnecessary_details': 'The answer includes excessive information about mining speed, elder guardians, milk curing, and other mechanics, which dilutes the focus on the core question.'}, 'hallucinations': 'None - All information provided is supported by the CHUNKS or REFERENCE.', 'relevance': {'on_topic': 'Mostly - The answer starts strong but drifts into tangential details (e.g., mining speed bug, elder guardian mechanics) that are not directly related to attack speed.', 'clarity': 'The core answer is clear, but the extraneous details could confuse users looking for a concise response.'}, 'missing_info': 'None - The AI covers the attack speed reduction fully, but the inclusion of irrelevant details is the primary issue.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the biggest mangrove tree can get in Minecraft?</div>
+                                <div class="reference-text">Ref: The largest mangrove tree can reach 27 blocks tall and 17×17 wide, with branches spreading 5 blocks from the center and leaves up to 25 blocks high.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Based on extensive testing using a command block and a high random tick speed rate, the maximum dimensions of a mangrove tree in Minecraft are 27 blocks tall and 17x17 wide. The leaves consist of five pillars of 5x5 leaves arranged in a cross pattern with tapering on the bottom and hollowing on the top. The center is the lowest, north and south are a block taller, and east and west are yet another block taller. Branches can spread up to 5 blocks from the center trunk and as high as 25 blocks from the ground. The roots form pyramids to hold the outward and upward spread of logs, and vines and propagules can appear anywhere on the tree provided there is space underneath a leaf block. This information was obtained by replacing the central mangrove tree trunk with air using a command block and observing the maximum dimensions that could be achieved through high random tick speed rate iterations in the Mangrove Swamp biome, which includes mangrove logs, leaves, propagules, roots, muddy roots, vines, moss carpet, and bee nests. The tree's smallest box is 5x5x5, and its maximum size blueprint occupies a 13x13x18 volume.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 89%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and complete, with only minor redundant details not directly asked in the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The only retrieved chunk (CHUNK 1) is highly relevant as it directly contains the information needed for the correct answer. It specifies the maximum dimensions of a mangrove tree in Minecraft, including height (27 blocks), width (17×17), branch spread (5 blocks from the center), and leaf height (up to 25 blocks). This matches the Reference Answer exactly, making it a perfect source for answering the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - the maximum dimensions of a mangrove tree in Minecraft are 27 blocks tall: SUPPORTED<br>  - the maximum dimensions of a mangrove tree in Minecraft are 17x17 wide: SUPPORTED<br>  - The leaves consist of five pillars of 5x5 leaves arranged in a cross pattern: SUPPORTED<br>  - The leaves have tapering on the bottom: SUPPORTED<br>  - The leaves have hollowing on the top: SUPPORTED<br>  - The center is the lowest (part of the leaves): SUPPORTED<br>  - north and south are a block taller (part of the leaves): SUPPORTED<br>  - east and west are yet another block taller (part of the leaves): SUPPORTED<br>  - Branches can spread up to 5 blocks from the center trunk: SUPPORTED<br>  - Branches can spread as high as 25 blocks from the ground: SUPPORTED<br>  - The roots form pyramids to hold the outward and upward spread of logs: SUPPORTED<br>  - Vines can appear anywhere on the tree: SUPPORTED<br>  - Propagules can appear anywhere on the tree provided there is space underneath a leaf block: SUPPORTED<br>  - This information was obtained by replacing the central mangrove tree trunk with air using a command block: SUPPORTED<br>  - This information was obtained by observing the maximum dimensions that could be achieved through high random tick speed rate iterations in the Mangrove Swamp biome: SUPPORTED<br>  - The Mangrove Swamp biome includes mangrove logs, leaves, propagules, roots, muddy roots, vines, moss carpet, and bee nests: UNSUPPORTED<br>  - The tree's smallest box is 5x5x5: SUPPORTED<br>  - The tree's maximum size blueprint occupies a 13x13x18 volume: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer matches the REFERENCE and CHUNKS perfectly in all critical dimensions (27 blocks tall, 17×17 wide, branches spreading 5 blocks from the center, leaves up to 25 blocks high). No factual errors were found.', 'completeness': &quot;The AI answer goes beyond the question's scope by including additional details (e.g., leaf arrangement, root structure, vine/propagule placement, biome context) that are supported by the CHUNKS. While thorough, some of these details were not explicitly requested in the question.&quot;, 'hallucinations': 'No hallucinations detected. All information is directly supported by the CHUNKS or REFERENCE.', 'relevance': 'The answer stays strictly on topic but includes extra details (e.g., biome specifics, root patterns) that, while relevant, were not part of the core question.', 'use_of_chunks': 'The AI effectively used the CHUNKS to provide a detailed and accurate response, even incorporating metadata (e.g., biome context). No unsupported information was added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I duplicate a bolt armor trim?</div>
+                                <div class="reference-text">Ref: You can duplicate it using an existing template, a block of copper or waxed block of copper, and diamonds.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To duplicate a bolt armor trim in Minecraft, you will need an existing template, a block of copper or waxed block of copper, and diamonds. Follow these steps:<br><br>1. Place the existing bolt armor trim in the first slot of the crafting table grid.<br>2. Put a block of copper or waxed block of copper in the second slot.<br>3. Add four diamonds to the remaining slots (one diamond in each corner).<br>4. The duplicated bolt armor trim will appear in the right-hand inventory.<br><br>Note that this recipe requires an existing bolt armor trim, so you'll need to find one first. They can be found in standard vaults and chests in trial chambers. Once obtained, you can duplicate them using this method.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and complete, with only a minor omission regarding the crafting grid layout (not critical). No hallucinations or irrelevant information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The single chunk provided (CHUNK 1) is highly relevant to the question. It directly contains the information mentioned in the Reference Answer: duplicating a bolt armor trim requires 'an existing template, a block of copper or waxed block of copper, and diamonds.' This chunk fully answers the question and would not lead to an incorrect answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To duplicate a bolt armor trim in Minecraft, you will need an existing template, a block of copper or waxed block of copper, and diamonds.: SUPPORTED<br>  - Place the existing bolt armor trim in the first slot of the crafting table grid.: UNSUPPORTED<br>  - Put a block of copper or waxed block of copper in the second slot.: UNSUPPORTED<br>  - Add four diamonds to the remaining slots (one diamond in each corner).: UNSUPPORTED<br>  - The duplicated bolt armor trim will appear in the right-hand inventory.: UNSUPPORTED<br>  - This recipe requires an existing bolt armor trim, so you'll need to find one first.: SUPPORTED<br>  - They can be found in standard vaults and chests in trial chambers.: SUPPORTED<br>  - Once obtained, you can duplicate them using this method.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'CORRECT', 'details': 'The AI answer matches the REFERENCE and CHUNK 1 exactly. It correctly states the required materials (existing template, copper/waxed copper block, diamonds) and the source of bolt armor trims (vaults/chests in trial chambers).'}, 'completeness': {'verdict': 'NEARLY COMPLETE', 'details': 'The answer covers all critical steps (materials, duplication process, source). The only minor omission is the exact crafting grid layout (e.g., diamonds in corners), but this is implied and not strictly necessary for functionality. The REFERENCE and CHUNK 1 do not specify grid positions either.'}, 'hallucinations': {'verdict': 'NONE', 'details': 'No invented information. All details are supported by the chunks (e.g., crafting recipe, source locations).'}, 'relevance': {'verdict': 'HIGHLY RELEVANT', 'details': 'The answer stays strictly on-topic, addressing only the duplication of bolt armor trims without tangential information.'}, 'chunk_usage': {'verdict': 'CORRECTLY USED', 'details': 'The AI directly references CHUNK 1 for materials, source, and duplication method. No unsupported additions.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why do ocelots avoid creepers and phantoms?</div>
+                                <div class="reference-text">Ref: Ocelots naturally scare off creepers and phantoms, keeping them away from the area.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Ocelots naturally avoid creepers and phantoms. In the case of creepers, ocelots stay six blocks away from them, and if a creeper within this range begins its detonation, it will not flee unless the player leaves its blast radius. Phantoms, on the other hand, stay 16 blocks away from ocelots in Bedrock Edition. This behavior is innate to ocelots and does not require any specific reason or explanation. It may be due to their natural instincts or previous experiences with these hostile mobs in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits the key detail that ocelots *scare off* creepers and phantoms, instead framing it as ocelots avoiding them. It also includes minor unsupported speculation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk was provided, and it is highly relevant (score: 3).<br>    - **Chunk 1 (ocelot_2)** directly answers the question by stating:<br>      'Creepers stay six blocks away from ocelots' and 'Phantoms stay 16 blocks away from ocelots in Bedrock Edition.'<br>      This matches the Reference Answer's core idea that ocelots naturally scare off creepers and phantoms, keeping them away.<br>      The chunk provides specific details (e.g., distances) that support the correct answer without misleading information.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Ocelots naturally avoid creepers and phantoms.: UNSUPPORTED<br>  - Ocelots stay six blocks away from creepers.: SUPPORTED<br>  - If a creeper within this range begins its detonation, it will not flee unless the player leaves its blast radius.: SUPPORTED<br>  - Phantoms stay 16 blocks away from ocelots in Bedrock Edition.: SUPPORTED<br>  - This behavior is innate to ocelots and does not require any specific reason or explanation.: UNSUPPORTED<br>  - It may be due to their natural instincts or previous experiences with these hostile mobs in Minecraft.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states the distances (6 blocks for creepers, 16 blocks for phantoms in Bedrock Edition) and the behavior of creepers during detonation, matching the retrieved chunks.', 'incorrect': 'The reference answer states ocelots *scare off* creepers/phantoms, while the AI frames it as ocelots *avoiding* them, which is a subtle but important difference in agency.'}, 'completeness': {'covered': 'The AI addresses both creepers and phantoms, including specific distances and behaviors (e.g., detonation mechanics).', 'missing': 'The AI does not explicitly state that ocelots *actively repel* or *scare off* these mobs, which is the core of the reference answer. The chunks imply this (e.g., mobs stay away), but the AI doesn’t make it clear.'}, 'hallucinations': {'present': &quot;The AI adds unsupported speculation: 'This behavior is innate... may be due to their natural instincts or previous experiences.' The chunks provide no explanation for *why* ocelots repel these mobs, so this is a minor hallucination.&quot;, 'absent': 'No major factual hallucinations (e.g., incorrect distances or mob types).'}, 'relevance': {'on_topic': 'The answer stays strictly on topic, addressing only the relationship between ocelots, creepers, and phantoms.', 'off_topic': 'None.'}, 'chunk_usage': {'correct': &quot;The AI directly uses the distances and behaviors from the chunks (e.g., 'Creepers stay six blocks away... Phantoms stay 16 blocks away').&quot;, 'incorrect': 'The AI misinterprets the chunks by implying ocelots are passive (avoiding) rather than active (scaring off). The chunks describe mobs *staying away* from ocelots, which suggests ocelots are the cause.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I place tripwire in Minecraft?</div>
+                                <div class="reference-text">Ref: Hold string and point at a surface facing the space where you want the tripwire to go.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To place tripwire in Minecraft, follow these steps:<br>1. Open your Minecraft game and select the world you want to place tripwire in.<br>2. Make sure you have a string item in your inventory. You can obtain strings by fishing or crafting them with sticks and flint.<br>3. Select the tripwire hook block from your inventory. It looks like a wooden hook attached to a sticky tripwire.<br>4. Place the tripwire hook on the surface of a block where you want the first end of the tripwire circuit to be. Make sure it's facing the direction you want the tripwire to go.<br>5. To place the tripwire, switch to your string item and right-click (or press the left trigger on Xbox controllers) while looking at the block between the first tripwire hook and where you want the second tripwire hook to be. The tripwire will appear as a thin, green line connecting the two hooks.<br>6. Place the second tripwire hook on the surface of another block where you want the second end of the tripwire circuit to be. Make sure it's facing the direction opposite to the first hook.<br>7. Both tripwire hooks and the attached blocks will now emit a redstone signal when touched by an entity or when any part of the string is broken without using shears. This can be used for various purposes, such as triggering pistons, opening doors, or activating redstone circuits.<br>Remember to always follow Minecraft's safety guidelines and avoid placing tripwire hooks in areas where they may harm other players or cause unwanted consequences.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 57%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 64%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but includes minor unnecessary details and a small error in the placement instructions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk was provided, and it is highly relevant (score: 3) for answering the question correctly.<br>    - The chunk explicitly states: 'To place tripwire, use the control with a string,' which directly aligns with the Reference Answer ('Hold string and point at a surface...').<br>    - It provides the exact action needed to place tripwire, fulfilling the core requirement of the question.<br>    - No misleading or irrelevant information is present in the context of the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Open your Minecraft game and select the world you want to place tripwire in.: UNSUPPORTED<br>  - Make sure you have a string item in your inventory.: SUPPORTED<br>  - You can obtain strings by fishing or crafting them with sticks and flint.: UNSUPPORTED<br>  - Select the tripwire hook block from your inventory.: SUPPORTED<br>  - It looks like a wooden hook attached to a sticky tripwire.: UNSUPPORTED<br>  - Place the tripwire hook on the surface of a block where you want the first end of the tripwire circuit to be.: SUPPORTED<br>  - Make sure it's facing the direction you want the tripwire to go.: SUPPORTED<br>  - To place the tripwire, switch to your string item and right-click (or press the left trigger on Xbox controllers) while looking at the block between the first tripwire hook and where you want the second tripwire hook to be.: SUPPORTED<br>  - The tripwire will appear as a thin, green line connecting the two hooks.: UNSUPPORTED<br>  - Place the second tripwire hook on the surface of another block where you want the second end of the tripwire circuit to be.: SUPPORTED<br>  - Make sure it's facing the direction opposite to the first hook.: SUPPORTED<br>  - Both tripwire hooks and the attached blocks will now emit a redstone signal when touched by an entity or when any part of the string is broken without using shears.: SUPPORTED<br>  - This can be used for various purposes, such as triggering pistons, opening doors, or activating redstone circuits.: SUPPORTED<br>  - Remember to always follow Minecraft's safety guidelines and avoid placing tripwire hooks in areas where they may harm other players or cause unwanted consequences.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly describes the need for string and tripwire hooks, the placement of hooks facing the tripwire, and the basic functionality of the tripwire circuit.', 'error': &quot;The AI incorrectly states that the tripwire is placed by 'right-click (or press the left trigger on Xbox controllers) while looking at the block between the first tripwire hook and where you want the second tripwire hook to be.' The reference and chunks specify that tripwire is placed by holding string and pointing at a surface, not necessarily between two hooks. The tripwire line is created by placing string in a straight line, not by targeting a block between hooks.&quot;}, 'completeness': {'covered': 'The AI covers the core steps: obtaining string, placing tripwire hooks, and creating the tripwire line. It also explains the functionality of the tripwire circuit.', 'missing': 'The AI does not explicitly state that the tripwire is placed by holding string and pointing at a surface (as in the reference). It also omits the hitbox details and the exact length limit (1-40 blocks) of the tripwire line, though these are minor omissions.'}, 'hallucinations': {'present': &quot;The AI adds unnecessary details like 'open your Minecraft game and select the world,' 'safety guidelines,' and 'avoid placing tripwire hooks in areas where they may harm other players.' These are not in the reference or chunks and are not relevant to the question. The Xbox controller mention is also unsupported.&quot;, 'absent': 'No major factual hallucinations (e.g., incorrect mechanics) are present.'}, 'relevance': 'The answer stays on topic but includes tangential advice (e.g., safety guidelines) that detracts from the core instructions.', 'chunk_usage': 'The AI uses the chunks to describe the tripwire hook and circuit functionality but misinterprets the placement mechanics for the tripwire line. It also adds unsupported details not found in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does the moved-block two-way repeater work in Minecraft?</div>
+                                <div class="reference-text">Ref: It uses a sticky piston to push a block of redstone, powering the other line while reconfiguring the dust to prevent feedback.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>The moved-block two-way repeater is a circuit design in Minecraft that allows for the repetition of signals in either direction. This design reduces the height and length of the circuit while increasing its volume to 2x4x3 blocks (24 block volume). The key feature of this design is the movement of the upper levels, including the dust on top of the block facing the repeater, one block over and down. This allows for a shorter and more compact circuit.<br><br>To further reduce the amount of redstone used, regular blocks can be placed under both the extended and retracted positions of the block of redstone, and redstone torches are placed beneath them.<br><br>The circuit works by blocking the other input when a signal comes in from either side, providing a strength 15 signal to its comparator's side. This prevents signals from repeating back into the same input, which could create issues such as clocks or permanently-powered repeater loops. The reset time for this design is four ticks, during which there is a short time while the transmission on the first side remains off until the circuit can reset itself to allow the second input through.<br><br>Overall, the moved-block two-way repeater provides an efficient and compact solution for repetition of signals in either direction in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 88%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but omits the core mechanism (sticky piston pushing a redstone block) and includes some irrelevant details while missing key functional aspects.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1** is highly relevant (score: 3) because it directly describes the behavior of the moved-block two-way repeater, specifically mentioning the use of a sticky piston to push a block of redstone, which powers the other line while reconfiguring the dust to prevent feedback. This matches the Reference Answer's core explanation. The chunk also provides additional context (e.g., falling-edge behavior, variations) that, while not strictly necessary, supports a deeper understanding of the mechanism.<br>    - No other chunks were provided, so the evaluation is based solely on CHUNK 1.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The moved-block two-way repeater is a circuit design in Minecraft that allows for the repetition of signals in either direction.: SUPPORTED<br>  - This design reduces the height and length of the circuit while increasing its volume to 2x4x3 blocks (24 block volume).: SUPPORTED<br>  - The key feature of this design is the movement of the upper levels, including the dust on top of the block facing the repeater, one block over and down.: SUPPORTED<br>  - To further reduce the amount of redstone used, regular blocks can be placed under both the extended and retracted positions of the block of redstone, and redstone torches are placed beneath them.: SUPPORTED<br>  - The circuit works by blocking the other input when a signal comes in from either side, providing a strength 15 signal to its comparator's side.: SUPPORTED<br>  - This prevents signals from repeating back into the same input, which could create issues such as clocks or permanently-powered repeater loops.: SUPPORTED<br>  - The reset time for this design is four ticks, during which there is a short time while the transmission on the first side remains off until the circuit can reset itself to allow the second input through.: SUPPORTED<br>  - The moved-block two-way repeater provides an efficient and compact solution for repetition of signals in either direction in Minecraft.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['The answer correctly identifies the moved-block two-way repeater as a compact circuit design (2x4x3 volume).', 'It notes the use of redstone torches under blocks to reduce redstone usage.', &quot;It mentions the blocking mechanism to prevent feedback (strength 15 signal to comparator's side).&quot;, 'It references the reset time (4 ticks).'], 'incorrect_or_missing': ['The core mechanism (sticky piston pushing a redstone block) is entirely omitted, which is the defining feature in the REFERENCE ANSWER.', 'No mention of how the dust is reconfigured to prevent feedback, a critical detail in the REFERENCE ANSWER.', &quot;The explanation of the blocking mechanism is vague and doesn't clarify how it prevents feedback loops (e.g., no mention of comparators or side inputs).&quot;]}, 'completeness': {'covered': ['Compact design dimensions and variations.', 'Redstone torch optimization.', 'Basic blocking mechanism and reset time.'], 'missing': [&quot;The sticky piston's role in pushing the redstone block.&quot;, 'How the dust is reconfigured to prevent feedback.', 'Explicit mention of the falling-edge behavior (from CHUNK 1).', 'The transmission speed or circuit delay (from CHUNK 1).']}, 'hallucinations': {'present': False, 'details': &quot;No outright hallucinations, but the answer generalizes some details (e.g., 'blocking the other input') without sufficient clarity from the chunks.&quot;}, 'relevance': {'on_topic': True, 'issues': 'The answer stays on topic but focuses too much on peripheral details (e.g., volume, torch optimization) while missing the core mechanics.'}, 'chunk_usage': {'used_correctly': 'The AI used some details from CHUNK 1 (e.g., 2-wide variation, reset time) but ignored the most critical parts (sticky piston, redstone block movement, dust reconfiguration).', 'unsupported_info': 'No unsupported information, but the explanation of the blocking mechanism is oversimplified and lacks precision.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get resin brick slabs to drop when I mine them?</div>
+                                <div class="reference-text">Ref: You need to mine them with a pickaxe to get drops.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To make resin brick slabs drop when you mine them in Minecraft, you need to use a pickaxe. If you try to mine them without a pickaxe, they will not drop anything. So, remember to equip your pickaxe before mining resin brick slabs.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with the reference and retrieved chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The only retrieved chunk (CHUNK 1) is highly relevant to the question. It directly states that resin brick slabs 'can be mined using a pickaxe' and that 'when mined without a pickaxe, it drops nothing.' This fully aligns with the Reference Answer, providing the exact information needed to answer the question correctly. No other chunks were provided, so the evaluation is based solely on this chunk.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To make resin brick slabs drop when you mine them in Minecraft, you need to use a pickaxe.: SUPPORTED<br>  - If you try to mine them without a pickaxe, they will not drop anything.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states that resin brick slabs must be mined with a pickaxe to drop items, matching both the reference answer ('You need to mine them with a pickaxe to get drops') and the retrieved chunk ('Resin brick slabs can be mined using a pickaxe. When mined without a pickaxe, it drops nothing').&quot;, 'completeness': 'The AI answer fully addresses the question, including the requirement to use a pickaxe and the consequence of not using one (no drops). No part of the question is left unanswered.', 'hallucinations': 'There are no hallucinations or invented information. The AI strictly adheres to the provided chunks and reference.', 'relevance': 'The answer stays entirely on topic, focusing solely on how to obtain drops from resin brick slabs when mining them.', 'use_of_chunks': 'The AI effectively uses the retrieved chunk, which explicitly states the pickaxe requirement and the no-drop consequence. No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I make a villager trade not give XP orbs?</div>
+                                <div class="reference-text">Ref: Set the 'xpReward' tag to 0 (false) in the trade's NBT data.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>To make a villager trade not give XP orbs, you need to modify the JSON data of the villager's trade. Here are the steps:<br><br>1. Open your Minecraft resource pack editor (such as MCreator or VoxelMap).<br>2. Locate the NBT tag for the specific villager trade you want to modify. The tag will look something like this: &quot;Trades&quot;: [ { &quot;id&quot;: 0, &quot;x&quot;: -1, &quot;y&quot;: -1, &quot;z&quot;: -1 } ]<br>3. Add a new compound tag inside the &quot;Trades&quot; list with an empty &quot;xp_reward&quot; tag. The JSON data should look like this:<br>   ```json<br>   {<br>     &quot;id&quot;: 0,<br>     &quot;x&quot;: -1,<br>     &quot;y&quot;: -1,<br>     &quot;z&quot;: -1,<br>     &quot;xp_reward&quot;: {}<br>   }<br>   ```<br>4. Save the resource pack and load it in Minecraft. The villager's trade should now not give XP orbs.<br><br>Note: This method only works for custom villagers created with resource packs. For naturally-generated villagers, all trades provide XP orbs by default.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 12%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains significant inaccuracies and unsupported details, particularly regarding JSON/resource pack modifications.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: villager_16)** is **highly relevant (3)** because it explicitly mentions the 'xpReward' tag in the context of villager trades, stating: '1 or 0 (true/false) – Whether this trade provides XP orb drops.' This directly answers the question by showing how to disable XP orbs for a trade by setting this tag to 0 (false).<br>    - No other chunks were provided, so only this chunk is evaluated.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To make a villager trade not give XP orbs, you need to modify the JSON data of the villager's trade.: UNSUPPORTED<br>  - Open your Minecraft resource pack editor (such as MCreator or VoxelMap).: UNSUPPORTED<br>  - Locate the NBT tag for the specific villager trade you want to modify. The tag will look something like this: &quot;Trades&quot;: [ { &quot;id&quot;: 0, &quot;x&quot;: -1, &quot;y&quot;: -1, &quot;z&quot;: -1 } ].: UNSUPPORTED<br>  - Add a new compound tag inside the &quot;Trades&quot; list with an empty &quot;xp_reward&quot; tag.: UNSUPPORTED<br>  - The JSON data should look like this: { &quot;id&quot;: 0, &quot;x&quot;: -1, &quot;y&quot;: -1, &quot;z&quot;: -1, &quot;xp_reward&quot;: {} }.: UNSUPPORTED<br>  - Save the resource pack and load it in Minecraft. The villager's trade should now not give XP orbs.: UNSUPPORTED<br>  - This method only works for custom villagers created with resource packs.: UNSUPPORTED<br>  - For naturally-generated villagers, all trades provide XP orbs by default.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            <br>1. **Factual Accuracy**:<br>   - The REFERENCE states the correct solution is to set the 'xpReward' tag to 0 (false) in the trade's NBT data.<br>   - The AI answer incorrectly suggests modifying JSON data in a resource pack and introduces an unsupported 'xp_reward' tag with an empty object (`{}`), which is not mentioned in the CHUNKS or REFERENCE.<br>   - The CHUNKS explicitly state that 'xpReward' is a 1 or 0 (true/false) tag in the trade's NBT data, not a JSON field.<br><br>2. **Completeness**:<br>   - The AI answer does not fully address the question. It omits the correct NBT tag ('xpReward') and its value (0/false), which is the core of the solution.<br>   - The answer focuses on resource packs, which is irrelevant for naturally-generated villagers (as noted in the CHUNKS, all such trades reward XP by default).<br><br>3. **Hallucinations**:<br>   - The AI invents steps involving JSON/resource pack editors (e.g., MCreator, VoxelMap) and a non-existent 'xp_reward' tag. These are not supported by the CHUNKS or REFERENCE.<br>   - The example JSON structure provided is incorrect and unrelated to the actual NBT data format described in the CHUNKS.<br><br>4. **Relevance**:<br>   - The answer stays on topic but misleads by suggesting an incorrect method (resource packs) instead of the correct NBT modification.<br>   - The note about custom villagers is tangential and not helpful for the question's focus on disabling XP orbs.<br><br>5. **Use of Chunks**:<br>   - The AI fails to use the CHUNKS effectively. The CHUNKS clearly describe 'xpReward' as the correct tag, but the AI ignores this and invents its own solution.<br>  
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get cobwebs without using shears?</div>
+                                <div class="reference-text">Ref: You can get cobwebs with a sword enchanted with Silk Touch, but that’s only possible through commands or in Creative mode.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Cobwebs can also be obtained with a sword enchanted with Silk Touch, which is possible only through commands or while in Creative mode. If you do not have access to these methods, unfortunately, there is no other way to obtain cobwebs without using shears in survival mode. Cobwebs cannot be mined with bare hands or any other tool besides shears or a Silk Touch sword.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the impossibility of obtaining cobwebs in survival mode without shears or Silk Touch.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: cobweb_1)** is **highly relevant (Score: 3)** because it directly answers the question by stating:<br>      *Cobwebs can also be obtained with a sword enchanted with Silk Touch, which is possible only through commands or while in Creative mode.*<br>      This matches the Reference Answer exactly and provides the correct method to obtain cobwebs without shears.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Cobwebs can also be obtained with a sword enchanted with Silk Touch, which is possible only through commands or while in Creative mode.: SUPPORTED<br>  - If you do not have access to these methods, unfortunately, there is no other way to obtain cobwebs without using shears in survival mode.: SUPPORTED<br>  - Cobwebs cannot be mined with bare hands or any other tool besides shears or a Silk Touch sword.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that cobwebs can be obtained with a Silk Touch sword only through commands or in Creative mode, matching the reference and chunks. It also correctly notes that shears are the standard method in survival mode.', 'completeness': 'The answer covers the main question (how to get cobwebs without shears) but does not explicitly state that *no other methods exist in survival mode*, which is implied but could be clearer. The reference and chunks confirm this, so the omission is minor.', 'hallucinations': 'No hallucinations detected. All information is supported by the reference and chunks.', 'relevance': 'The answer stays strictly on topic and addresses the question directly.', 'use_of_chunks': 'The AI effectively uses the provided chunks, particularly [CHUNK 1], which explicitly mentions Silk Touch swords and the limitations of obtaining cobwebs without shears.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get resin brick stairs to drop as an item?</div>
+                                <div class="reference-text">Ref: You need to mine them with a pickaxe. Without one, they won't drop anything.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To get resin brick stairs to drop as an item, you need to mine them using a pickaxe. If you try to mine them without a pickaxe, they will not drop anything. So, make sure to have a pickaxe in your inventory before attempting to mine resin brick stairs. Once mined, the stairs will drop as an item that can be picked up and used or placed elsewhere in your Minecraft world.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with the reference and retrieved chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant. Chunk 1 directly answers the question by stating that resin brick stairs can be mined using a pickaxe and that they drop nothing when mined without one. This matches the Reference Answer exactly, making it sufficient for a correct response.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To get resin brick stairs to drop as an item, you need to mine them using a pickaxe.: SUPPORTED<br>  - If you try to mine them without a pickaxe, they will not drop anything.: SUPPORTED<br>  - So, make sure to have a pickaxe in your inventory before attempting to mine resin brick stairs.: SUPPORTED<br>  - Once mined, the stairs will drop as an item that can be picked up and used or placed elsewhere in your Minecraft world.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer matches the reference and retrieved chunks exactly. It correctly states that resin brick stairs must be mined with a pickaxe to drop as an item, and they drop nothing without one.', 'completeness': 'The answer fully addresses the question, covering both the required tool (pickaxe) and the consequence of not using one (no drop). No parts of the question are left unanswered.', 'hallucinations': 'There are no hallucinations or invented details. The AI strictly adheres to the information provided in the chunks and reference.', 'relevance': 'The answer stays entirely on topic, focusing solely on how to obtain resin brick stairs as an item.', 'use_of_chunks': 'The AI effectively uses the retrieved chunks, particularly [CHUNK 1], which explicitly states the mining requirements and drop behavior. No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I make a beacon give stronger effects?</div>
+                                <div class="reference-text">Ref: To get stronger effects, build a 4-layer pyramid under your beacon. This unlocks Level II effects in the beacon's GUI.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To make a beacon give stronger effects, you need to increase its power level by adding more layers to the pyramid base. The size of the pyramid determines the range and available effects of the beacon's powers. At level 4, the pyramid gives the option to increase the primary effect's strength to Level II in the beacon's GUI. So, to make a beacon give stronger effects, you need to build a larger pyramid with more layers of iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks. The type of block used is purely cosmetic, having no effect on the pyramid's power level or the range and strength of the status effect. A mixture of blocks of different types can also be used in any orientation, so long as they form a pyramid structure, like the ones listed below.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits the specific detail about building a 4-layer pyramid to unlock Level II effects.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk was provided (CHUNK 1), and it is highly relevant to the question. It directly contains the information mentioned in the Reference Answer:<br>    - It explains that a beacon's effects depend on the size of its pyramid base (1-4 layers).<br>    - It specifies that at level 4 (4-layer pyramid), the beacon unlocks the option to increase the primary effect's strength to Level II in the beacon's GUI.<br>    - This is exactly what the Reference Answer states, making the chunk highly useful for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To make a beacon give stronger effects, you need to increase its power level by adding more layers to the pyramid base.: SUPPORTED<br>  - The size of the pyramid determines the range and available effects of the beacon's powers.: SUPPORTED<br>  - At level 4, the pyramid gives the option to increase the primary effect's strength to Level II in the beacon's GUI.: SUPPORTED<br>  - So, to make a beacon give stronger effects, you need to build a larger pyramid with more layers of iron blocks, gold blocks, emerald blocks, diamond blocks, and/or netherite blocks.: SUPPORTED<br>  - The type of block used is purely cosmetic, having no effect on the pyramid's power level or the range and strength of the status effect.: SUPPORTED<br>  - A mixture of blocks of different types can also be used in any orientation, so long as they form a pyramid structure.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states that increasing the pyramid's layers unlocks stronger effects and that Level II effects are available at level 4. It also correctly notes that the block type is cosmetic. No factual errors were found.&quot;, 'completeness': 'The answer is mostly complete but misses the explicit instruction from the REFERENCE ANSWER that a *4-layer pyramid* is required to unlock Level II effects. This is a minor omission but key for direct actionability.', 'hallucinations': 'No hallucinations detected. All information is supported by the retrieved chunks.', 'relevance': 'The answer stays fully on topic and directly addresses the question.', 'chunk_usage': 'The AI effectively uses the provided chunks, particularly [CHUNK 1], which explains pyramid power levels and Level II effects. However, it does not explicitly state the 4-layer requirement as clearly as the reference answer.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why are there so few trees in windswept gravelly hills?</div>
+                                <div class="reference-text">Ref: Because gravel replaces most of the grass and dirt, making it harder for trees to generate.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>In windswept gravelly hills, there are fewer trees compared to regular biomes due to the large amount of gravel replacing most of the grass and dirt in this variant. As a result, spruce trees and oak trees generate less often, and reduced amounts of dandelions, poppies, bushes, and short grass also appear less frequently, making this biome relatively barren. In fact, no trees generate at all in some areas, with almost 100% of the biome covered with gravel, leaving only a few narrow strips of grass blocks to generate inside, allowing far fewer bushes to grow as well. Players should be cautious when surfacing from underground in this biome because the top layers of gravel can pose a suffocation hazard.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only minor omissions and slight redundancy in explanation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The single retrieved chunk (CHUNK 1) is highly relevant to the question. It explicitly states that 'Due to the gravel replacing most of the grass, spruce trees and oak trees generate far less often' and later clarifies that 'no trees generate here at all' because of the gravel-dominated landscape. This directly aligns with the Reference Answer, which attributes the lack of trees to gravel replacing grass and dirt, making tree generation difficult. The chunk provides the exact information needed to answer the question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - In windswept gravelly hills, there are fewer trees compared to regular biomes due to the large amount of gravel replacing most of the grass and dirt in this variant.: SUPPORTED<br>  - As a result, spruce trees and oak trees generate less often.: SUPPORTED<br>  - Reduced amounts of dandelions, poppies, bushes, and short grass also appear less frequently, making this biome relatively barren.: SUPPORTED<br>  - In fact, no trees generate at all in some areas.: SUPPORTED<br>  - Almost 100% of the biome is covered with gravel, leaving only a few narrow strips of grass blocks to generate inside.: SUPPORTED<br>  - Allowing far fewer bushes to grow as well.: SUPPORTED<br>  - Players should be cautious when surfacing from underground in this biome because the top layers of gravel can pose a suffocation hazard.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly identifies that gravel replaces grass and dirt, making tree generation difficult or impossible, which aligns perfectly with the REFERENCE ANSWER and CHUNK 1. No factual errors were found.', 'completeness': 'The AI answer covers the core reason (gravel replacing grass/dirt) and elaborates on the reduced tree generation, including the absence of trees in some areas. However, it could have been more concise by omitting tangential details (e.g., suffocation hazard, bushes, or player caution), which are not directly relevant to the question.', 'hallucinations': 'No hallucinations were detected. All information is supported by the provided CHUNK 1.', 'relevance': 'The answer stays on topic but includes minor extraneous details (e.g., suffocation hazard) that do not directly address the question. This slightly reduces focus but does not detract from the core answer.', 'use_of_chunks': &quot;The AI effectively used CHUNK 1 to derive its answer, accurately reflecting the chunk's content without adding unsupported information.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">How far can I reel in a mob with a fishing rod?</div>
+                                <div class="reference-text">Ref: The maximum distance you can reel in a mob is 33 blocks. If the mob is farther away, it detaches from the bobber.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the provided context, the maximum distance that a player can get between a hooked mob and themselves while reeling it in with a fishing rod is 33 blocks. After exceeding this distance, the entity detaches from the bobber.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with both the reference answer and the provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided (CHUNK 1). This chunk is highly relevant (score: 3) because it directly contains the key information from the Reference Answer: 'The maximum distance the player can get between the bobber and themselves is 33 blocks. A hooked entity that exceeds this distance detaches from the bobber.' This fully answers the question about how far a mob can be reeled in with a fishing rod.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The maximum distance that a player can get between a hooked mob and themselves while reeling it in with a fishing rod is 33 blocks.: SUPPORTED<br>  - After exceeding this distance, the entity detaches from the bobber.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states the maximum distance as 33 blocks, matching both the reference answer and the retrieved chunk (CHUNK 1).', 'completeness': 'The answer fully addresses the question, including the key detail about the mob detaching if the distance exceeds 33 blocks.', 'hallucinations': 'No hallucinations detected. The AI strictly adheres to the information in the chunks and reference.', 'relevance': 'The response stays entirely on topic, focusing solely on the maximum reeling distance for a mob with a fishing rod.', 'chunk_usage': 'The AI effectively uses the provided chunk (CHUNK 1), which explicitly mentions the 33-block limit and detachment behavior.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I mine polished tuff stairs without losing them?</div>
+                                <div class="reference-text">Ref: You need any pickaxe to mine polished tuff stairs. Without one, they drop nothing.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To mine polished tuff stairs without losing them, you can use any type of pickaxe. If you try to mine them without a pickaxe, they will not drop and you will not be able to obtain them. So, make sure to equip a pickaxe before attempting to mine polished tuff stairs.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with the reference and retrieved chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant. Chunk 1 directly contains the information needed for the correct answer: it specifies that polished tuff stairs can be mined using any pickaxe and that they drop nothing if mined without one. This fully aligns with the Reference Answer and helps answer the question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To mine polished tuff stairs without losing them, you can use any type of pickaxe.: SUPPORTED<br>  - If you try to mine them without a pickaxe, they will not drop and you will not be able to obtain them.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer matches the reference and retrieved chunks exactly. It correctly states that any pickaxe is needed to mine polished tuff stairs and that they drop nothing if mined without one.', 'completeness': 'The answer fully addresses the question, covering both the requirement to use a pickaxe and the consequence of not using one.', 'hallucinations': 'No hallucinations detected. The AI did not add any unsupported or invented information.', 'relevance': 'The answer stays strictly on topic and does not deviate from the question or provided context.', 'chunk_usage': 'The AI correctly utilized the information from the retrieved chunks, particularly [CHUNK 1], which explicitly states the mining requirements and consequences.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">How far away do creepers explode when they're near me?</div>
+                                <div class="reference-text">Ref: A creeper explodes when within 3 blocks of you, after a 1.5-second delay.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Creepers explode when they are within 3 blocks of a player. The explosion radius can be up to 6 blocks in all directions, destroying blocks and causing significant damage to the player and nearby entities. However, if the player leaves the blast radius before the creeper explodes, the detonation can be prevented.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but includes some inaccuracies and omissions, particularly regarding the explosion radius and prevention details.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (creeper_1)** is **highly relevant (3)** because it directly answers the question by stating:<br>      'When within 3 blocks of a player, a creeper stops moving, hisses, flashes and expands, and explodes after 1.5 seconds (30 ticks).'<br>      This matches the Reference Answer exactly, providing both the proximity (3 blocks) and the delay (1.5 seconds).<br>      No other chunks were provided, but this single chunk fully satisfies the question's requirements.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Creepers explode when they are within 3 blocks of a player.: SUPPORTED<br>  - The explosion radius can be up to 6 blocks in all directions, destroying blocks and causing significant damage to the player and nearby entities.: UNSUPPORTED<br>  - However, if the player leaves the blast radius before the creeper explodes, the detonation can be prevented.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that creepers explode when within 3 blocks of a player.', 'incorrect': &quot;The AI incorrectly states the explosion radius is 'up to 6 blocks in all directions,' which is not supported by the reference or chunks. The chunks specify the explosion occurs when the creeper is within 3 blocks, but do not mention a 6-block explosion radius. The reference only mentions the 3-block proximity trigger.&quot;, 'unsupported': &quot;The AI adds that the explosion 'can be up to 6 blocks in all directions,' which is not in the reference or chunks.&quot;}, 'completeness': {'missing': &quot;The AI omits the 1.5-second delay before explosion, which is a key detail in the reference and chunks. It also does not explicitly mention the creeper's hissing and flashing behavior before exploding.&quot;, 'partial': 'The AI partially answers the question by mentioning the 3-block proximity trigger but misses critical timing and behavioral details.'}, 'hallucinations': {'present': &quot;The AI hallucinates the '6-block explosion radius' detail, which is not in the reference or chunks. The chunks only describe the 3-block proximity trigger for the explosion, not the radius of the explosion itself.&quot;, 'absent': 'No other major hallucinations detected.'}, 'relevance': {'on_topic': 'The AI stays on topic and addresses the core question about creeper explosion proximity.', 'off_topic': 'No off-topic information is included.'}, 'chunk_usage': {'correct': 'The AI correctly uses the chunks to identify the 3-block proximity trigger.', 'incorrect': 'The AI misinterprets or overgeneralizes the chunks by adding the unsupported 6-block explosion radius detail.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">Does Resistance protect me from the Wither's attacks?</div>
+                                <div class="reference-text">Ref: No, Withers are immune to Resistance, so their attacks will still hurt you normally.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>No, Resistance does not protect you from the damage caused by the Wither's status effect. While Resistance can reduce the damage taken from other sources, it has no effect on the damage inflicted by the Wither. The only way to mitigate the damage is to cure yourself of the Wither effect or to avoid being hit by the Wither's attacks altogether. Drinking milk can cure the Wither status effect, and wearing armor with high durability can help prevent damage from the Wither's attacks. Additionally, staying out of range of the Wither's attacks and avoiding areas where it spawns can also help reduce exposure to its damaging effects.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 43%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 80%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but includes some irrelevant details and misses the key point about Withers being immune to Resistance.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    CHUNK 1 ('wither_effect') is rated 2 (Relevant) because:<br>    - It mentions that 'withers are immune to Wither [effect]', which is tangentially related to the question about Resistance.<br>    - However, it does not directly address Resistance or the Wither's attacks, which are the core of the question.<br>    - The chunk could mislead a RAG system into conflating the Wither *effect* with the Wither *boss's* attacks, but it does hint at the Wither's immunity to certain effects (though not Resistance specifically).<br>    - No other chunks were provided, so the evaluation is based solely on this one.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Resistance does not protect you from the damage caused by the Wither's status effect.: SUPPORTED<br>  - Resistance can reduce the damage taken from other sources.: UNSUPPORTED<br>  - Resistance has no effect on the damage inflicted by the Wither.: SUPPORTED<br>  - The only way to mitigate the damage is to cure yourself of the Wither effect or to avoid being hit by the Wither's attacks altogether.: UNSUPPORTED<br>  - Drinking milk can cure the Wither status effect.: SUPPORTED<br>  - Wearing armor with high durability can help prevent damage from the Wither's attacks.: UNSUPPORTED<br>  - Staying out of range of the Wither's attacks and avoiding areas where it spawns can also help reduce exposure to its damaging effects.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states that Resistance does not protect against the Wither's status effect damage.&quot;, 'incorrect': &quot;The AI does not explicitly mention that Withers are *immune to Resistance*, which is the core point of the reference answer. It also conflates the Wither *status effect* with the Wither *boss's attacks*, which are distinct (though related).&quot;, 'unsupported': &quot;The AI suggests that 'wearing armor with high durability can help prevent damage from the Wither's attacks,' which is not mentioned in the chunks or reference and is misleading (armor durability does not affect damage resistance).&quot;}, 'completeness': {'missing': &quot;The AI fails to clarify that Resistance is entirely ineffective against the Wither *boss's attacks* (not just the status effect). The reference answer specifies this immunity, but the AI does not address it directly.&quot;, 'irrelevant': &quot;Details about curing the Wither effect with milk, armor durability, and avoiding attacks are not directly relevant to the question about Resistance's effectiveness.&quot;}, 'hallucinations': {'present': &quot;The claim about armor durability affecting damage from the Wither's attacks is unsupported and incorrect. Armor durability does not influence damage resistance in Minecraft.&quot;, 'minor': &quot;The AI implies that Resistance might reduce damage from 'other sources' in the context of the Wither, which is unnecessary and slightly off-topic.&quot;}, 'relevance': {'on_topic': 'The answer stays broadly on-topic but drifts into tangential advice (e.g., milk, armor durability) that does not answer the question about Resistance.', 'focus': &quot;The core question is about Resistance's protection against the Wither's attacks, but the AI focuses more on the Wither *status effect* and mitigation strategies.&quot;}, 'chunk_usage': {'correct': &quot;The AI correctly uses the chunk to note that Withers are immune to the Wither *status effect* (though it misapplies this to the boss's attacks).&quot;, 'incorrect': &quot;The AI does not leverage the chunk's explicit mention of Withers being immune to the Wither *effect* to infer that Resistance (a separate mechanic) is also ineffective against the Wither boss.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I find mossy cobblestone in the overworld?</div>
+                                <div class="reference-text">Ref: Mossy cobblestone spawns in monster rooms, jungle pyramids, pillager outposts, cold ocean ruins, and villages (including zombie villages). It also appears as forest rocks in old growth pine and spruce taiga biomes.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Mossy cobblestone can be found in several locations in the Overworld. It naturally generates in monster rooms, jungle pyramids, pillager outposts, cold ocean ruins, and plains and taiga villages (as well as zombie villages). Additionally, it can be found around zombie or baby zombie trial spawners in trial chambers, specifically in the old growth pine taiga and old growth spruce taiga biomes. I hope this helps!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 86%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 86%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits the mention of 'forest rocks' in old growth pine and spruce taiga biomes and incorrectly specifies trial chambers as a general location.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant to the question. The chunk (CHUNK 1) directly contains all the information mentioned in the Reference Answer, including the specific overworld locations where mossy cobblestone can be found (monster rooms, jungle pyramids, pillager outposts, cold ocean ruins, villages, and old growth pine/spruce taiga biomes). It also adds extra details (e.g., trial chambers) that are not in the Reference Answer but are still correct and useful for answering the question. Thus, it fully satisfies the evaluation criteria for a score of 3.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Mossy cobblestone can be found in monster rooms.: SUPPORTED<br>  - Mossy cobblestone can be found in jungle pyramids.: SUPPORTED<br>  - Mossy cobblestone can be found in pillager outposts.: SUPPORTED<br>  - Mossy cobblestone can be found in cold ocean ruins.: SUPPORTED<br>  - Mossy cobblestone can be found in plains and taiga villages (as well as zombie villages).: SUPPORTED<br>  - Mossy cobblestone can be found around zombie or baby zombie trial spawners in trial chambers.: SUPPORTED<br>  - Mossy cobblestone can be found specifically in the old growth pine taiga and old growth spruce taiga biomes.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly lists monster rooms, jungle pyramids, pillager outposts, cold ocean ruins, and villages (including zombie villages) as spawn locations.', 'incorrect': &quot;The AI incorrectly generalizes trial chambers as a spawn location for mossy cobblestone, whereas the chunks specify it only appears *around zombie or baby zombie trial spawners* in trial chambers. It also omits the 'forest rocks' detail from the reference and chunks.&quot;}, 'completeness': {'missing': &quot;The AI omits the specific mention of 'forest rocks' in old growth pine and spruce taiga biomes, which is part of the reference answer. It also does not clarify that mossy cobblestone in trial chambers is limited to specific spawners.&quot;, 'present': 'All other major spawn locations (monster rooms, jungle pyramids, etc.) are included.'}, 'hallucinations': 'No outright hallucinations, but the phrasing about trial chambers is misleading (implies general spawn rather than specific spawners).', 'relevance': 'The answer stays fully on-topic and does not deviate from the question.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">How tall can basalt pillars get in the Soul Sand Valley biome?</div>
+                                <div class="reference-text">Ref: Basalt pillars can be between one and three blocks wide and extend all the way down to the ground.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the provided context, the height of basalt pillars in the Soul Sand Valley biome is not explicitly stated. However, it does mention that their height and distribution are randomized based on placement rules. Therefore, we cannot determine a specific maximum height for these features.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses key details from the chunks and fails to directly address the question about height.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: basalt_pillar)** is **highly relevant (Score: 3)** because it directly answers the question by specifying that basalt pillars are 'between one and three blocks wide' and 'extend all the way down to the ground,' which matches the Reference Answer exactly. It also provides additional context (e.g., biome, generation rules) that doesn’t contradict the core answer but isn’t necessary for correctness.<br>    - No other chunks were provided, so the evaluation is based solely on this chunk. The average score is 3 due to its direct alignment with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The height of basalt pillars in the Soul Sand Valley biome is not explicitly stated.: CONTRADICTED<br>  - Their height and distribution are randomized based on placement rules.: SUPPORTED<br>  - We cannot determine a specific maximum height for these features.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer is factually inaccurate because it claims the height is not explicitly stated, while the chunks clearly describe that basalt pillars 'extend all the way down to the ground' (implying their height is determined by the biome's vertical space). The reference answer also confirms this.&quot;, 'completeness': 'The answer is incomplete. It does not address the core question about the height of the pillars, instead focusing on the lack of explicit height details, which is misleading given the context.', 'hallucinations': 'No hallucinations are present, but the AI misinterprets the chunks by implying height is unknown when it is actually implied to be variable but floor-to-ceiling.', 'missing_info': &quot;The AI omits the critical detail that pillars 'go all the way down to the ground,' which directly answers the question. It also ignores the reference answer's confirmation of this detail.&quot;, 'relevance': 'The answer is somewhat relevant but avoids directly answering the question, instead deflecting to uncertainty that is unsupported by the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get more sentry armor trim after finding it in a pillager outpost?</div>
+                                <div class="reference-text">Ref: You can duplicate it by crafting with an existing template, cobblestone, and diamonds.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the provided context, after finding sentry armor trim in a pillager outpost, you can duplicate it using an existing template, cobblestone, and diamonds through the crafting recipe. This means that you do not necessarily have to find more sentry armor trim in pillager outposts to obtain more of this item. By following the crafting recipe with the necessary materials, you can create additional sentry armor trim.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant, with only a minor omission regarding the crafting process (e.g., not explicitly mentioning the smithing table for duplication).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The only retrieved chunk (CHUNK 1) is highly relevant (score: 3) because it directly answers the question by explaining how to duplicate the sentry armor trim using an existing template, cobblestone, and diamonds, which matches the Reference Answer exactly. It also provides additional context about the item's use, but the core information needed is present.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - After finding sentry armor trim in a pillager outpost, you can duplicate it using an existing template, cobblestone, and diamonds through the crafting recipe.: SUPPORTED<br>  - You do not necessarily have to find more sentry armor trim in pillager outposts to obtain more of this item.: SUPPORTED<br>  - By following the crafting recipe with the necessary materials, you can create additional sentry armor trim.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that sentry armor trim can be duplicated using an existing template, cobblestone, and diamonds, which aligns perfectly with both the REFERENCE ANSWER and the RETRIEVED CHUNKS. No factual errors were introduced.', 'completeness': 'The answer covers the core question (how to get more sentry armor trim) but omits a minor detail: the crafting process specifically involves using a crafting table (implied) or smithing table (as mentioned in CHUNK 1). While not critical, this could slightly clarify the method.', 'hallucinations': 'No hallucinations were detected. The AI strictly adhered to the information provided in the chunks and reference.', 'relevance': &quot;The answer stays entirely on topic and directly addresses the user's question without deviating.&quot;, 'use_of_chunks': 'The AI effectively used the provided chunks, particularly CHUNK 1, which explicitly describes the duplication process. No unsupported information was added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q21</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get granite stairs to drop when I break them?</div>
+                                <div class="reference-text">Ref: You need to mine granite stairs with any pickaxe to get them as drops.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Unfortunately, based on the provided context, granite stairs cannot be made to drop an item when broken. According to the information we have, if mined without a pickaxe, they do not drop anything. This behavior is consistent with most blocks in Minecraft that do not naturally generate as items and require a specific tool or method to obtain. However, you can still acquire granite stairs by mining them using any pickaxe or finding them in desert villages where they naturally generate.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(21)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-21" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains significant inaccuracies and omissions, particularly regarding the drop behavior of granite stairs when mined with a pickaxe.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant. CHUNK 1 directly answers the question by stating that granite stairs can be mined using any pickaxe to drop them, and that they drop nothing if mined without a pickaxe. This matches the Reference Answer exactly and provides the necessary information to answer the question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - granite stairs cannot be made to drop an item when broken: CONTRADICTED<br>  - if mined without a pickaxe, they do not drop anything: SUPPORTED<br>  - This behavior is consistent with most blocks in Minecraft that do not naturally generate as items and require a specific tool or method to obtain: UNSUPPORTED<br>  - you can still acquire granite stairs by mining them using any pickaxe: SUPPORTED<br>  - finding them in desert villages where they naturally generate: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that granite stairs drop nothing if mined without a pickaxe.', 'incorrect': &quot;The AI incorrectly claims that granite stairs 'cannot be made to drop an item when broken,' which contradicts the reference and chunks (they *do* drop when mined with a pickaxe). The AI also fails to explicitly state that mining with *any* pickaxe will yield a drop, as confirmed in the chunks.&quot;}, 'completeness': {'missing': 'The AI omits the critical detail that granite stairs *will* drop when mined with a pickaxe, which is the core of the question. It also does not clarify that *any* pickaxe suffices, as specified in the chunks.', 'included': 'The AI mentions alternative ways to obtain granite stairs (e.g., desert villages), which is tangential but not incorrect.'}, 'hallucinations': {'present': &quot;The AI implies that granite stairs are unobtainable as drops ('cannot be made to drop'), which is false. It also vaguely references 'most blocks in Minecraft' without supporting evidence from the chunks.&quot;, 'absent': 'No outright fabrications (e.g., inventing new tools or mechanics).'}, 'relevance': {'on_topic': 'The answer stays on-topic but misleads by focusing on the negative case (no pickaxe) while ignoring the positive case (with pickaxe).', 'off_topic': 'None.'}, 'chunk_usage': {'correct': 'The AI uses the chunk to confirm that no pickaxe = no drop.', 'incorrect': &quot;The AI ignores the chunk's explicit statement that *any pickaxe* will make them drop, leading to a misleading conclusion.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q22</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use resin brick in smithing?</div>
+                                <div class="reference-text">Ref: Resin brick is a smithing ingredient that adds orange details to trimmed armor pieces.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: Resin brick is not used in smithing as it is a decorative block, not an ingredient for crafting tools or armor. It can be used to build structures and placed under note blocks to produce bass drum sounds.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(22)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-22" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and contradicts the reference, despite the retrieved chunks not supporting the reference's claim.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The retrieved chunk (CHUNK 1) is completely irrelevant to the question about using resin brick in smithing. The chunk describes the properties of resin bricks as a block in a game (likely Minecraft or similar), including crafting, mining, and sound properties. None of this information pertains to smithing, armor trimming, or the use of resin brick as a smithing ingredient, as specified in the Reference Answer. Thus, it scores 0.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Resin brick is not used in smithing as it is a decorative block: CONTRADICTED<br>  - Resin brick is not an ingredient for crafting tools or armor: UNSUPPORTED<br>  - It can be used to build structures: SUPPORTED<br>  - It can be placed under note blocks to produce bass drum sounds: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer directly contradicts the REFERENCE ANSWER, which states that resin brick is a smithing ingredient for adding orange details to trimmed armor. The CHUNKS describe resin brick as a decorative block with no mention of smithing, suggesting the reference may be incorrect or from a different context. However, the AI's claim that resin brick is 'not used in smithing' is unsupported by the chunks and conflicts with the reference.&quot;, 'completeness': 'The AI answer is incomplete as it fails to address the smithing use case mentioned in the reference, even if the chunks do not support it. It only covers decorative uses.', 'hallucinations': &quot;No outright hallucinations, but the AI dismisses the reference's claim without justification or acknowledgment of the discrepancy between the reference and chunks.&quot;, 'relevance': &quot;The AI stays on topic but provides an answer that is irrelevant to the user's question about smithing, as it focuses solely on decorative uses.&quot;, 'chunk_usage': &quot;The AI correctly uses the chunks to describe decorative properties but ignores the reference's smithing claim, leading to an incomplete and misleading answer.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q23</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I stop an iron golem from attacking me?</div>
+                                <div class="reference-text">Ref: Iron golems only attack if you or another mob attacks them first, so don't hit them and they won't attack you.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>In Minecraft: Story Mode, if an iron golem that you have summoned is attacking you, there are a few things you can do to stop it:<br><br>1. Try to distract the golem: Since iron golems can be easily distracted, you can try to lure them away from you by making loud noises or throwing objects nearby. This will give you enough time to escape or deal with the situation.<br><br>2. Use a lead: If you have a lead, you can attach it to the iron golem and then lead it away from you. This will prevent it from attacking you directly.<br><br>3. Try to reason with it: Iron golems are fiercely loyal to their creators, so if you were the one who summoned it, try to communicate with it and explain why you don't want it to attack you. If the golem understands your intentions, it may stop attacking you.<br><br>4. Kill the golem: As a last resort, you can try to kill the iron golem using weapons or other means. However, this should be a last resort as killing an iron golem will result in its death and the loss of any potential benefits it could have provided.<br><br>Remember that iron golems are not very diligent, so they may still attack you even after you've tried to stop them. In such cases, you can try to avoid them or fight back until they retreat.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 27%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(23)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-23" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but includes significant inaccuracies and unsupported advice, particularly for the context of the question (vanilla Minecraft vs. Story Mode).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] is rated 2 (Relevant) because it partially addresses the question by stating that iron golems 'attack characters if they provoke them.' This aligns with the Reference Answer's core idea that golems attack only if provoked (e.g., by hitting them). However, the chunk does not explicitly clarify that *not attacking* the golem prevents aggression, which is the key detail in the Reference Answer. The context is also specific to *Minecraft: Story Mode*, which may slightly limit its direct applicability to the general question, but the underlying principle remains relevant.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - In Minecraft: Story Mode, if an iron golem that you have summoned is attacking you, there are a few things you can do to stop it.: SUPPORTED<br>  - Try to distract the golem: Since iron golems can be easily distracted, you can try to lure them away from you by making loud noises or throwing objects nearby.: SUPPORTED<br>  - This will give you enough time to escape or deal with the situation.: UNSUPPORTED<br>  - Use a lead: If you have a lead, you can attach it to the iron golem and then lead it away from you.: UNSUPPORTED<br>  - This will prevent it from attacking you directly.: UNSUPPORTED<br>  - Try to reason with it: Iron golems are fiercely loyal to their creators, so if you were the one who summoned it, try to communicate with it and explain why you don't want it to attack you.: UNSUPPORTED<br>  - If the golem understands your intentions, it may stop attacking you.: UNSUPPORTED<br>  - Kill the golem: As a last resort, you can try to kill the iron golem using weapons or other means.: UNSUPPORTED<br>  - However, this should be a last resort as killing an iron golem will result in its death and the loss of any potential benefits it could have provided.: UNSUPPORTED<br>  - Remember that iron golems are not very diligent, so they may still attack you even after you've tried to stop them.: SUPPORTED<br>  - In such cases, you can try to avoid them or fight back until they retreat.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'issue': 'The REFERENCE ANSWER applies to vanilla Minecraft, where iron golems are neutral and only attack if provoked. The AI answer focuses on *Minecraft: Story Mode* (per CHUNK 1), which has different mechanics (e.g., loyalty to creators, distraction tactics). While the AI correctly cites Story Mode details, it fails to address the vanilla Minecraft context implied by the question, leading to a mismatch.', 'verdict': 'Partially accurate for Story Mode but irrelevant to the likely intent of the question.'}, 'completeness': {'issue': 'The AI provides *Story Mode*-specific solutions (e.g., leads, reasoning with golems) but omits the simple vanilla Minecraft rule (don’t attack them). It also lacks the critical detail that iron golems in vanilla Minecraft *do not attack unprovoked players*.', 'verdict': 'Incomplete for the question’s likely scope (vanilla Minecraft).'}, 'hallucinations': {'issue': &quot;No outright fabrications, but the AI invents *Story Mode* mechanics (e.g., 'reason with it') that are not explicitly supported by CHUNK 1. The chunk mentions distraction but not communication or leads.&quot;, 'verdict': 'Minor hallucinations (unsupported advice).'}, 'relevance': {'issue': 'The answer stays on-topic for *Story Mode* but ignores the vanilla Minecraft context, which is the more common interpretation of the question. The chunks provided do not clarify whether the question is about Story Mode or vanilla, but the REFERENCE ANSWER suggests vanilla.', 'verdict': 'Relevant to a niche interpretation (Story Mode) but not the broader context.'}, 'use_of_chunks': {'issue': 'The AI uses CHUNK 1 to justify *Story Mode* advice but fails to reconcile this with the REFERENCE ANSWER (vanilla Minecraft). It does not acknowledge the discrepancy or provide a vanilla solution.', 'verdict': 'Misapplied chunks by prioritizing Story Mode over the likely vanilla context.'}, 'missing_info': {'critical_omission': 'The AI does not state the vanilla Minecraft rule (don’t attack iron golems) or clarify that the answer applies only to Story Mode. This could mislead users expecting vanilla advice.', 'verdict': 'Major gap in addressing the question’s probable intent.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q24</td>
+                            <td class="question-cell">
+                                <div class="question-text">Do vindicators in woodland mansions attack me if I don't hit them first?</div>
+                                <div class="reference-text">Ref: Vindicators in woodland mansions are neutral and won't attack you unless you hit them first.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Not necessarily. If a vindicator is naturally spawned in a woodland mansion, it may be neutral and not attack you on sight. However, if you attack it first, it will become hostile and attack you. This behavior applies only to vindicators that are naturally spawned in woodland mansions; those generated by other means, such as using a spawn egg or command, have a chance of becoming illager captains and attacking you immediately.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(24)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-24" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the specific context of 'naturally spawned' vindicators in woodland mansions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (vindicator_1)** is **highly relevant (3)** because it directly addresses the question by stating:<br>      *&quot;Vindicators are sometimes neutral if naturally spawned in a woodland mansion, which means that the vindicator does not attack the player on sight, but only after the player attacks it.&quot;*<br>      This matches the Reference Answer exactly and provides the necessary information to answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If a vindicator is naturally spawned in a woodland mansion, it may be neutral and not attack you on sight.: SUPPORTED<br>  - However, if you attack it first, it will become hostile and attack you.: SUPPORTED<br>  - This behavior applies only to vindicators that are naturally spawned in woodland mansions;: SUPPORTED<br>  - those generated by other means, such as using a spawn egg or command, have a chance of becoming illager captains and attacking you immediately.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that vindicators in woodland mansions are neutral and only attack if provoked, matching the REFERENCE and CHUNKS.', 'minor_issue': 'The AI adds extra detail about spawn eggs/commands (which is factually correct per CHUNK 1) but slightly detracts from the focus on the original question about woodland mansions.'}, 'completeness': {'covered': 'The core question is fully answered: vindicators in woodland mansions are neutral unless attacked first.', 'omission': 'The AI does not explicitly clarify that this behavior *only* applies to naturally spawned vindicators in woodland mansions (though it implies it). The REFERENCE is more concise.'}, 'hallucinations': 'None. All additional details (e.g., spawn eggs, illager captains) are supported by CHUNK 1.', 'relevance': 'The answer stays on topic but includes tangential details about non-woodland-mansion spawns, which are not directly asked for.', 'chunk_usage': 'The AI correctly uses CHUNK 1 to derive its answer, though it could have been more concise by focusing solely on the woodland mansion context.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q25</td>
+                            <td class="question-cell">
+                                <div class="question-text">What’s inside the ominous vault in Chamber 8?</div>
+                                <div class="reference-text">Ref: The ominous vault in Chamber 8 contains a ranged trial spawner and is surrounded by two others on the highest ledge.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>I do not have access to the specific instance of minecraft you are playing. However, based on the provided context, the ominous vault in chamber 8 is surrounded by two ranged trial spawners on the highest ledge. Unfortunately, the context does not provide any further information about what might be inside this vault. If you have not discovered it yourself, I would suggest exploring chamber 8 and finding out for yourself!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 25%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(25)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-25" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but incomplete and includes unnecessary disclaimers, reducing its effectiveness.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by stating:<br>      *&quot;an ominous vault can be found in the topmost area [...] one surrounded by two ranged trial spawners on the highest ledge.&quot;*<br>      This matches the Reference Answer exactly, providing the key details (ranged trial spawner and location on the highest ledge).<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - the ominous vault in chamber 8 is surrounded by two ranged trial spawners on the highest ledge: SUPPORTED<br>  - the context does not provide any further information about what might be inside this vault: SUPPORTED<br>  - suggestion to explore chamber 8 and find out for yourself: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI correctly identifies that the ominous vault in Chamber 8 is 'surrounded by two ranged trial spawners on the highest ledge,' which aligns with the reference and retrieved chunks. However, it fails to explicitly state what is *inside* the vault (a ranged trial spawner), which is the core of the question.&quot;, 'completeness': &quot;The answer is incomplete. It omits the critical detail that the vault contains a ranged trial spawner, as specified in the reference and chunks. The AI only describes the vault's surroundings, not its contents.&quot;, 'hallucinations': &quot;No hallucinations are present. The AI does not invent information beyond what is in the chunks, but it adds an irrelevant disclaimer about not having access to the specific Minecraft instance, which detracts from the answer's precision.&quot;, 'relevance': &quot;The answer stays on topic but is overly cautious and indirect. The disclaimer about 'not having access to the specific instance' is unnecessary given the context of a knowledge-based Q&amp;A.&quot;, 'use_of_chunks': &quot;The AI partially uses the chunks correctly by referencing the vault's location and surroundings but misses the key detail about the vault's contents. The chunks explicitly state: 'one surrounded by two ranged trial spawners on the highest ledge, and an ominous vault can be found in the topmost area' (implying the vault's contents are nearby spawners, but the reference clarifies the vault itself contains a spawner).&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25"],
+                datasets: [{
+                    label: 'Score',
+                    data: [30, 42, 48, 48, 42, 42, 35, 50, 25, 48, 50, 45, 45, 50, 50, 35, 35, 42, 25, 48, 30, 15, 25, 48, 35],
+                    backgroundColor: [30, 42, 48, 48, 42, 42, 35, 50, 25, 48, 50, 45, 45, 50, 50, 35, 35, 42, 25, 48, 30, 15, 25, 48, 35].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [30, 42, 48, 48, 42, 42, 35, 50, 25, 48, 50, 45, 45, 50, 50, 35, 35, 42, 25, 48, 30, 15, 25, 48, 35].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [92.0, 71.7, 70.7, 64.8],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23", "Q24", "Q25"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [66.7, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 66.7, 100.0, 100.0, 100.0, 100.0, 0.0, 66.7, 100.0, 100.0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [33.0, 81.2, 89.0, 50.0, 50.0, 57.0, 87.5, 100.0, 12.5, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 66.7, 43.0, 85.7, 33.0, 100.0, 60.0, 50.0, 27.0, 100.0, 66.7],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [33.3, 66.7, 100.0, 100.0, 66.7, 66.7, 66.7, 100.0, 33.3, 100.0, 100.0, 66.7, 100.0, 100.0, 100.0, 66.7, 66.7, 66.7, 33.3, 100.0, 33.3, 33.3, 33.3, 66.7, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [0.0, 70.0, 50.0, 50.0, 83.0, 64.0, 40.0, 100.0, 0.0, 100.0, 100.0, 100.0, 67.0, 100.0, 100.0, 67.0, 80.0, 86.0, 30.0, 100.0, 60.0, 33.0, 40.0, 75.0, 25.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
