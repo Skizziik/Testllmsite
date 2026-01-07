@@ -489,6 +489,38 @@
             word-break: break-word;
         }
 
+        /* Show More Button */
+        .show-more-container {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .show-more-btn {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 12px 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .show-more-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: #3B82F6;
+        }
+
+        .reports-count {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
@@ -560,23 +592,32 @@
 
     <script>
         let allReports = [];
+        const REPORTS_PER_PAGE = 25;
+        let displayedCount = REPORTS_PER_PAGE;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadReports();
         });
+
+        function parseTimestamp(ts) {
+            // Format: 2024_01_07-15_30 -> sortable string
+            if (!ts) return '0';
+            return ts.replace(/_/g, '').replace('-', '');
+        }
 
         async function loadReports() {
             try {
                 const response = await fetch('/api/rag-tests');
                 allReports = await response.json();
 
-                // Sort by timestamp (newest first)
+                // Sort by timestamp (newest first) - string comparison works with our format
                 allReports.sort((a, b) => {
-                    const dateA = new Date(a.timestamp || 0);
-                    const dateB = new Date(b.timestamp || 0);
-                    return dateB - dateA;
+                    const tsA = parseTimestamp(a.timestamp);
+                    const tsB = parseTimestamp(b.timestamp);
+                    return tsB.localeCompare(tsA);
                 });
 
+                displayedCount = REPORTS_PER_PAGE;
                 renderStats();
                 renderReports();
             } catch (error) {
@@ -650,6 +691,9 @@
                 return;
             }
 
+            const visibleReports = allReports.slice(0, displayedCount);
+            const hasMore = allReports.length > displayedCount;
+
             const html = `
                 <table class="reports-table">
                     <thead>
@@ -665,7 +709,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${allReports.map((report, idx) => `
+                        ${visibleReports.map((report, idx) => `
                             <tr>
                                 <td>${formatTimestamp(report.timestamp)}</td>
                                 <td>${report.total_tests || 0}</td>
@@ -685,8 +729,23 @@
                         `).join('')}
                     </tbody>
                 </table>
+                ${hasMore ? `
+                    <div class="show-more-container">
+                        <button class="show-more-btn" onclick="showMore()">Show more</button>
+                        <div class="reports-count">Showing ${visibleReports.length} of ${allReports.length} reports</div>
+                    </div>
+                ` : (allReports.length > REPORTS_PER_PAGE ? `
+                    <div class="show-more-container">
+                        <div class="reports-count">Showing all ${allReports.length} reports</div>
+                    </div>
+                ` : '')}
             `;
             document.getElementById('reportsContainer').innerHTML = html;
+        }
+
+        function showMore() {
+            displayedCount += REPORTS_PER_PAGE;
+            renderReports();
         }
 
         function formatTimestamp(ts) {
