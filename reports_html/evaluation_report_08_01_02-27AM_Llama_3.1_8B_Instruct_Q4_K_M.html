@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-08 02:27 | Questions: 20 | Model: Llama 3.1 8B Instruct (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.1 8B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;BAAI/bge-small-en-v1.5&quot;,<br>  &quot;rag_chunks_number&quot;: 1,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.4,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #f59e0b">681/1000</div>
+                <div class="subtext">68.1% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #f59e0b">34.0</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #10b981">84.6%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #10b981">91.7%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">90.4%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">62.8%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens to absorption hearts when the effect ends?</div>
+                                <div class="reference-text">Ref: Absorption health points vanish when the effect ends and cannot be replenished by natural regeneration or other effects.</div>
+                            </td>
+                            <td class="answer-cell">When the absorption effect ends, the additional health points per level that were added to the player's health bar as yellow hearts are depleted.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but lacks the explicit detail that absorption hearts cannot be replenished by natural regeneration or other effects.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant. Chunk 1 directly answers the question by stating that 'Absorption health ... vanishes when the effect ends and cannot be replenished by natural regeneration or other effects,' which matches the Reference Answer exactly. This chunk fully satisfies the evaluation criteria by containing the needed information and helping answer the specific question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - When the absorption effect ends, the additional health points per level that were added to the player's health bar as yellow hearts are depleted.: SUPPORTED<br>  - The additional health points vanish when the effect ends.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that the additional health points (yellow hearts) are depleted when the effect ends, which aligns with both the REFERENCE ANSWER and CHUNK 1.', 'completeness': &quot;The AI answer is incomplete. It omits the key detail from the REFERENCE ANSWER and CHUNK 1 that absorption health points 'cannot be replenished by natural regeneration or other effects.' This is a significant omission as it clarifies the behavior of absorption hearts beyond just their disappearance.&quot;, 'hallucinations': 'No hallucinations are present. The AI answer is fully supported by the provided chunks and reference.', 'relevance': 'The answer stays on topic and directly addresses the question.', 'chunk_usage': 'The AI correctly uses CHUNK 1 but fails to include all relevant details from it, particularly the part about replenishment.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I make an activator rail eject mobs from minecarts?</div>
+                                <div class="reference-text">Ref: Power the activator rail and when a minecart passes over it, it will eject any mobs or players riding in it.</div>
+                            </td>
+                            <td class="answer-cell">To make an activator rail eject mobs from minecarts, you need to power the activator rail. When powered, it can eject entities from regular minecarts, including mobs.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but lacks the specific detail about the activator rail ejecting players as well as mobs.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    Only one chunk was provided (CHUNK 1), and it is highly relevant to the question.<br>    - **Score 3**: CHUNK 1 explicitly states that an activator rail, when powered, can eject entities (including mobs) from minecarts. This directly matches the Reference Answer and fully addresses the question. The chunk also provides additional context (e.g., placement, behavior with other rails), but the core functionality of ejecting mobs is clearly mentioned.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To make an activator rail eject mobs from minecarts, you need to power the activator rail.: SUPPORTED<br>  - When powered, it can eject entities from regular minecarts, including mobs.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that powering the activator rail will eject entities from minecarts, which aligns with both the REFERENCE ANSWER and CHUNK 1. No factual errors were made.', 'completeness': &quot;The AI answer is mostly complete but omits the mention of players being ejected (included in the REFERENCE ANSWER). The CHUNK explicitly states that the activator rail ejects 'mobs or players,' so this is a minor omission.&quot;, 'hallucinations': 'No hallucinations were detected. The AI answer strictly adheres to the provided context and does not invent unsupported information.', 'relevance': 'The answer stays fully on topic and directly addresses the question.', 'use_of_chunks': 'The AI correctly uses the provided chunk (CHUNK 1) but does not fully capture all details (e.g., players being ejected). The core functionality is accurately described.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do allays spawn in the world?</div>
+                                <div class="reference-text">Ref: Allays spawn in dark oak cages near pillager outposts and inside jail cells within woodland mansions.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, allays spawn in two locations:<br><br>1. Dark oak cages near pillager outposts.<br>2. Inside jail cells within woodland mansions.<br><br>These are the specific locations where allays can be found spawning in the world.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with both the reference answer and the provided chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (allay_1)** is **highly relevant (3)** because it directly answers the question by specifying that allays spawn in dark oak cages near pillager outposts and inside jail cells within woodland mansions, which matches the Reference Answer exactly. The chunk also provides additional context (e.g., spawn chances, group sizes) that, while not required, does not detract from the correctness of the answer.<br>    - No other chunks were provided, so only CHUNK 1 is evaluated.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Allays spawn in dark oak cages near pillager outposts.: SUPPORTED<br>  - Allays spawn inside jail cells within woodland mansions.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer matches the reference answer and the retrieved chunks exactly. Both specify that allays spawn in dark oak cages near pillager outposts and inside jail cells within woodland mansions.', 'completeness': 'The AI answer covers all parts of the question, listing both spawn locations without missing any details from the reference or chunks.', 'hallucinations': 'There are no hallucinations or invented information. The AI strictly adheres to the provided context.', 'relevance': 'The answer stays entirely on topic, addressing only the spawn locations of allays.', 'chunk_usage': 'The AI correctly uses the retrieved chunks (specifically [CHUNK 1]) and does not add any unsupported information.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">How long does a block of coal burn in a furnace?</div>
+                                <div class="reference-text">Ref: A block of coal lasts 800 seconds and smelts 80 items, which is 11% more efficient than using nine individual pieces of coal.</div>
+                            </td>
+                            <td class="answer-cell">A block of coal lasts 800 seconds (16000 ticks) when used as fuel in a furnace.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks completeness, omitting key details about efficiency and smelting capacity.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The only retrieved chunk (CHUNK 1) is highly relevant to the question. It directly provides the exact information mentioned in the Reference Answer: the duration a block of coal burns (800 seconds) and its efficiency compared to individual pieces of coal (11% more efficient, smelting 80 items). This chunk fully answers the question correctly and contains all necessary details.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A block of coal lasts 800 seconds (16000 ticks) when used as fuel in a furnace.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that a block of coal lasts 800 seconds (16000 ticks) when used as fuel in a furnace, which aligns with both the REFERENCE ANSWER and CHUNK 1.', 'completeness': 'The AI answer is incomplete. It does not mention that the block smelts 80 items or that it is 11% more efficient than nine individual pieces of coal, which are critical details in both the REFERENCE ANSWER and CHUNK 1.', 'hallucinations': 'No hallucinations detected. The AI answer only includes information supported by the provided chunks and reference.', 'relevance': 'The AI answer stays on topic and directly addresses the question about burn duration.', 'use_of_chunks': 'The AI correctly uses the provided chunk but omits important supplementary details (efficiency and smelting capacity) that would make the answer more comprehensive.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens when lightning strikes a copper block?</div>
+                                <div class="reference-text">Ref: Non-waxed blocks of copper are completely deoxidized when struck by lightning, and nearby non-waxed copper blocks are deoxidized randomly.</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and fails to address the question, despite relevant information being available in the chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    The single retrieved chunk (CHUNK 1) is partially relevant but does not fully answer the question. Here's why:<br>    - The chunk describes the behavior of a **lightning rod** (a block that diverts lightning) and mentions that it reduces its level of oxidation when struck by lightning if not waxed. This is related to the Reference Answer, which discusses deoxidization of copper blocks.<br>    - However, the chunk does not explicitly mention **copper blocks** or their deoxidization behavior when struck by lightning. Instead, it focuses on lightning rods, which are a different block type. The Reference Answer specifies that non-waxed copper blocks (not lightning rods) are deoxidized when struck.<br>    - The chunk could lead to a partially correct answer (e.g., assuming copper blocks behave like lightning rods) but misses the key detail that the question is about copper blocks, not lightning rods. Thus, it scores a 2 for being relevant but incomplete.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer claims insufficient information, but the chunks explicitly describe the behavior of copper blocks (as lightning rods) when struck by lightning. The reference answer states that non-waxed copper blocks are deoxidized when struck, which aligns with the chunk's description of lightning rods (copper blocks) reducing oxidation when struck. The AI ignored this critical detail.&quot;, 'completeness': 'The AI answer is incomplete as it does not address any part of the question, despite the chunks providing relevant context about copper blocks (lightning rods) and their deoxidation when struck by lightning.', 'hallucinations': 'No hallucinations, but the AI incorrectly dismissed the question as unanswerable.', 'relevance': 'The AI answer is irrelevant to the question, as it does not attempt to use the provided chunks to infer the behavior of copper blocks when struck by lightning.', 'missing_info': 'The AI failed to recognize that the chunks describe the behavior of copper blocks (lightning rods) when struck by lightning, including deoxidation. It also missed the reference to nearby copper blocks being randomly deoxidized, though this detail is less explicitly stated in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use an axe to remove wax from copper blocks?</div>
+                                <div class="reference-text">Ref: Using an axe on a waxed block of copper turns it into the respective non-waxed block of copper.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, using an axe on a waxed block of copper turns it into the respective non-waxed block of copper.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with both the reference answer and the retrieved chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly contains the information mentioned in the Reference Answer: 'an axe on a waxed block of copper turns it into the respective non-waxed block of copper.' This chunk fully answers the question and provides additional context about scraping oxidized copper, which is related but not required for the answer.<br>    - No other chunks were provided, but if they existed, they would be evaluated similarly based on their alignment with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Using an axe on a waxed block of copper turns it into the respective non-waxed block of copper.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer matches the reference answer exactly and is fully supported by the retrieved chunk (CHUNK 1), which states: 'an axe on a waxed block of copper turns it into the respective non-waxed block of copper.'&quot;, 'completeness': 'The AI answer addresses the entire question without omitting any relevant details. It provides the exact method for removing wax from copper blocks using an axe.', 'hallucinations': 'There are no hallucinations or invented details. The AI strictly adheres to the information provided in the chunks and reference.', 'relevance': 'The answer stays entirely on topic and directly responds to the question without deviating into unrelated information.', 'chunk_usage': 'The AI correctly uses the provided chunk (CHUNK 1) and does not introduce any unsupported information.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do blocks of diamond generate in woodland mansions?</div>
+                                <div class="reference-text">Ref: Blocks of diamond generate as the cores of obsidian rooms and lava rooms in woodland mansions.</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is incorrect and fails to address the question, despite the relevant information being absent from the provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    [CHUNK 1] receives a score of 1 because it provides extensive background information about woodland mansions, including their structure, inhabitants, and generation details, but it does not mention anything about diamond blocks or their specific generation locations (obsidian rooms or lava rooms). While the chunk is tangentially related to the question (as it discusses woodland mansions), it does not help answer the specific question about where diamond blocks generate within them. Thus, it is somewhat related but not useful for the correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer states it lacks information, but the question is answerable from general Minecraft knowledge (not explicitly in the chunks). However, since the chunks do not contain the specific information about diamond blocks in woodland mansions, the AI's response is technically correct in the context of the provided chunks. That said, the AI did not infer or acknowledge the possibility of external knowledge, which is a limitation.&quot;, 'completeness': 'The AI answer is incomplete as it does not provide any part of the correct answer, even though the reference answer is well-known in Minecraft.', 'hallucinations': 'No hallucinations, but the AI did not attempt to answer the question beyond stating it lacked information.', 'missing_info': &quot;The AI did not mention that diamond blocks generate in obsidian or lava rooms, as per the reference answer, nor did it attempt to infer this from the chunks (which do not explicitly state this). The chunks provided no direct context about diamond block generation, so the AI's response is technically justified but unhelpful.&quot;, 'relevance': 'The AI stayed on topic but did not provide any useful information.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can piglins detect when I break a block of gold?</div>
+                                <div class="reference-text">Ref: Yes, piglins become enraged if you break a block of gold near them, and they get distracted if you drop one as an item.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, yes, piglins can detect when you break a block of gold.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks completeness, particularly regarding the consequences of breaking a gold block near piglins.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: piglin_5)** is **highly relevant (3)** because it directly addresses the question by stating: 'If the player breaks any gold-related block... the piglin ceases hostility entirely' (implying they detect and react to the block breaking). It also mentions that piglins get distracted by gold items, which aligns with the Reference Answer's note about dropping gold items. This chunk alone provides the core information needed for a correct answer.<br>    - No other chunks were provided, so only this one is evaluated.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - piglins can detect when you break a block of gold: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states that piglins can detect when a block of gold is broken, which aligns with the reference answer and the retrieved chunks (e.g., 'If the player breaks any gold-related block...').&quot;, 'completeness': 'The AI answer is incomplete. It does not mention that piglins become enraged when a gold block is broken near them or that they get distracted if gold is dropped as an item, both of which are key details in the reference answer and chunks.', 'hallucinations': 'No hallucinations were detected. The AI answer is based on the provided chunks and does not introduce unsupported information.', 'relevance': 'The answer stays on topic but is too brief and omits critical details about piglin behavior.', 'chunk_usage': 'The AI used the chunks correctly to confirm that piglins detect broken gold blocks but failed to include the full context (e.g., enragement, distraction).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I build an iron golem with blocks of iron?</div>
+                                <div class="reference-text">Ref: Place blocks of iron in a T-shape and put a carved pumpkin or jack o'lantern on top. The pumpkin must be placed last.</div>
+                            </td>
+                            <td class="answer-cell">To build an iron golem with blocks of iron, you will need to place 4 blocks of iron in a square shape on the ground. Then, place a carved pumpkin or jack o'lantern on top of each block of iron. The golem will spawn immediately after placing it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains major factual inaccuracies and hallucinations, significantly deviating from the reference and retrieved chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by explaining how to build an iron golem with blocks of iron. It specifies the T-shape formation (implied by the requirement of placing the pumpkin last on top of the iron blocks) and explicitly states that a carved pumpkin or jack o'lantern must be placed last, which matches the Reference Answer exactly. The additional details (e.g., beacon usage, note blocks) are unrelated but do not detract from the core answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To build an iron golem with blocks of iron, you will need to place 4 blocks of iron in a square shape on the ground.: CONTRADICTED<br>  - Then, place a carved pumpkin or jack o'lantern on top of each block of iron.: CONTRADICTED<br>  - The golem will spawn immediately after placing it.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer is incorrect. The reference and chunks specify a T-shape (3 blocks vertically + 1 block on top of the middle block for the arms) with a carved pumpkin or jack o'lantern placed last. The AI incorrectly describes a square shape with a pumpkin on each block.&quot;, 'completeness': 'The AI answer fails to address the correct structure (T-shape) or the critical detail that the pumpkin must be placed last. It also omits the immediate spawning of the golem after placing the pumpkin.', 'hallucinations': 'The AI invents a square shape and the placement of a pumpkin on each block, which is not supported by the reference or chunks. This is a clear hallucination.', 'relevance': 'The answer stays on topic but provides incorrect instructions, making it irrelevant to the actual question.', 'chunk_usage': 'The AI did not use the retrieved chunks correctly. The chunks explicitly describe a T-shape and the pumpkin placement, which the AI ignored.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can blocks of netherite be pushed by pistons?</div>
+                                <div class="reference-text">Ref: Yes, unlike obsidian, blocks of netherite can be moved with pistons, making them useful in redstone builds.</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and fails to address the question despite relevant context being available in the chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    The question asks specifically whether netherite blocks can be pushed by pistons, and the Reference Answer confirms they can be moved (unlike obsidian).<br><br>    [CHUNK 1] (piston_1) is rated **2** because:<br>    - It provides general information about pistons and their ability to push blocks, which is relevant context.<br>    - However, it does **not** explicitly mention netherite blocks or compare them to obsidian, so it does not fully answer the question.<br>    - A user relying solely on this chunk might infer that pistons can push most blocks but could miss the specific detail about netherite (or incorrectly assume obsidian-like behavior).<br>    - Thus, it is partially helpful but incomplete for the exact question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer claims it does not have enough information, but the chunks explicitly describe piston behavior with blocks, including exceptions (e.g., obsidian cannot be moved). While netherite is not directly mentioned, the reference answer confirms it *can* be moved, and the chunks imply that most blocks *can* be moved unless specified otherwise. The AI ignored this implicit context.', 'completeness': 'The answer is incomplete as it does not address the question at all, despite the chunks providing general rules about piston-block interactions that could be extrapolated.', 'hallucinations': 'No hallucinations, but the AI incorrectly assumed the chunks were insufficient when they contained relevant general information.', 'relevance': 'The answer is technically on-topic but evasive and unhelpful.', 'use_of_chunks': 'The AI failed to leverage the chunks effectively. The chunks describe piston mechanics in detail, including which blocks *cannot* be moved (e.g., obsidian), implying netherite (not listed as an exception) *can* be moved. The AI should have inferred this or at least noted the lack of explicit restrictions for netherite.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I tame a cat in Minecraft?</div>
+                                <div class="reference-text">Ref: Use raw cod or raw salmon on a stray cat. Each fish has a chance of taming it, so you may need several.</div>
+                            </td>
+                            <td class="answer-cell">To tame a cat in Minecraft, you need to feed it raw cod or raw salmon. Each use has a chance of taming the cat. Once tamed, cats follow their owner and can be ordered to sit or stand.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but lacks minor details about the number of fish required and the probabilistic nature of taming.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: cat_4)** is **highly relevant (3)** because it directly answers the question by stating:<br>      'Stray cats can be tamed using raw cod or raw salmon... Each raw cod or raw salmon has a chance of taming the cat.'<br>      This matches the Reference Answer exactly and provides the core information needed to tame a cat in Minecraft.<br>      The rest of the chunk (e.g., teleportation mechanics, breeding) is extraneous but does not detract from the correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To tame a cat in Minecraft, you need to feed it raw cod or raw salmon.: SUPPORTED<br>  - Each use has a chance of taming the cat.: SUPPORTED<br>  - Once tamed, cats follow their owner and can be ordered to sit or stand.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that raw cod or raw salmon are needed to tame a cat, which aligns with both the REFERENCE ANSWER and the RETRIEVED CHUNKS. No factual errors were found.', 'completeness': &quot;The AI answer covers the core method of taming (using raw fish) and mentions the outcome (cats follow their owner and can be ordered to sit/stand). However, it omits the probabilistic nature of taming (e.g., 'each fish has a chance of taming it, so you may need several') and does not explicitly state that multiple attempts might be required, as noted in the REFERENCE ANSWER and CHUNK 1.&quot;, 'hallucinations': 'No hallucinations were detected. The AI answer strictly adheres to the information provided in the chunks and reference.', 'relevance': 'The answer stays entirely on topic and directly addresses the question without deviating into unrelated details.', 'use_of_chunks': 'The AI effectively uses the retrieved chunks (CHUNK 1) to derive its answer but could have included more nuanced details (e.g., the chance-based taming mechanism) for greater completeness.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">Do cats give gifts when I sleep?</div>
+                                <div class="reference-text">Ref: Yes, there's a 70% chance a tamed cat will give you a gift when you wake up, but only if you sleep at night and the cat isn't sitting.</div>
+                            </td>
+                            <td class="answer-cell">Yes, tamed cats can give gifts to the player after they wake up from sleeping. There is a 70% chance for a tamed cat to give the player a gift after waking up, provided that the player slept at night and not during a thunderstorm or daytime.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits the critical detail that the cat must not be sitting to give a gift.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: cat_3)** is **highly relevant (3)** because it directly contains the information mentioned in the Reference Answer. It explicitly states:<br>      1. There is a 70% chance for a tamed cat to give the player a gift after waking up.<br>      2. This only happens if the player sleeps at night.<br>      3. The cat must not be sitting.<br>    This chunk fully answers the question and aligns with the Reference Answer. No other chunks were provided, but if they were, they would need to be evaluated similarly for direct relevance to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Tamed cats can give gifts to the player after they wake up from sleeping.: SUPPORTED<br>  - There is a 70% chance for a tamed cat to give the player a gift after waking up.: SUPPORTED<br>  - The player must have slept at night for the cat to give a gift.: SUPPORTED<br>  - The cat will not give a gift if the player slept during a thunderstorm or daytime.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states the 70% chance and the requirement for nighttime sleep, aligning with both the REFERENCE and CHUNKS. However, it fails to mention the 'cat not sitting' condition, which is explicitly stated in the REFERENCE and CHUNKS.&quot;, 'completeness': 'The answer is incomplete because it does not cover all conditions (e.g., the cat must not be sitting). The REFERENCE and CHUNKS specify this as a key requirement.', 'hallucinations': 'No hallucinations detected. All information provided is supported by the CHUNKS or REFERENCE.', 'relevance': 'The answer stays fully on topic and directly addresses the question.', 'chunk_usage': &quot;The AI correctly uses the CHUNKS but omits the 'cat not sitting' detail, which is critical for a complete answer.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I fill a cauldron with lava?</div>
+                                <div class="reference-text">Ref: Use a lava bucket on the cauldron. A cauldron filled with lava emits light level 15 and burns any entity inside it.</div>
+                            </td>
+                            <td class="answer-cell">A cauldron can be filled with lava by placing a cauldron below a downward-facing pointed dripstone that has lava placed a block above it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but incomplete, missing the primary method (using a lava bucket) and key effects of a lava-filled cauldron.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: cauldron_3)**:<br>      Score: 2 (Relevant - partially helpful)<br>      Reasoning: This chunk provides detailed information about how a cauldron can be filled with lava (e.g., via dripstone mechanics) and mentions that lava inside a cauldron emits light and does not spread fire. However, it does not explicitly state the simplest method (using a lava bucket on the cauldron), which is the core of the Reference Answer. While it contains related and useful context (e.g., light emission, entity behavior), it is not directly answering the question as clearly as the Reference Answer. Thus, it is relevant but not fully sufficient.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A cauldron can be filled with lava by placing a cauldron below a downward-facing pointed dripstone that has lava placed a block above it.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly describes one method to fill a cauldron with lava (using a pointed dripstone), which is supported by CHUNK 1. However, it omits the primary and simpler method mentioned in the REFERENCE ANSWER: using a lava bucket on the cauldron.', 'completeness': 'The answer is incomplete. It does not address the effects of a lava-filled cauldron (light emission, burning entities) or the primary method of filling it (lava bucket).', 'hallucinations': 'No hallucinations detected. The AI answer is derived from the provided chunks and does not invent unsupported information.', 'relevance': 'The answer stays on topic but is too narrow, focusing only on a secondary method while ignoring the primary one and its effects.', 'use_of_chunks': 'The AI correctly uses CHUNK 1 for the dripstone method but fails to infer or include the more straightforward method (lava bucket) or the effects of a lava-filled cauldron, which are also in CHUNK 1.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can I wear a carved pumpkin to avoid angering endermen?</div>
+                                <div class="reference-text">Ref: Yes, wearing a carved pumpkin prevents endermen from becoming aggressive when you look at them.</div>
+                            </td>
+                            <td class="answer-cell">Yes, wearing a carved pumpkin makes the player invisible to other players on a locator map and locator bar. However, it does not prevent endermen from being angered when looking at them.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and directly contradicts the reference and retrieved chunks, leading to a very poor evaluation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: carved_pumpkin)** is **highly relevant (3)** because it directly addresses the question by stating: 'A player wearing a carved pumpkin does not aggravate endermen when looking at them.' This is the exact information needed for the correct answer, matching the Reference Answer.<br>    - No other chunks were provided, so only this chunk is evaluated.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Wearing a carved pumpkin makes the player invisible to other players on a locator map and locator bar.: SUPPORTED<br>  - It does not prevent endermen from being angered when looking at them.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            <br>1. **Factual Accuracy**: The AI answer is **incorrect**. The reference and retrieved chunks (specifically [CHUNK 1]) explicitly state that wearing a carved pumpkin *does* prevent endermen from becoming aggressive when looked at. The AI falsely claims it does not, which is a critical error.<br>2. **Completeness**: The AI answer is **incomplete** because it omits the core part of the question (endermen aggression) and instead focuses on a secondary detail (invisibility on locator maps), which is irrelevant to the user's query.<br>3. **Hallucinations**: The AI **hallucinates** by asserting that the carved pumpkin does *not* prevent endermen aggression, which is unsupported by the reference or chunks. This is a direct contradiction of the provided context.<br>4. **Relevance**: The AI answer is **partially relevant** but misleads by including an unrelated detail (locator map invisibility) while ignoring the primary concern (endermen aggression).<br>5. **Use of Chunks**: The AI **failed to use the chunks correctly**. The chunks clearly state that wearing a carved pumpkin prevents endermen from being aggravated, but the AI ignored this and provided incorrect information.<br>  
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I kill a creaking mob?</div>
+                                <div class="reference-text">Ref: You must destroy the creaking heart block it is linked to. Once broken, the creaking dies.</div>
+                            </td>
+                            <td class="answer-cell">To kill a creaking mob, you can attack it with any type of weapon. Since creakings are immune to damage when naturally spawned, you will need to use a command or spawn egg to create the creaking in the first place.<br><br>Once the creaking is created and not immune to damage, you can kill it by dealing enough damage to its health points. The exact amount of damage required to kill a creaking mob depends on its current health points and any applicable damage reduction effects.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is largely incorrect and introduces hallucinations, failing to address the core method to kill a creaking mob as described in the reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: creaking_1)** is **highly relevant (3)** because it directly answers the question by stating: 'It is protected from all damage by the creaking heart that spawned it; breaking the creaking heart instantly kills the creaking.' This matches the Reference Answer exactly and provides the necessary information to kill a creaking mob.<br>    - No other chunks were provided, so only this chunk is evaluated.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To kill a creaking mob, you can attack it with any type of weapon.: CONTRADICTED<br>  - Since creakings are immune to damage when naturally spawned, you will need to use a command or spawn egg to create the creaking in the first place.: SUPPORTED<br>  - Once the creaking is created and not immune to damage, you can kill it by dealing enough damage to its health points.: SUPPORTED<br>  - The exact amount of damage required to kill a creaking mob depends on its current health points and any applicable damage reduction effects.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'issue': 'The AI answer incorrectly states that creakings can be killed by attacking them with weapons when naturally spawned, which contradicts the reference and chunks (creakings are immune to damage when naturally spawned). The correct method (destroying the creaking heart) is entirely omitted.', 'evidence': 'Reference and CHUNK 1 explicitly state that creakings are immune to damage when naturally spawned and must be killed by breaking the linked creaking heart.'}, 'completeness': {'issue': 'The answer fails to address the primary method to kill a creaking mob (destroying the creaking heart) and instead focuses on irrelevant details (using commands/spawn eggs).', 'evidence': 'The reference and CHUNK 1 emphasize the creaking heart as the key to killing the mob, which is missing from the AI answer.'}, 'hallucinations': {'issue': &quot;The AI invents the idea that creakings can be killed by 'dealing enough damage' if not naturally spawned, which is misleading. While creakings spawned via commands/spawn eggs can take damage, this is not the standard or intended method to kill them, nor is it the focus of the question.&quot;, 'evidence': 'CHUNK 1 mentions creakings spawned via commands/spawn eggs can take damage, but this is a secondary detail and not the answer to the question.'}, 'relevance': {'issue': 'The answer partially stays on topic but deviates into tangential methods (commands/spawn eggs) instead of addressing the core question about killing naturally spawned creakings.', 'evidence': 'The question asks how to kill a creaking mob, implying the standard method, not edge cases.'}, 'use_of_chunks': {'issue': 'The AI misinterprets the chunks, focusing on the exception (command/spawn egg creakings) rather than the rule (creaking heart destruction).', 'evidence': 'CHUNK 1 clearly states the primary method (breaking the creaking heart) but the AI ignores this.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does the creaking move when I'm looking at it?</div>
+                                <div class="reference-text">Ref: When within your field of vision, the creaking becomes completely immobile and cannot attack or be pushed.</div>
+                            </td>
+                            <td class="answer-cell">When you are looking at a creaking, it becomes completely immobile and cannot move.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits minor details about the creaking's inability to attack or be pushed while immobile.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Only one chunk was provided, and it is highly relevant to the question. The chunk (creaking_2) directly contains the information mentioned in the Reference Answer: 'When within a player's field of vision, the creaking becomes completely immobile and can no longer attack, nor can it be pushed or knocked back by player attacks.' This fully answers the question about how the creaking moves when being looked at.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - When you are looking at a creaking, it becomes completely immobile: SUPPORTED<br>  - it cannot move: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that the creaking becomes completely immobile when looked at, which aligns with both the REFERENCE ANSWER and the RETRIEVED CHUNKS (CHUNK 1). No factual errors were introduced.', 'completeness': 'The AI answer is slightly incomplete. While it covers the core point (immobility), it does not mention that the creaking also cannot attack or be pushed while immobile, as stated in both the REFERENCE ANSWER and CHUNK 1.', 'hallucinations': 'No hallucinations were detected. The AI answer strictly adheres to the provided context and does not invent unsupported information.', 'relevance': 'The answer is fully relevant to the question and stays on topic.', 'use_of_chunks': 'The AI correctly used the provided chunk (CHUNK 1) to derive its answer but omitted secondary details (attack and push mechanics) that were part of the full context.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do creaking hearts generate in pale oak trees?</div>
+                                <div class="reference-text">Ref: Creaking hearts have a 10% chance to generate inside the top trunks of pale oak trees in the pale garden, always covered by other logs.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, naturally-generated pale oak trees have a 20% chance of containing creaking hearts inside.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but incomplete, missing key details about the location of creaking hearts within pale oak trees.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: pale_oak)** is **highly relevant (3)** because it directly answers the question by specifying:<br>      1. Creaking hearts generate inside pale oak trees (specifically in the top trunks).<br>      2. They have a 20% chance to spawn (the reference mentions 10%, but this is a minor discrepancy; the core information is correct).<br>      3. They are always covered by other logs (matching the reference answer).<br>      4. Pale oak trees generate in the pale garden biome (contextually relevant).<br>    - No other chunks were provided, but this single chunk fully satisfies the criteria for a correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Naturally-generated pale oak trees have a 20% chance of containing creaking hearts inside.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'assessment': &quot;The AI answer correctly states that naturally-generated pale oak trees have a chance of containing creaking hearts (20% as per CHUNK 1). However, the REFERENCE specifies a 10% chance, which contradicts the chunk. The AI defaults to the chunk's information, which is acceptable given the context provided, but this discrepancy is noted.&quot;, 'verdict': 'Mostly accurate, but the probability mismatch is a minor issue.'}, 'completeness': {'assessment': 'The AI answer fails to mention critical details: (1) creaking hearts generate *inside the top trunks* of pale oak trees, and (2) they are *always covered by other logs*. These omissions make the answer incomplete.', 'verdict': 'Significant gaps in completeness.'}, 'hallucinations': {'assessment': 'No hallucinations detected. The AI strictly adheres to the provided chunks and does not invent unsupported information.', 'verdict': 'No hallucinations.'}, 'relevance': {'assessment': 'The answer stays on topic and directly addresses the question about creaking hearts in pale oak trees.', 'verdict': 'Fully relevant.'}, 'use_of_chunks': {'assessment': 'The AI correctly uses CHUNK 1 to derive the 20% chance but overlooks the spatial details (top trunks, covered by logs) mentioned in the same chunk. This suggests a failure to synthesize all relevant information from the chunk.', 'verdict': 'Partially correct use of chunks.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use an eye of ender to find a stronghold?</div>
+                                <div class="reference-text">Ref: Use the eye of ender and it flies about 12 blocks toward the nearest stronghold, leaving purple particles. It has a 20% chance to shatter each throw.</div>
+                            </td>
+                            <td class="answer-cell">To use an eye of ender to find a stronghold, follow these steps:<br><br>1. Hold the eye of ender in your hand.<br>2. Press the &quot;Use&quot; button (usually the right-click button on PC or console controllers) while holding the eye of ender.<br><br>This will cause the eye of ender to fly towards the nearest stronghold, leaving a trail of purple particles behind it. The eye will travel through blocks and stop at the chunk where the stronghold's spiral staircase is located.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 80%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks key details about the eye of ender's behavior (e.g., shattering chance, distance guidance, and downward travel when close).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by explaining how to use an eye of ender to find a stronghold, including the key details mentioned in the Reference Answer:<br>      1. The eye flies ~12 blocks toward the nearest stronghold.<br>      2. It leaves purple particles.<br>      3. It has a 20% chance to shatter per throw.<br>    The chunk also provides additional context (e.g., chunk coordinates, behavior in different dimensions) that, while not strictly necessary, does not detract from the core answer. No other chunks were provided, but this one fully satisfies the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Hold the eye of ender in your hand.: SUPPORTED<br>  - Press the 'Use' button (usually the right-click button on PC or console controllers) while holding the eye of ender.: SUPPORTED<br>  - This will cause the eye of ender to fly towards the nearest stronghold.: SUPPORTED<br>  - Leaving a trail of purple particles behind it.: SUPPORTED<br>  - The eye will travel through blocks.: SUPPORTED<br>  - The eye will stop at the chunk where the stronghold's spiral staircase is located.: SUPPORTED<br>  - The eye of ender has a 20% chance to shatter each throw.: UNSUPPORTED<br>  - The eye flies about 12 blocks toward the nearest stronghold.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states that the eye of ender flies toward the nearest stronghold and leaves purple particles. It also accurately describes the basic usage (holding and pressing 'Use').&quot;, 'incorrect': 'No outright factual errors, but critical details are omitted.'}, 'completeness': {'missing': ['The 20% chance of shattering per throw (critical for resource management).', 'The eye travels ~12 blocks before stopping (distance guidance).', 'The eye travels downward when close to the stronghold (indicating the player must mine down).', &quot;The eye's behavior in different dimensions (e.g., only works in the Overworld).&quot;], 'present': 'Basic usage and particle trail are mentioned.'}, 'hallucinations': 'None detected. All provided information is supported by the chunks or reference.', 'relevance': 'The answer stays on topic but is overly simplistic for a practical guide.', 'chunk_usage': {'used_correctly': 'The AI extracted the core action (throwing the eye) but ignored most nuanced details from the chunks.', 'unsupported_additions': 'None.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I duplicate an eye armor trim?</div>
+                                <div class="reference-text">Ref: Craft with an existing template, end stone, and diamonds to duplicate it.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, an eye armor trim can be duplicated using the following recipe:<br><br>- An existing template<br>- End stone<br>- Diamonds<br><br>This recipe is found in the provided context.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant, but it lacks minor contextual details about the crafting process (e.g., using a smithing table or crafting table).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The only retrieved chunk (CHUNK 1) is highly relevant as it directly contains the information needed for the correct answer. It explicitly states that an eye armor trim can be duplicated using an existing template, end stone, and diamonds, which matches the Reference Answer. This chunk fully answers the question and could not lead to an incorrect answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An eye armor trim can be duplicated using an existing template, end stone, and diamonds.: SUPPORTED<br>  - This recipe is found in the provided context.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly identifies the required materials (existing template, end stone, and diamonds) to duplicate an eye armor trim, matching both the REFERENCE ANSWER and CHUNK 1. No factual errors were made.', 'completeness': 'The answer is mostly complete but omits minor details such as the fact that the duplication occurs via a crafting recipe (implied in CHUNK 1) or that the template is consumed when used. These omissions are minor but slightly reduce completeness.', 'hallucinations': 'No hallucinations were detected. The AI strictly adhered to the information provided in the chunks and reference.', 'relevance': 'The answer stays entirely on topic, addressing the question directly without deviating into unrelated details.', 'chunk_usage': 'The AI correctly used CHUNK 1, which explicitly states the duplication method. No unsupported information was added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens when the exit portal generates in the End?</div>
+                                <div class="reference-text">Ref: The exit portal always generates at coordinates 0,0 and activates when the ender dragon is defeated. A dragon egg appears on top when you defeat it for the first time.</div>
+                            </td>
+                            <td class="answer-cell">When the exit portal generates in the End, it enables the player to return to their spawn point. The exit portal always generates at the coordinates 0,0 in the End and is de-activated whenever an ender dragon fight is in progress.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks completeness, omitting key details about the exit portal's activation, dragon egg generation, and return mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by stating:<br>      1. The exit portal generates at coordinates 0,0 in the End.<br>      2. It activates when the ender dragon is defeated.<br>      3. A dragon egg appears on top when the ender dragon is defeated for the first time.<br>    These points fully align with the Reference Answer and provide all necessary information to answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - When the exit portal generates in the End, it enables the player to return to their spawn point.: SUPPORTED<br>  - The exit portal always generates at the coordinates 0,0 in the End: SUPPORTED<br>  - The exit portal is de-activated whenever an ender dragon fight is in progress.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI answer correctly states that the exit portal generates at coordinates 0,0 in the End and is de-activated during an ender dragon fight.', 'source': 'This aligns with both the REFERENCE ANSWER and CHUNK 1.'}, 'completeness': {'missing': ['The AI does not mention that the exit portal activates *only* when the ender dragon is defeated (key detail from REFERENCE).', 'No mention of the dragon egg appearing atop the portal upon first defeat (critical detail from REFERENCE and CHUNK 1).', &quot;No explanation of the portal's function (returning the player to spawn point, credits rolling, etc., from CHUNK 1).&quot;], 'impact': &quot;The answer is overly simplistic and fails to address the core question ('what happens when it generates').&quot;}, 'hallucinations': {'status': 'None detected. All provided information is supported by the chunks/reference.'}, 'relevance': {'status': 'The answer stays on topic but is too narrow in scope.'}, 'chunk_usage': {'issue': &quot;The AI used only a small subset of the available context (coordinates and deactivation), ignoring most of CHUNK 1's details.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [45, 45, 50, 40, 15, 50, 10, 40, 20, 15, 45, 45, 35, 10, 15, 45, 35, 38, 48, 35],
+                    backgroundColor: [45, 45, 50, 40, 15, 50, 10, 40, 20, 15, 45, 45, 35, 10, 15, 45, 35, 38, 48, 35].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [45, 45, 50, 40, 15, 50, 10, 40, 20, 15, 45, 45, 35, 10, 15, 45, 35, 38, 48, 35].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [91.7, 90.4, 71.7, 62.8],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [100.0, 100.0, 100.0, 100.0, 66.7, 100.0, 33.3, 100.0, 100.0, 66.7, 100.0, 100.0, 66.7, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 33.0, 100.0, 100.0, 100.0, 100.0, 50.0, 50.0, 100.0, 100.0, 75.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [66.7, 100.0, 100.0, 66.7, 66.7, 100.0, 66.7, 66.7, 33.3, 66.7, 100.0, 66.7, 66.7, 33.3, 33.3, 66.7, 66.7, 100.0, 100.0, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [100.0, 100.0, 100.0, 50.0, 0.0, 100.0, 100.0, 100.0, 0.0, 0.0, 100.0, 75.0, 50.0, 0.0, 0.0, 100.0, 0.0, 80.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
