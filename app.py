@@ -180,14 +180,44 @@ async def root():
     raise HTTPException(status_code=404, detail="Dashboard not found")
 
 
+def parse_report_date_from_filename(filepath: Path) -> tuple:
+    """
+    Extract date/time from report filename for sorting.
+    Format: evaluation_report_DD_MM_HH-MMAM/PM_Model.html
+    Example: evaluation_report_08_01_01-24AM_Phi-4_Mini_Instruct_Q4_K_M.html
+    Returns tuple (month, day, hour24, minute) for sorting, newest first.
+    """
+    filename = filepath.stem
+    # Pattern: evaluation_report_DD_MM_HH-MMAM/PM
+    match = re.match(r'evaluation_report_(\d{2})_(\d{2})_(\d{2})-(\d{2})(AM|PM)', filename)
+    if match:
+        day = int(match.group(1))
+        month = int(match.group(2))
+        hour = int(match.group(3))
+        minute = int(match.group(4))
+        am_pm = match.group(5)
+
+        # Convert to 24-hour format
+        if am_pm == 'PM' and hour != 12:
+            hour += 12
+        elif am_pm == 'AM' and hour == 12:
+            hour = 0
+
+        # Return tuple for sorting (month desc, day desc, hour desc, minute desc)
+        return (month, day, hour, minute)
+
+    # Fallback: use modification time
+    return (0, 0, 0, 0)
+
+
 @app.get("/api/reports")
 async def get_reports(offset: int = 0, limit: int = 25):
     """Get list of reports with pagination."""
     if not REPORTS_DIR.exists():
         return {"reports": [], "total": 0, "has_more": False}
 
-    # Get all files sorted by modification time
-    all_files = sorted(REPORTS_DIR.glob("*.html"), key=lambda x: x.stat().st_mtime, reverse=True)
+    # Get all files sorted by date from filename (newest first)
+    all_files = sorted(REPORTS_DIR.glob("*.html"), key=parse_report_date_from_filename, reverse=True)
     total = len(all_files)
 
     # Paginate
