@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-08 14:58 | Questions: 20 | Model: Llama 3.2 3B Instruct (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.2 3B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;BAAI/bge-small-en-v1.5&quot;,<br>  &quot;rag_chunks_number&quot;: 3,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.4,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 2200,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #ef4444">454/1000</div>
+                <div class="subtext">45.4% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #ef4444">22.7</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #ef4444">49.0%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #ef4444">52.2%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #ef4444">47.9%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #ef4444">42.5%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the fastest way to travel long distances in Minecraft?</div>
+                                <div class="reference-text">Ref: The fastest Minecraft travel combines Elytra with a Riptide Trident during rain (over 300 blocks/second), or uses Nether tunnels with blue ice boat highways for massive overworld distance (8x Nether speed), while for pure command-based instant travel, the /tp command is quickest, but for survival, ice boat roads (especially with blue ice) and Nether roof travel with horses or boats are top choices</div>
+                            </td>
+                            <td class="answer-cell">The fastest way to travel long distances in Minecraft is by using Elytra and flying directly at the horizon. This allows a player to achieve a safe and simple cruise with the highest travel distance, while also taking into account factors like wind resistance and air density.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but omits critical details and fails to address the fastest methods accurately, leading to an incomplete and misleading response.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (elytra_2)**: Score 2 - This chunk provides detailed mechanics of Elytra flight, including speed and techniques for sustained gliding. While it doesn't explicitly mention the fastest methods (e.g., Riptide Trident combo or Nether tunnels), it is relevant to Elytra-based travel, which is part of the correct answer. However, it lacks the key combinations (e.g., Elytra + Riptide) that make it the *fastest* method.<br>    - **CHUNK 2 (minecart_2)**: Score 0 - This chunk focuses on minecart mechanics, including speed limits and track behavior. Minecarts are not mentioned in the Reference Answer as a fast travel method for long distances, making this chunk irrelevant to the question.<br>    - **CHUNK 3 (elytra_1)**: Score 3 - This chunk directly addresses the fastest travel method by mentioning the Elytra + Riptide Trident combo during rain (over 300 blocks/second), which is a core part of the Reference Answer. It also briefly covers Elytra basics, reinforcing the relevance of the item for fast travel.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The fastest way to travel long distances in Minecraft is by using Elytra and flying directly at the horizon.: UNSUPPORTED<br>  - This allows a player to achieve a safe and simple cruise with the highest travel distance.: SUPPORTED<br>  - Flying directly at the horizon takes into account factors like wind resistance and air density.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'issues': [&quot;The AI answer incorrectly states that flying 'directly at the horizon' is the fastest way, which is misleading. The reference and chunks highlight that combining Elytra with a Riptide Trident during rain (over 300 blocks/second) is the fastest method, not just gliding at the horizon.&quot;, 'The AI does not mention Nether tunnels, ice boat highways, or the /tp command, which are key fastest travel methods in the reference answer.'], 'correct_points': ['The AI correctly identifies Elytra as a method for long-distance travel.']}, 'completeness': {'missing_info': ['No mention of Riptide Trident + Elytra combo (fastest method).', 'No mention of Nether tunnels or ice boat highways (8x Nether speed).', 'No mention of /tp command (instant travel).', 'No mention of survival-specific methods like Nether roof travel or horses/boats.'], 'partial_coverage': [&quot;Only covers Elytra gliding, which is a slower method compared to the reference's fastest options.&quot;]}, 'hallucinations': {'none_detected': 'The AI does not invent new information, but it misrepresents the fastest method by oversimplifying Elytra mechanics.'}, 'relevance': {'on_topic': &quot;The answer stays on topic (long-distance travel) but fails to address the 'fastest' aspect adequately.&quot;}, 'chunk_usage': {'issues': [&quot;The AI uses Chunk 3 (Elytra_1) but ignores the explicit mention of 'Riptide Trident during rain' as the fastest method.&quot;, &quot;Does not incorporate Chunk 1's detailed flight mechanics (e.g., speed optimization techniques) to clarify that gliding at the horizon is not the fastest.&quot;]}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I find netherite upgrades?</div>
+                                <div class="reference-text">Ref: To find Netherite Upgrades in Minecraft, you must locate Bastion Remnants in the Nether and search their chests, with the Treasure Room bastion guaranteeing one in its central chest, while other areas offer a 10% chance per chest. Once found, you can duplicate the Netherite Upgrade Smithing Template using diamonds and netherrack at a smithing table to upgrade diamond gear. </div>
+                            </td>
+                            <td class="answer-cell">You can find netherite upgrades by crafting them using a smithing table. To craft a netherite upgrade, you will need netherite ingots and diamonds.<br><br>Additionally, you can also obtain netherite upgrades by looting bastion remnants, which are structures that generate in the Nether dimension.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses key details and includes a minor hallucination about crafting netherite upgrades directly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: netherite_upgrade)**: Score 3 - Highly relevant. Directly answers the question by explaining where to find Netherite Upgrades (Bastion Remnants), how to duplicate them (using diamonds and netherrack), and their use in upgrading diamond gear. This matches the Reference Answer closely.<br>    - **Chunk 2 (ID: netherite_ingot)**: Score 1 - Somewhat related. While it mentions Netherite Ingots (used in upgrading gear), it does not address the core question about finding *Netherite Upgrades* (the smithing template). The chunk is tangential and could distract from the correct answer.<br>    - **Chunk 3 (ID: netherite_boots)**: Score 1 - Somewhat related. Focuses on Netherite Boots (a product of the upgrade process) but does not explain how to *find* Netherite Upgrades. It is not useful for answering the question and could mislead users into thinking the answer is about boots rather than the template.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find netherite upgrades by crafting them using a smithing table.: UNSUPPORTED<br>  - To craft a netherite upgrade, you will need netherite ingots and diamonds.: CONTRADICTED<br>  - You can also obtain netherite upgrades by looting bastion remnants, which are structures that generate in the Nether dimension.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that netherite upgrades can be obtained by looting bastion remnants.', 'incorrect': 'The AI incorrectly suggests that netherite upgrades can be *crafted* using netherite ingots and diamonds. The chunks and reference specify that they are *duplicated* using an existing template, diamonds, and netherrack, not crafted from scratch. Netherite ingots are not part of the duplication recipe for the template itself.', 'unsupported': 'The AI implies that crafting netherite upgrades is a primary method, which is not mentioned in the chunks or reference. The reference explicitly states that the template is found in bastion remnants and then duplicated.'}, 'completeness': {'missing': 'The AI omits critical details such as the specific locations in bastion remnants (e.g., Treasure Room guarantees one), the 10% chance per chest in other areas, and the exact duplication process (using diamonds and netherrack at a smithing table). It also fails to mention that the template is consumed when used for upgrading gear.', 'partial': 'The answer touches on the two main methods (looting and duplication) but lacks depth and precision.'}, 'hallucinations': {'present': 'The claim that netherite upgrades can be *crafted* using netherite ingots and diamonds is a hallucination. The chunks specify that netherite ingots are used to *upgrade* diamond gear, not to craft the template itself. The template is duplicated, not crafted from raw materials.', 'severity': 'Minor but misleading, as it conflates the upgrade process with the template acquisition process.'}, 'relevance': {'on_topic': 'The answer stays on topic but is overly simplistic and omits key steps.', 'off_topic': 'No off-topic information is present.'}, 'chunk_usage': {'correct': 'The AI correctly uses CHUNK 1 to identify bastion remnants as a source and the general idea of duplication.', 'incorrect': 'The AI misinterprets CHUNK 1 by suggesting netherite ingots are part of the template duplication recipe (they are not). CHUNK 2 is irrelevant to the question, and the AI incorrectly incorporates it.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can you tame foxes? How?</div>
+                                <div class="reference-text">Ref: You can't directly tame an arctic fox like a wolf, but you can make it trust you and your player by breeding two adult foxes (snow or regular) with sweet or glow berries. The resulting baby fox (kit) will trust the player who bred it, meaning it won't flee from you as it grows, and will even defend you by attacking mobs that attack you, though it still follows its parents. Using a lead on the baby kit can help keep it with you while it matures, as it will initially follow adult foxes that run away</div>
+                            </td>
+                            <td class="answer-cell">Yes, foxes can be tamed in Minecraft. To tame a fox, you need to feed it golden apples. The fox will start to trust you and eventually become tame.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies and hallucinations, failing to address the correct method for taming foxes as described in the reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 1)**: This chunk describes fox behavior, jumping mechanics, and interactions with other mobs, but it does not address how to tame or breed foxes. While it provides context about foxes, it is only tangentially related to the question.<br>    - **Chunk 2 (Score: 1)**: This chunk focuses on foxes' item interactions, eating habits, and effects of held items. It does not mention taming, breeding, or trust mechanics, making it only somewhat related to the question.<br>    - **Chunk 3 (Score: 3)**: This chunk is highly relevant as it directly addresses how to gain a fox's trust through breeding (using sweet or glow berries) and explains that the resulting baby fox will trust the player. It also mentions that baby foxes follow adult foxes, which aligns with the Reference Answer's details about using a lead to keep the baby fox with you.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Yes, foxes can be tamed in Minecraft.: SUPPORTED<br>  - To tame a fox, you need to feed it golden apples.: UNSUPPORTED<br>  - The fox will start to trust you and eventually become tame.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'error': 'The AI answer incorrectly states that foxes can be tamed by feeding them golden apples. The reference and chunks clearly indicate that foxes cannot be directly tamed but can be made to trust the player by breeding two adult foxes with sweet or glow berries, resulting in a baby fox that trusts the player.', 'hallucination': 'The mention of golden apples is entirely unsupported by the reference or chunks, constituting a hallucination.'}, 'completeness': {'missing_info': 'The AI answer does not address the key steps for making a fox trust the player (breeding with sweet/glow berries, the behavior of the baby fox, or the use of leads). It also omits critical details like the fox defending the player or following its parents.', 'partial_answer': 'The answer is incomplete and does not cover any part of the question accurately.'}, 'relevance': {'on_topic': 'The answer stays on topic (taming foxes) but provides incorrect and irrelevant information.', 'context_usage': 'The AI did not use the provided chunks correctly, as the chunks do not mention golden apples or direct taming via feeding.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">Is Herobrine real?</div>
+                                <div class="reference-text">Ref: No, Herobrine is not a real entity in official Minecraft; he is a popular creepypasta and fan myth, a legendary ghost figure rumored to haunt the game, but any appearances are due to mods or altered textures, with Mojang developers jokingly acknowledging the myth in update logs by adding Removed Herobrine as a running gag</div>
+                            </td>
+                            <td class="answer-cell">Herobrine is a figure from a creepypasta, which is a type of online urban legend. According to the creepypasta, Herobrine is a character that appears in Minecraft, often in ways that are not explained by the game's mechanics.<br><br>However, it's worth noting that Herobrine is not an official part of the Minecraft game or its universe. He is not mentioned in any official Minecraft documentation, and he does not appear in any official Minecraft game content.<br><br>In summary, while Herobrine has a significant presence in online communities and creepypastas, he is not an officially recognized part of the Minecraft game or its universe.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits key details about Mojang's official acknowledgment of the myth and the role of mods in Herobrine appearances.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by stating that Herobrine is not real in official Minecraft, is a creepypasta, and that any appearances are due to mods or altered textures. This aligns perfectly with the Reference Answer.<br>    - **Chunk 2 (Score: 2)**: Relevant but not as critical. It provides context about Mojang's inside jokes and official cameos of Herobrine, which supports the 'running gag' aspect of the Reference Answer. However, it doesn't directly answer the question of Herobrine's existence.<br>    - **Chunk 3 (Score: 1)**: Somewhat related but not useful for answering the question. It describes Herobrine's canonical lore and behavior in creepypasta stories, which is tangential to the actual question about his realness in Minecraft. This could lead to confusion if taken as evidence of existence.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Herobrine is a figure from a creepypasta, which is a type of online urban legend.: SUPPORTED<br>  - According to the creepypasta, Herobrine is a character that appears in Minecraft, often in ways that are not explained by the game's mechanics.: SUPPORTED<br>  - Herobrine is not an official part of the Minecraft game or its universe.: SUPPORTED<br>  - He is not mentioned in any official Minecraft documentation.: CONTRADICTED<br>  - He does not appear in any official Minecraft game content.: CONTRADICTED<br>  - While Herobrine has a significant presence in online communities and creepypastas, he is not an officially recognized part of the Minecraft game or its universe.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'assessment': 'The AI answer correctly states that Herobrine is not an official part of Minecraft and is a creepypasta. This aligns with the reference and chunks.', 'issues': 'None in core facts, but the answer lacks nuance.'}, 'completeness': {'assessment': 'The answer is incomplete. It misses the following key points from the reference and chunks:', 'missing_details': [&quot;Mojang's official acknowledgment of the myth (e.g., 'Removed Herobrine' in update logs as a running gag).&quot;, &quot;Herobrine's appearances in official Mojang materials (e.g., MINECON, LEGO sets) as an inside joke.&quot;, 'Explicit mention that Herobrine appearances are due to mods or altered textures, not the base game.']}, 'hallucinations': {'assessment': 'No hallucinations detected. The AI does not invent unsupported information.', 'verification': 'All claims are supported by the reference and chunks.'}, 'relevance': {'assessment': 'The answer stays on topic and directly addresses the question.', 'issues': 'None.'}, 'use_of_chunks': {'assessment': 'The AI partially uses the chunks but omits critical details from Chunk 1 (mods/textures) and Chunk 2 (official cameos).', 'improvement': &quot;The answer could have incorporated the specific examples of Herobrine's unofficial nature (e.g., source code absence, mod dependency) and Mojang's inside jokes.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">Brand new player here. Where do I start play in minecraft?</div>
+                                <div class="reference-text">Ref: To start Minecraft, punch trees for wood, craft planks, make a crafting table (E key), then a wooden pickaxe to mine cobblestone, and build basic tools and a shelter before nightfall to survive monsters; focus on gathering resources like wood, stone, and food first to learn the survival loop</div>
+                            </td>
+                            <td class="answer-cell">Welcome to Minecraft. As a new player, you can start by creating a new world or loading an existing one.<br><br>When you start a new world, you'll be presented with several options:<br><br>1. **Survival Mode**: This is the most popular mode, where you'll need to gather resources, build shelter, and fend off monsters that come out at night.<br>2. **Creative Mode**: In this mode, you'll have unlimited resources and can fly, allowing you to build anything you can imagine without worrying about resources or limitations.<br><br>Choose the mode that suits your playstyle, and start exploring the world of Minecraft!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is largely irrelevant to the question and fails to provide actionable starting guidance for a new Minecraft player, despite the reference answer being clear and specific.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: start_platform)**: Completely irrelevant to the question. It describes a specific in-game structure (start platform) from a snapshot, which is unrelated to the basic survival steps a new player needs to start playing Minecraft. No mention of gathering resources, crafting tools, or survival mechanics.<br>    - **Chunk 2 (ID: tutorialredstone_music_5)**: Completely irrelevant. It discusses exporting structures and using structure blocks for redstone music, which is an advanced topic unrelated to a new player's first steps in survival mode.<br>    - **Chunk 3 (ID: tutorialredstone_computers_8)**: Completely irrelevant. It focuses on building redstone computers, mods, and data packs, which are advanced concepts far beyond the scope of a beginner's guide to starting Minecraft. No overlap with the Reference Answer.<br>    None of the chunks provide any information about gathering resources, crafting basics, or surviving the first night, which are critical for a new player.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Welcome to Minecraft.: UNSUPPORTED<br>  - As a new player, you can start by creating a new world or loading an existing one.: UNSUPPORTED<br>  - When you start a new world, you'll be presented with several options.: UNSUPPORTED<br>  - Survival Mode: This is the most popular mode, where you'll need to gather resources, build shelter, and fend off monsters that come out at night.: UNSUPPORTED<br>  - Creative Mode: In this mode, you'll have unlimited resources and can fly, allowing you to build anything you can imagine without worrying about resources or limitations.: UNSUPPORTED<br>  - Choose the mode that suits your playstyle, and start exploring the world of Minecraft!: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer does not address the core question about where to start playing Minecraft. It provides generic information about game modes (Survival/Creative) but omits all critical survival steps (e.g., gathering wood, crafting tools, building shelter) mentioned in the REFERENCE ANSWER. The retrieved CHUNKS are entirely unrelated to the question, and the AI did not use them to correct its response.', 'completeness': 'The answer is incomplete. It skips the entire survival loop (resource gathering, crafting, shelter-building) that the REFERENCE ANSWER emphasizes. The response is more of a high-level overview of game modes rather than a practical starting guide.', 'hallucinations': &quot;No outright hallucinations, but the answer introduces irrelevant details (e.g., Creative Mode) that were not asked for and ignores the survival-focused question. The response feels templated rather than tailored to the user's query.&quot;, 'relevance': &quot;The answer is off-topic. The question asks for *how* to start playing (actionable steps), but the AI responds with *what* modes exist (game mode descriptions). It does not align with the REFERENCE ANSWER or the user's intent.&quot;, 'use_of_chunks': 'The AI ignored the provided CHUNKS, which were irrelevant to the question. However, it failed to recognize their irrelevance and did not pivot to provide a correct answer based on general Minecraft knowledge (which it should have).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">What should I expect to find outside at night? What do I need to craft to survive till morning?</div>
+                                <div class="reference-text">Ref: Outside at night, expect hostile Minecraft mobs like Zombies, Skeletons, Spiders, and Creepers, so you need to craft tools (sword, axe), armor (if possible), and ideally a bed to skip the night by sleeping; otherwise, build a simple shelter with wood and dirt, make torches with coal/charcoal and sticks for light, and cook food with a furnace for health. </div>
+                            </td>
+                            <td class="answer-cell">I can only provide information related to Minecraft. <br><br>To survive till morning, you'll need to craft a crafting table and then craft torches. The torches will help you see in the dark, allowing you to explore safely outside at night.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 44%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially relevant but lacks critical survival details, omits key threats, and fails to address shelter or combat preparation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: village_4)**: Score 1 - Somewhat related. It mentions zombies spawning at night (hostile mobs), which is tangentially relevant to the question, but it focuses on zombie sieges in villages, not general nighttime survival or crafting needs. It doesn’t help answer the core question about what to expect or how to survive.<br>    - **Chunk 2 (ID: bed_2)**: Score 3 - Highly relevant. It directly addresses a key part of the Reference Answer: using a bed to skip the night, the conditions for sleeping (e.g., monsters nearby), and the mechanics of resting. This is critical for surviving till morning.<br>    - **Chunk 3 (ID: ancient_city_4)**: Score 0 - Completely irrelevant. It describes loot and structures in the Ancient City, which is unrelated to the question about general nighttime survival or crafting essentials. This chunk could mislead or confuse the answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I can only provide information related to Minecraft.: SUPPORTED<br>  - To survive till morning, you'll need to craft a crafting table and then craft torches.: UNSUPPORTED<br>  - The torches will help you see in the dark, allowing you to explore safely outside at night.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies torches as a useful item for visibility at night.', 'incorrect': 'It omits all hostile mobs (Zombies, Skeletons, etc.), armor, weapons, beds, and shelter-building—critical for survival. The answer is overly simplistic and ignores the primary dangers of nighttime in Minecraft.'}, 'completeness': {'missing_parts': ['No mention of hostile mobs (the main threat at night).', 'No discussion of crafting weapons (sword/axe) or armor for defense.', 'No reference to beds (skipping the night) or shelter construction.', 'No mention of cooking food or using a furnace for health.'], 'answer_scope': 'Only addresses visibility (torches) but ignores survival mechanics entirely.'}, 'hallucinations': {'present': False, 'details': 'No invented information, but the answer is dangerously incomplete.'}, 'relevance': {'on_topic': True, 'issues': 'The answer is technically about Minecraft but fails to address the core question (surviving till morning). It focuses on a minor aspect (torches) while ignoring critical survival strategies.'}, 'chunk_usage': {'supported': 'Torches are mentioned in the reference answer, but the AI did not use the provided chunks effectively (e.g., ignored bed mechanics in CHUNK 2 or mob behavior in CHUNK 1).', 'unsupported': 'No unsupported claims, but the answer is not grounded in the provided context.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do hoppers work?</div>
+                                <div class="reference-text">Ref: Hoppers in Minecraft are funnel-shaped blocks that automatically collect items from above and transport them into connected containers, acting as a basic item transport system. They suck up items that fall on them or from inventories above, store up to five item stacks in their own slots, and then push them out the spout into another hopper, chest, furnace, or other container. They can be locked with redstone power and are essential for creating automated farms and sorting systems, forming hopper pipes to move items around. </div>
+                            </td>
+                            <td class="answer-cell">A hopper is a low-capacity storage block that can be used to collect item entities directly above it, as well as to transfer items into and out of other containers.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but severely incomplete, missing most key details about hopper functionality, behavior, and use cases.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly explains how hoppers work, including their three core functions (collect, pull, push), their interaction with redstone (locking/unlocking), and their role in hopper pipes/chains. This aligns closely with the Reference Answer's description of item transport, automation, and redstone control.<br>    - **Chunk 2 (Score: 2)**: Relevant but less focused. It covers basic hopper mechanics (crafting, placement, GUI, redstone locking) and some metadata, but lacks details about item transport dynamics (e.g., hopper pipes, cooldowns) that are critical to the Reference Answer. Useful for foundational understanding but not sufficient alone.<br>    - **Chunk 3 (Score: 1)**: Somewhat related. It provides niche details about hopper interactions with specific blocks (brewing stands, composters, bee nests) and cooldown mechanics, but these are tangential to the core question. While it adds depth, it doesn’t directly answer 'how hoppers work' and could distract from the main functionality.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A hopper is a low-capacity storage block: SUPPORTED<br>  - can be used to collect item entities directly above it: SUPPORTED<br>  - as well as to transfer items into and out of other containers: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'Correct but minimal', 'details': &quot;The AI answer correctly states that a hopper is a 'low-capacity storage block that can collect item entities directly above it and transfer items into/out of other containers.' This aligns with [CHUNK 2] and the REFERENCE ANSWER. No factual errors were introduced.&quot;}, 'completeness': {'verdict': 'Poor', 'details': {'missing': ['Automatic collection/transport mechanics (sucking items, pushing to containers)', 'Hopper capacity (5 slots)', 'Redstone locking/disabling functionality', 'Hopper pipes/chains for item transport', 'Interaction with comparators (fullness detection)', 'Specific use cases (automated farms, sorting systems)', 'Cooldown mechanics (7-game-tick delay)', 'Directional placement and output behavior'], 'source': 'The REFERENCE ANSWER and all CHUNKS provide extensive details on these aspects, none of which were included in the AI answer.'}}, 'hallucinations': {'verdict': 'None', 'details': 'The AI answer does not introduce any unsupported or invented information. All claims are verifiable in the provided chunks.'}, 'relevance': {'verdict': 'Relevant but superficial', 'details': &quot;The answer stays on-topic but fails to address the core question ('How do hoppers work?') beyond a basic definition. It omits operational mechanics entirely.&quot;}, 'chunk_usage': {'verdict': 'Underutilized', 'details': &quot;The AI answer only reflects a small fraction of [CHUNK 2]'s content (the first sentence). It ignores all other chunks, which contain critical operational details (e.g., [CHUNK 1]'s explanation of push/pull mechanics, [CHUNK 3]'s interactions with other blocks).&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I breed villagers in Minecraft?</div>
+                                <div class="reference-text">Ref: To breed villagers in Minecraft, you need two adult villagers, enough unclaimed beds for the new baby, and food for the parents (like bread, carrots, or potatoes); drop food on the ground, and when they become willing (hearts appear), they'll breed and a baby villager will spawn in an available bed. Having a farmer villager and a bell helps encourage natural breeding, but manual feeding works well for specific breeding projects</div>
+                            </td>
+                            <td class="answer-cell">To breed villagers in Minecraft, you need to meet the following conditions:<br><br>1.  There must be at least one villager willing to breed.<br>2.  The player must have a valid door within the village radius where the villager is currently standing.<br>3.  Villagers can become willing by having either 3 bread, 12 carrots, 12 potatoes, or 12 beetroots in one stack in their inventory.<br><br>Once these conditions are met, villagers will begin to breed and produce baby villagers.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but misses key details like the need for unclaimed beds, the role of a bell, and the visual confirmation of breeding (hearts). It also incorrectly emphasizes 'valid doors' (outdated mechanic).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the core requirements for breeding villagers, including the need for two adult villagers, food types (bread, carrots, potatoes, beetroots), the willingness mechanic (hearts appearing), bed requirements for baby villagers, and manual feeding by the player. This chunk fully aligns with the Reference Answer and provides all necessary details for a correct response.<br><br>    - **Chunk 2 (Score: 1)**: Somewhat related but not useful. While it mentions villagers breeding autonomously and the need for doors (pre-1.14 mechanics), it focuses on outdated mechanics (pre-Village &amp; Pillage update) and tangential details like baby villager behavior or zombie villager curing. This could confuse users looking for current breeding methods.<br><br>    - **Chunk 3 (Score: 2)**: Relevant but partially helpful. It explains the willingness mechanic (food requirements) and mating conditions, which are useful. However, it also includes outdated details (e.g., door-based breeding, pre-1.8 mechanics) and tangential information (lightning turning villagers into witches). While some parts are correct, the outdated context could lead to an incomplete or slightly incorrect answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - There must be at least one villager willing to breed.: SUPPORTED<br>  - The player must have a valid door within the village radius where the villager is currently standing.: CONTRADICTED<br>  - Villagers can become willing by having either 3 bread, 12 carrots, 12 potatoes, or 12 beetroots in one stack in their inventory.: SUPPORTED<br>  - Once these conditions are met, villagers will begin to breed and produce baby villagers.: PARTIALLY SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Villagers must be willing to breed', 'Food requirements (3 bread, 12 carrots/potatoes/beetroots)'], 'incorrect': [&quot;Mentions 'valid door' as a requirement (outdated pre-1.14 mechanic; chunks clarify this is legacy info)&quot;, 'Omits that beds are required for baby villagers to spawn (critical detail from REFERENCE and CHUNK 1)'], 'unsupported': []}, 'completeness': {'missing': ['No mention of unclaimed beds (required for baby spawning)', 'No mention of hearts appearing when villagers become willing (visual confirmation)', 'No mention of bells or farmer villagers encouraging breeding (helpful but not mandatory)', 'No mention of baby villager spawning mechanics (e.g., pathfinding to beds)'], 'partial': ['Food requirements are correct but lack context (e.g., food must be thrown/dropped for villagers to pick up)']}, 'hallucinations': {'present': False, 'details': &quot;No invented information, but outdated mechanics ('valid doors') are incorrectly prioritized over current requirements.&quot;}, 'relevance': {'on_topic': True, 'irrelevant_details': 'None, but the answer focuses on outdated mechanics (doors) instead of modern requirements (beds).'}, 'chunk_usage': {'used_correctly': ['Food requirements (CHUNK 1 and 3)', 'Willingness mechanic (CHUNK 1 and 3)'], 'ignored_critical_info': ['Beds as a requirement (CHUNK 1)', 'Hearts as visual confirmation (CHUNK 1)', 'Bell/farmer encouragement (REFERENCE)']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the prime diamond mining level? Is it -54 or -58?</div>
+                                <div class="reference-text">Ref: Diamonds can be found between Y levels -64 and 16. However, if you're serious about maximizing your chances of unearthing these coveted ores, aim for Y level -59—right above bedrock. This is where you'll find deepslate diamond ore most frequently generated due to its unique spawning conditions</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, diamond ore generates in the Overworld in the form of ore features. However, I do not have specific information about the prime diamond mining level.<br><br>I can tell you that diamond ore generation occurs in four batches: 7 blobs of 1-5 ores per chunk, from Y=16 to Y=-63.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is incomplete and avoids directly addressing the question, despite relevant information being available in the chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: diamond)**: Score 2. This chunk is partially relevant because it mentions that diamond ore is most commonly found between Y levels -50 and -64, and specifically highlights -58 and -59 as preferred levels. However, it does not explicitly confirm whether -54 or -58 is the prime level, nor does it align perfectly with the Reference Answer's emphasis on -59 as the optimal level.<br>    - **Chunk 2 (ID: diamond_ore)**: Score 3. This chunk is highly relevant because it directly answers the question by stating that deepslate diamond ore is most commonly found at Y=-58 and Y=-59. This aligns with the Reference Answer's focus on -59 as the prime level and clarifies the ambiguity in the question.<br>    - **Chunk 3 (ID: diamond_pickaxe)**: Score 0. This chunk is completely irrelevant to the question, as it focuses on the diamond pickaxe's properties and usage, not diamond mining levels.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - According to the provided context, diamond ore generates in the Overworld in the form of ore features.: SUPPORTED<br>  - I do not have specific information about the prime diamond mining level.: CONTRADICTED<br>  - Diamond ore generation occurs in four batches: 7 blobs of 1-5 ores per chunk, from Y=16 to Y=-63.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is factually accurate in the information it provides (diamond ore generation ranges and blob details), but it fails to answer the core question about the prime diamond mining level (-54 or -58). The chunks explicitly state that levels -58 and -59 are preferred, and deepslate diamond ore is most commonly found at Y=-58 and Y=-59.', 'completeness': 'The answer is highly incomplete. It does not address the question about the prime diamond mining level (-54 or -58) at all, nor does it mention the optimal Y level (-58/-59) highlighted in the chunks.', 'hallucinations': 'No hallucinations detected. The AI sticks to information present in the chunks but omits critical details.', 'relevance': 'The answer is partially relevant but avoids the main question. It provides generic information about diamond ore generation instead of focusing on the prime mining level.', 'missing_info': 'The AI omits the key detail that the prime diamond mining levels are -58 and -59 (with -59 being the most optimal per the reference). It also ignores the bedrock spawning context (-60) and the preference for deepslate diamond ore at these levels.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why are creepers afraid of cats and ocelots?</div>
+                                <div class="reference-text">Ref: In Minecraft, creepers fear cats and ocelots because it's a built-in game mechanic, inspired by real-world feline predators deterring rodents, giving players a strategic advantage for base defense and farm design; creepers flee within a 6-block radius, and this mechanic also deters phantoms, though it's sometimes inconsistent due to game version bugs or obstruction</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI failed to answer the question despite relevant information being present in the retrieved chunks, resulting in a very poor score.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 0)**: Completely irrelevant to the question. It discusses creepers in a Dungeons &amp; Dragons context, not Minecraft, and provides no information about their behavior toward cats or ocelots.<br>    - **CHUNK 2 (Score: 3)**: Highly relevant. It directly answers the question by explaining that creepers flee from ocelots and cats within a 6-block radius, including details about their movement speed and behavior during detonation. This aligns perfectly with the Reference Answer.<br>    - **CHUNK 3 (Score: 2)**: Relevant but partially helpful. It confirms that creepers stay 6 blocks away from ocelots and mentions phantoms' behavior, but it focuses more on ocelot mechanics (e.g., taming, breeding) rather than the core reason for creepers' fear. It supports the answer but doesn't fully explain the mechanic.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer is factually incorrect because it claims insufficient information, while **Chunk 2** explicitly states that 'Creepers flee from ocelots and cats within a 6-block radius' and provides additional context about the mechanic (e.g., faster movement, behavior during detonation).&quot;, 'completeness': 'The AI answer is entirely incomplete—it does not address any part of the question, including the reason for the fear, the radius, or the strategic implications mentioned in the reference.', 'hallucinations': 'No hallucinations (invented info) were present, but the AI incorrectly asserted a lack of information when the context was sufficient.', 'relevance': 'The AI answer is irrelevant to the question, as it does not engage with the provided context or the topic at all.', 'use_of_chunks': 'The AI ignored **Chunk 2**, which directly answers the question, and **Chunk 3**, which reinforces the mechanic. This is a critical failure in utilizing retrieved context.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">I hear really creepy noises. Does it mean Herobrine is near me?</div>
+                                <div class="reference-text">Ref: No, creepy noises in Minecraft usually aren't Herobrine; they're ambient cave sounds designed to create atmosphere, triggered by low light levels or specific biomes like Ancient Cities, though players often associate unsettling noises with the legendary myth. Herobrine is a player-made creepypasta, a fictional character, not a real part of the game's code, but some players joke that certain eerie sounds are him</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is poor due to its refusal to provide information despite the chunks containing relevant context, leading to a complete failure to address the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the core of the question by stating that Herobrine is a creepypasta, not part of the game's code, and cannot exist in unmodified versions of Minecraft. This aligns perfectly with the Reference Answer's emphasis on Herobrine being fictional and ambient noises being unrelated to him.<br>    - **Chunk 2 (Score: 1)**: Somewhat related but not useful. While it provides canonical details about Herobrine's lore (e.g., his appearance, abilities), it does not help answer the question about creepy noises or clarify that Herobrine is fictional. This could mislead users into thinking the question is about Herobrine's behavior rather than debunking the myth.<br>    - **Chunk 3 (Score: 1)**: Somewhat related but not useful. It focuses on community interpretations of Herobrine (e.g., summoning rituals, interactions with mobs), which are tangential to the question. This chunk does not address the actual source of creepy noises or the fictional nature of Herobrine, risking confusion.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is factually inaccurate because it claims insufficient information, while the chunks explicitly state that Herobrine is a fictional creepypasta and not part of the game. The reference answer also confirms this.', 'completeness': &quot;The AI answer is completely incomplete, as it does not address any part of the question (e.g., explanation of creepy noises, Herobrine's fictional nature, or ambient game sounds).&quot;, 'hallucinations': &quot;No hallucinations, but the AI's refusal to answer is unjustified given the provided context.&quot;, 'relevance': 'The AI answer is irrelevant because it does not engage with the question or the provided chunks, which directly address the topic.', 'use_of_chunks': &quot;The AI failed to use the chunks, which clearly explain Herobrine's fictional status and the nature of creepy noises in Minecraft. The reference answer aligns with the chunks, making the AI's response inexcusable.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I find a stronghold?</div>
+                                <div class="reference-text">Ref: To find a stronghold in Minecraft, craft and use Eyes of Ender, throwing them to see which direction they fly, then follow that path, throwing more eyes periodically until one goes straight down, indicating you're above it, then dig down to find the underground structure. Strongholds are underground structures containing the End Portal, but their entrances aren't marked on the surface</div>
+                            </td>
+                            <td class="answer-cell">You can find a stronghold by using an eye of ender.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but severely incomplete, missing critical steps and details from the reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: stronghold_1)**: Score 3 - Highly relevant. It directly answers the question by explaining how to locate a stronghold using Eyes of Ender, mentions the underground nature of strongholds, and confirms the need to dig down after the Eye of Ender indicates the location. This aligns perfectly with the Reference Answer.<br>    - **Chunk 2 (ID: stronghold_2)**: Score 2 - Relevant but partially helpful. While it provides detailed information about the generation rings and layout of strongholds, it does not explicitly explain *how* to find them (e.g., using Eyes of Ender). This chunk is useful for context but not sufficient alone to answer the question correctly.<br>    - **Chunk 3 (ID: trial_chambers_6)**: Score 0 - Completely irrelevant. This chunk discusses Trial Chambers, a different structure unrelated to strongholds or the method of finding them. It does not contribute to answering the question and could mislead users.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find a stronghold by using an eye of ender.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'Correct but minimal', 'details': 'The AI correctly identifies the use of Eyes of Ender to find a stronghold, which aligns with the reference and chunks. However, it omits the *process* of using them (throwing, following direction, digging down), which is the core of the answer.'}, 'completeness': {'verdict': 'Poor', 'details': 'The reference answer includes step-by-step instructions (throwing Eyes of Ender, following their path, digging down). The AI answer lacks all procedural details, rendering it unhelpful for a player seeking guidance. Chunks provide additional context (e.g., strongholds are underground, generate in rings) that is entirely omitted.'}, 'hallucinations': {'verdict': 'None', 'details': 'No invented information is present, but the answer is overly simplistic.'}, 'relevance': {'verdict': 'Relevant but insufficient', 'details': &quot;The answer stays on topic but fails to address the *how* of finding a stronghold, which is the question's intent.&quot;}, 'use_of_chunks': {'verdict': 'Ignored', 'details': 'The AI did not incorporate any details from the chunks (e.g., underground generation, rings, or procedural steps), relying solely on a single fact.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I cure a zombie villager?</div>
+                                <div class="reference-text">Ref: To cure a zombie villager in Minecraft, trap it, splash it with a Splash Potion of Weakness, then use a Golden Apple on it; it will shake and take 3-5 minutes to transform back into a normal villager, offering trade discounts as a reward</div>
+                            </td>
+                            <td class="answer-cell">To cure a zombie villager, you need to apply the Weakness effect and then give it a golden apple.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks critical details and completeness compared to the reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 2)**: Partially relevant. It mentions that a zombie villager can be cured using a golden apple while under the effect of Weakness, which is a key part of the reference answer. However, it lacks details about the trapping process, the Splash Potion of Weakness, or the transformation time (3-5 minutes). The chunk is mostly descriptive of zombie villager spawn mechanics and properties, which are not directly useful for answering the question.<br>    - **Chunk 2 (Score: 1)**: Somewhat related. It repeats the same curing method (golden apple + Weakness) as Chunk 1 but in an outdated or less detailed form. It focuses more on spawn mechanics and persistence, which are tangential to the question. No mention of trapping, potions, or transformation time.<br>    - **Chunk 3 (Score: 3)**: Highly relevant. It directly addresses the curing process, including the use of a golden apple, the effect of Weakness, the transformation time (implied by the curing process duration), and the rewards (trade discounts). It also clarifies the behavior during curing and the outcome, which aligns well with the reference answer. This chunk is the most useful for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To cure a zombie villager, you need to apply the Weakness effect: SUPPORTED<br>  - then give it a golden apple: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies the two key steps: applying the Weakness effect and using a golden apple.', 'missing': 'It omits the need for a *Splash Potion* of Weakness, the trapping requirement, the 3-5 minute transformation time, and the reward of trade discounts.'}, 'completeness': {'verdict': 'Incomplete. The reference answer provides a full step-by-step process, while the AI answer skips critical details (e.g., method of applying Weakness, curing duration, and post-cure benefits).'}, 'hallucinations': {'verdict': 'None detected. The AI does not invent unsupported information.', 'check': 'All provided details align with the chunks and reference, though they are overly simplified.'}, 'relevance': {'verdict': 'Relevant. The answer stays on topic but is too minimal to be fully useful.'}, 'chunk_usage': {'verdict': 'The AI underutilizes the chunks. Chunks 1 and 3 explicitly mention the Splash Potion of Weakness, trapping, and curing duration, but the AI ignores these details.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">In what conditions can you find slimes?</div>
+                                <div class="reference-text">Ref: You can find slimes in Minecraft in two main conditions: in swamp biomes at night (light level 7 or less, especially during a full moon) between Y-levels 51-69, or in specific slime chunks deep underground (below Y-level 40) at any light level, needing a 3x3x3 space to spawn. Finding them often involves exploring swamps after dark or using online tools to locate slime chunks in your world. </div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, slimes can be found in the following conditions:<br><br>1. In slime chunks below the layer of Y=40.<br>2. In swamp and mangrove swamps between the altitudes of Y=51 and Y=69 (inclusive) when the light level is 7 or less.<br><br>Note that slimes can also spawn from trial spawners, but this is not a natural spawning condition.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 78%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits key details about moon phases and the 3x3x3 spawning space requirement.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: slime_1)**: Highly relevant (Score: 3). This chunk directly answers the question by detailing the two main conditions for finding slimes: swamp biomes at night (light level 7 or less, full moon, Y-levels 51-69) and slime chunks underground (below Y-level 40). It also explains the spawning mechanics, which align perfectly with the Reference Answer.<br>    <br>    - **Chunk 2 (ID: slime_3)**: Somewhat related (Score: 1). This chunk focuses on slime behavior, splitting mechanics, and damage but does not address the conditions for finding slimes. While tangentially related, it does not help answer the question and could lead to an incomplete or incorrect answer if relied upon alone.<br>    <br>    - **Chunk 3 (ID: slime_2)**: Highly relevant (Score: 3). This chunk provides critical information about slime chunks (below Y-level 40, algorithm for determining slime chunks) and additional spawn conditions (trial chambers, Oozing effect). It complements Chunk 1 by expanding on underground spawning, which is part of the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Slimes can be found in slime chunks below the layer of Y=40.: SUPPORTED<br>  - Slimes can be found in swamp and mangrove swamps between the altitudes of Y=51 and Y=69 (inclusive) when the light level is 7 or less.: SUPPORTED<br>  - Slimes can also spawn from trial spawners, but this is not a natural spawning condition.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Slimes spawn in slime chunks below Y=40 (CHUNK 3).', 'Slimes spawn in swamp/mangrove swamps between Y=51-69 with light level ≤7 (CHUNK 1).', 'Trial spawners are noted as non-natural (CHUNK 3).'], 'missing': ['No mention of full moon/new moon conditions (critical for swamp spawning; CHUNK 1).', 'No mention of the 3x3x3 space requirement for underground spawning (CHUNK 1).', 'No reference to slime chunks being ~10% of all chunks (CHUNK 3).']}, 'completeness': &quot;The answer covers the two main natural spawning conditions but lacks depth (moon phase, space requirements) and omits secondary methods (Oozing effect, trial spawners are dismissed as 'not natural' without elaboration).&quot;, 'hallucinations': 'None detected. All stated information aligns with the chunks.', 'relevance': 'Fully on-topic, but the brevity reduces usefulness for practical gameplay.', 'chunk_usage': &quot;The AI correctly extracts spawning conditions from CHUNK 1 and CHUNK 3 but overlooks nuanced details (e.g., moon phase, space requirements) that are critical for the reference answer's completeness.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the best way to find elytra?</div>
+                                <div class="reference-text">Ref: The best way to find Elytra in Minecraft is to defeat the Ender Dragon, use the resulting End Gateway portal to reach the outer End islands, then locate an End City and its associated End Ship (often near or attached to the city) to find the Elytra in an item frame within the ship's treasure room. You'll need many blocks and ender pearls for travel, and must be prepared to fight Shulkers guarding the ship. </div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, Elytra can be found in End ships, which are located in some End cities.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks critical details about how to *find* Elytra, making it incomplete and only partially useful.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (elytra_1)**: Score 3 - Highly relevant. It directly answers the question by explaining that Elytra are found in End Ships within End Cities in the outer End islands, guarded by Shulkers, and located in an item frame. This matches the Reference Answer's core information.<br>    - **Chunk 2 (end_city_1)**: Score 3 - Highly relevant. It provides critical context on how to locate End Cities (the prerequisite for finding Elytra), including their generation rules, biomes, and the need to traverse the outer End islands. This complements Chunk 1 and aligns with the Reference Answer's guidance on reaching the End Ship.<br>    - **Chunk 3 (elytra_4)**: Score 0 - Completely irrelevant. It discusses enchantments for Elytra, which is unrelated to the question of *how to find* them. This could mislead or distract from the correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Elytra can be found in End ships: SUPPORTED<br>  - End ships are located in some End cities: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'Correct', 'details': 'The AI answer correctly states that Elytra are found in End ships within End cities, which aligns with the reference and chunks.'}, 'completeness': {'verdict': 'Incomplete', 'details': &quot;The answer omits key steps from the reference and chunks, such as: (1) Defeating the Ender Dragon to access the End Gateway, (2) Traveling to the outer End islands, (3) Locating an End City and its associated End Ship, (4) Fighting Shulkers to claim the Elytra, and (5) The Elytra being in an item frame in the ship's treasure room. These omissions make the answer unhelpful for a player seeking guidance.&quot;}, 'hallucinations': {'verdict': 'None', 'details': 'No invented information was added; the answer strictly adheres to the provided chunks.'}, 'relevance': {'verdict': 'Relevant but superficial', 'details': &quot;The answer stays on topic but fails to address the core question ('best way to *find* Elytra') beyond a vague location reference.&quot;}, 'use_of_chunks': {'verdict': 'Underutilized', 'details': 'The AI cites the chunks (End ships in End cities) but ignores critical procedural details from [CHUNK 1] (e.g., item frame location, Shulker guards) and [CHUNK 2] (e.g., accessing outer islands via End Gateway).'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">Is the Xbox One Minecraft world infinite?</div>
+                                <div class="reference-text">Ref: No, the original Minecraft: Xbox One Edition worlds are not truly infinite; they have large, but finite, size limits (like 5120x5120 blocks) due to console storage and performance, though they are much bigger than previous generations, making them feel effectively endless for most players before hitting storage limits. The Bedrock Edition on Xbox One and newer consoles offers a truly infinite world-generation system (like the PC version), but still features a world border far out at ±30 million blocks</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 11%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and fails to address the question, despite the reference providing clear information. The retrieved chunks are irrelevant to the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1**: Score 0 - Completely irrelevant. This chunk discusses the `huge_fungus` block types and their properties, which have no connection to world size limits or the Xbox One edition of Minecraft.<br>    - **CHUNK 2**: Score 0 - Completely irrelevant. This chunk explains map icon behavior in Minecraft, which is unrelated to world size or infinity mechanics.<br>    - **CHUNK 3**: Score 1 - Somewhat related but not useful. While this chunk discusses the Far Lands and world limits in *Java Edition* (a PC version), it does not address the Xbox One Edition or Bedrock Edition's world size constraints. The information about Far Lands and world borders is tangentially related to world generation limits but does not answer the question about Xbox One specifically. It could mislead if interpreted as applying to console versions.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer claims it does not have enough information, which is false. The reference answer provides a clear and detailed response about the Xbox One Minecraft world's finiteness, and the retrieved chunks, while unrelated, do not justify the AI's inability to answer. The AI ignored the reference's context and defaulted to a non-answer.&quot;, 'completeness': 'The AI answer is completely incomplete, as it does not address any part of the question. The reference answer covers both the original Xbox One Edition and Bedrock Edition, which the AI fails to mention.', 'hallucinations': &quot;No hallucinations are present, but the AI's response is misleading because it implies the question cannot be answered with the provided context, which is untrue.&quot;, 'relevance': &quot;The AI answer is irrelevant to the question. The retrieved chunks (e.g., fungus mechanics, maps, Far Lands) are unrelated to the Xbox One Minecraft world's size limits, but the AI could have still provided a correct answer based on general knowledge or the reference.&quot;, 'use_of_chunks': &quot;The AI did not use the chunks correctly, as they are entirely irrelevant to the question. However, the AI's failure to answer is not due to the chunks but rather a lack of inference or reliance on the reference.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why do beds explode in the Nether and End?</div>
+                                <div class="reference-text">Ref: Beds explode in the Nether and End because they are programmed to provide a safe respawn point, but these dimensions lack the stable day/night cycle needed for normal sleep, causing a violent release of energy as the game can't process the time-skip, resulting in a large explosion, similar to TNT, but with added fire, because beds are made of flammable wool and wood in a fiery environment. </div>
+                            </td>
+                            <td class="answer-cell">Beds explode in the Nether and End because they are not supported by solid blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and oversimplified, missing the core explanation for why beds explode in the Nether and End.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly explains why beds explode in the Nether and End, mentioning the lack of a stable day/night cycle, the explosion power (stronger than TNT), and the fire effect due to the environment. This chunk alone provides all the key details needed for the correct answer.<br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. It confirms that beds explode in the Nether and End and mentions their use as cheap explosives, but it doesn’t explain *why* the explosion happens (the core of the question). It adds context about the explosion’s utility but doesn’t fully answer the question.<br>    - **Chunk 3 (Score: 0)**: Completely irrelevant. It discusses piston interactions and block entity data, which have no connection to the question about explosions in the Nether/End.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Beds explode in the Nether and End because they are not supported by solid blocks.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer ('Beds explode in the Nether and End because they are not supported by solid blocks') is incorrect. The reference and chunks clearly state that beds explode due to the lack of a stable day/night cycle in these dimensions, causing a violent energy release when the game attempts to process a time-skip. The 'solid blocks' claim is unsupported and irrelevant.&quot;, 'completeness': 'The answer is incomplete. It fails to address the core reason (time-skip failure), the explosion mechanics (power 5, fire), or the flammable materials involved. It also ignores the contextual details in the chunks (e.g., respawn point logic, dimension-specific behavior).', 'hallucinations': &quot;The AI invented the 'not supported by solid blocks' explanation, which is not mentioned in the reference or chunks. This is a clear hallucination.&quot;, 'relevance': 'The answer is somewhat relevant to the topic (beds exploding in the Nether/End) but misdirects the cause entirely.', 'chunk_usage': 'The AI did not use the provided chunks effectively. Chunks 1 and 2 explicitly explain the explosion cause (time-skip failure, dimension restrictions) and mechanics, but the AI ignored these details.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">What do I need to beat the Ender Dragon?</div>
+                                <div class="reference-text">Ref: To beat the Ender Dragon, you need good armor (diamond/netherite), a strong enchanted sword and bow, lots of blocks for climbing, food, healing items (potions/golden apples), and utility items like water buckets and Ender Pearls; destroy the End Crystals first, then attack the dragon with ranged weapons and melee when it perches</div>
+                            </td>
+                            <td class="answer-cell">To beat the Ender Dragon, you'll need to have the following items and knowledge:<br><br>1. A sufficient amount of Health (HP) to withstand the dragon's attacks.<br>2. Potions of Healing or Regeneration to restore your health during the fight.<br>3. A suitable inventory management system to keep track of your items and resources.<br>4. Knowledge of the Ender Dragon's attack patterns, including its breath attack and fireballs.<br><br>It is recommended that you have a good understanding of Minecraft's mechanics and strategies before attempting to beat the Ender Dragon.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 44%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but lacks critical details and omits key strategies, resulting in an incomplete and somewhat generic response.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 1)**: This chunk provides background information about the Ender Dragon's behavior, spawning mechanics, and re-summoning process. While it describes the dragon's attacks and some mechanics (e.g., End Crystals healing the dragon), it does not directly address how to *beat* the dragon or what preparations are needed. It is tangentially related but not useful for answering the question.<br>    - **Chunk 2 (Score: 1)**: This chunk focuses on post-battle events (e.g., experience drops, portal activation, dragon egg spawning) and some battle mechanics (e.g., dragon's immunity to certain attacks). It mentions the importance of End Crystals but does not provide actionable advice on how to prepare or fight the dragon. It is somewhat related but not directly helpful.<br>    - **Chunk 3 (Score: 2)**: This chunk is the most relevant as it describes the dragon's attack patterns (e.g., breath attack, fireballs, perching) and states (e.g., circling, strafing). It indirectly implies the need to destroy End Crystals (since destroying them triggers state changes) and mentions the dragon's immunity to arrows when perching. However, it still lacks explicit guidance on gear, healing items, or strategy, which are critical for the reference answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A sufficient amount of Health (HP) to withstand the dragon's attacks.: SUPPORTED<br>  - Potions of Healing or Regeneration to restore your health during the fight.: SUPPORTED<br>  - A suitable inventory management system to keep track of your items and resources.: UNSUPPORTED<br>  - Knowledge of the Ender Dragon's attack patterns, including its breath attack and fireballs.: SUPPORTED<br>  - It is recommended that you have a good understanding of Minecraft's mechanics and strategies before attempting to beat the Ender Dragon.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Mentions needing health (HP) to withstand attacks (aligned with reference/chunks).', 'Recommends potions of Healing/Regeneration (aligned with reference).', &quot;Acknowledges the dragon's attack patterns (breath attack, fireballs) (aligned with chunks).&quot;], 'incorrect_or_unsupported': ['No mention of specific armor (diamond/netherite), weapons (enchanted sword/bow), or utility items (blocks, Ender Pearls, water buckets) from the reference.', 'No reference to destroying End Crystals first, a critical step in the battle (mentioned in chunks).', 'No details on ranged/melee attack strategies when the dragon perches (reference).']}, 'completeness': {'missing': ['No specific gear recommendations (armor, weapons, tools).', 'No step-by-step battle strategy (e.g., destroying crystals first, attacking perched dragon).', 'No mention of food, healing items (golden apples), or climbing blocks (reference).', &quot;No explanation of the dragon's perching immunity to arrows (chunks).&quot;], 'generic': &quot;The answer is overly vague, focusing on broad concepts (e.g., 'inventory management') rather than actionable details.&quot;}, 'hallucinations': {'present': False, 'details': 'No invented information, but the response omits critical details from the chunks/reference.'}, 'relevance': {'on_topic': True, 'issue': 'While relevant, the answer lacks depth and specificity, making it less useful for a player preparing for the fight.'}, 'chunk_usage': {'underutilized': True, 'details': 'The chunks provide specific mechanics (e.g., crystal destruction, perching immunity, attack patterns), but the AI answer fails to leverage these for a tactical guide.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can the ender dragon egg be hatched?</div>
+                                <div class="reference-text">Ref: No, you cannot naturally hatch the Ender Dragon egg in vanilla Minecraft; it's a decorative trophy item, not a functional egg for growing a baby dragon. While you can collect it and display it, hatching it requires installing mods like Ice and Fire or Dragon Mounts, which add features to hatch and raise dragons</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 56%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is incorrect and fails to address the question, despite sufficient context being provided in the chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 1)**: This chunk describes the Ender Dragon battle and the spawning of the dragon egg but does not address whether the egg can be hatched. It is tangentially related but not useful for answering the question.<br>    - **CHUNK 2 (Score: 3)**: This chunk directly addresses the dragon egg's properties and confirms it is a decorative item obtained after defeating the Ender Dragon. It explicitly states the egg cannot be hatched in vanilla Minecraft, aligning with the Reference Answer. This is highly relevant.<br>    - **CHUNK 3 (Score: 1)**: This chunk focuses on the Ender Dragon's behavior, summoning, and defeat mechanics but does not mention the dragon egg's functionality or hatching. It is somewhat related but not useful for the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer claims it lacks enough information, but the retrieved chunks (especially CHUNK 2) explicitly state that the dragon egg is a decorative trophy item and cannot be hatched in vanilla Minecraft. The reference answer confirms this, making the AI's response factually inaccurate.&quot;, 'completeness': 'The AI does not answer the question at all, missing the core point that the egg is non-functional in vanilla Minecraft and requires mods to hatch.', 'hallucinations': 'No hallucinations, but the AI incorrectly asserts a lack of information, which is untrue given the chunks.', 'relevance': 'The AI stays on topic but fails to provide any relevant information, rendering the answer useless.', 'context_usage': &quot;The AI ignores the provided chunks, which contain the necessary details to answer the question fully. For example, CHUNK 2 describes the egg's behavior and limitations, while the reference answer aligns with this.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can I breed fish in Minecraft?</div>
+                                <div class="reference-text">Ref: No, you generally cannot breed fish in vanilla Minecraft in the traditional sense, as most types like Tropical Fish and Pufferfish only spawn naturally and can't reproduce; however, in recent updates, Cod and Salmon can be bred by feeding them raw fish, and Axolotls can be bred using a Bucket of Tropical Fish, providing ways to create fish farms and increase their number</div>
+                            </td>
+                            <td class="answer-cell">I don’t have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is overly cautious and fails to address the question despite relevant information being present in the chunks. This results in a poor score due to incompleteness and lack of utility.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 1)**: While this chunk provides detailed information about fish mobs in Minecraft (spawning, behavior, etc.), it does not explicitly address the question of breeding fish. It is tangentially related but does not help answer the question directly. No mention of breeding mechanics or exceptions (e.g., Cod, Salmon, or Axolotls) is present.<br>    - **Chunk 2 (Score: 2)**: This chunk is partially relevant because it mentions that raw salmon can be used to breed cats and ocelots, but it does not clarify whether fish themselves can be bred. However, it does hint at the broader theme of breeding mechanics in Minecraft, which is related to the question. The chunk could mislead if interpreted as implying fish breeding is possible, but it also indirectly supports the idea that some aquatic mobs (like Axolotls) might have breeding mechanics.<br>    - **Chunk 3 (Score: 0)**: This chunk provides basic information about Tropical Fish (health, behavior, spawn locations) but does not address breeding at all. It is completely irrelevant to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I don’t have enough information in the provided context to answer this question.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer does not attempt to address the question, so factual accuracy cannot be evaluated. However, the chunks *do* contain relevant information (e.g., breeding mechanics for Cod, Salmon, and Axolotls via raw fish or Bucket of Tropical Fish), which the AI ignored.', 'completeness': 'The answer is entirely incomplete. The question is answerable with the provided chunks (e.g., Chunk 2 mentions breeding mechanics for other mobs, and the reference answer confirms breeding for Cod, Salmon, and Axolotls), but the AI did not extract or synthesize this information.', 'hallucinations': &quot;No hallucinations, but the refusal to answer is unjustified given the context. The AI could have inferred breeding mechanics from the chunks (e.g., raw salmon's use in breeding other mobs implies similar mechanics for fish).&quot;, 'relevance': 'The answer is technically on-topic but unhelpful. It does not engage with the question or the provided context.', 'use_of_chunks': 'The AI failed to use the chunks effectively. Chunk 2 explicitly mentions breeding mechanics for other mobs (e.g., cats, ocelots), which could have been extrapolated to fish. The reference answer also confirms breeding for specific fish types, which the AI should have recognized as possible from the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [25, 30, 15, 42, 15, 20, 25, 35, 15, 10, 15, 25, 35, 42, 30, 10, 15, 25, 10, 15],
+                    backgroundColor: [25, 30, 15, 42, 15, 20, 25, 35, 15, 10, 15, 25, 35, 42, 30, 10, 15, 25, 10, 15].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [25, 30, 15, 42, 15, 20, 25, 35, 15, 10, 15, 25, 35, 42, 30, 10, 15, 25, 10, 15].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [52.2, 47.9, 46.7, 42.5],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [55.7, 55.7, 55.7, 66.7, 0.0, 44.3, 66.7, 66.7, 55.7, 55.7, 55.7, 55.7, 66.7, 77.7, 66.7, 11.0, 55.7, 44.3, 55.7, 33.3],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [33.0, 33.0, 33.0, 50.0, 0.0, 33.0, 100.0, 50.0, 66.7, 0.0, 0.0, 100.0, 100.0, 100.0, 100.0, 100.0, 0.0, 60.0, 0.0, 0.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [66.7, 66.7, 33.3, 66.7, 33.3, 33.3, 66.7, 66.7, 33.3, 33.3, 33.3, 33.3, 66.7, 66.7, 33.3, 66.7, 33.3, 33.3, 33.3, 33.3],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [0.0, 33.0, 30.0, 67.0, 50.0, 50.0, 100.0, 50.0, 40.0, 0.0, 0.0, 100.0, 70.0, 100.0, 100.0, 0.0, 0.0, 60.0, 0.0, 0.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
