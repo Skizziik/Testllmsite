@@ -33,7 +33,7 @@ def parse_html_report(filepath: Path) -> dict:
 
         # Extract data from filename
         filename = filepath.name
-        # Format: evaluation_report_DD_MM_HH-MMAM/PM_Model_Name.html
+        # Format: evaluation_report or ragas_report_DD_MM_HH-MMAM/PM_Model_Name.html
         # Example: evaluation_report_06_01_03-06AM_Llama_3.1_8B_Instruct_Q4_K_M.html
 
         report_data = {
@@ -183,13 +183,13 @@ async def root():
 def parse_report_date_from_filename(filepath: Path) -> tuple:
     """
     Extract date/time from report filename for sorting.
-    Format: evaluation_report_DD_MM_HH-MMAM/PM_Model.html
+    Format: evaluation_report or ragas_report_DD_MM_HH-MMAM/PM_Model.html
     Example: evaluation_report_08_01_01-24AM_Phi-4_Mini_Instruct_Q4_K_M.html
     Returns tuple (month, day, hour24, minute) for sorting, newest first.
     """
     filename = filepath.stem
-    # Pattern: evaluation_report_DD_MM_HH-MMAM/PM
-    match = re.match(r'evaluation_report_(\d{2})_(\d{2})_(\d{2})-(\d{2})(AM|PM)', filename)
+    # Pattern: (evaluation_report|ragas_report)_DD_MM_HH-MMAM/PM
+    match = re.match(r'(?:evaluation_report|ragas_report)_(\d{2})_(\d{2})_(\d{2})-(\d{2})(AM|PM)', filename)
     if match:
         day = int(match.group(1))
         month = int(match.group(2))
