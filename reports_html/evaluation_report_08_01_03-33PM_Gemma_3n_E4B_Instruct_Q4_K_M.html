@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-08 15:33 | Questions: 20 | Model: Gemma 3n E4B Instruct (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Gemma 3n E4B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;BAAI/bge-small-en-v1.5&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.3,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 2200,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #ef4444">583/1000</div>
+                <div class="subtext">58.3% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #ef4444">29.1</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">61.5%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #f59e0b">75.0%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #f59e0b">64.6%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #ef4444">52.8%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I activate a beacon and what does it do?</div>
+                                <div class="reference-text">Ref: A beacon is activated by placing it on top of a pyramid made of valuable mineral blocks (iron, gold, diamond, emerald, or netherite) with a clear view of the sky. Once active, it projects a beam upward and provides constant status effects to all players within a radius around it. The beacon's range and available effects depend on the pyramid size, from one to four layers.</div>
+                            </td>
+                            <td class="answer-cell">To activate a beacon, you need to feed it an item (iron ingot, gold ingot, emerald, diamond, or netherite ingot). This is done by looking at the beacon block and clicking the &quot;Done&quot; button (green checkmark) while an item is in the empty slot. <br><br>Activating a beacon allows you to select primary and secondary powers for players within range. Primary powers include effects like Regeneration, and secondary powers can further enhance the primary effect. The beacon then emits a beam that provides these effects to players within range.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains significant factual inaccuracies and omissions, particularly regarding the activation process and the beacon's functionality.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers the question by explaining how to activate a beacon (placing it on a pyramid of valuable mineral blocks with a clear view of the sky) and what it does (projects a beam upward and provides status effects to players within a radius). It also covers the dependency of range and effects on pyramid size, matching the Reference Answer closely.<br><br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. While it provides additional details about the beacon's beam color customization and the GUI for selecting status effects, these details are not explicitly required by the Reference Answer. The chunk does not directly address the core question of *how to activate* the beacon or its primary function, but it complements the answer with secondary information.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To activate a beacon, you need to feed it an item (iron ingot, gold ingot, emerald, diamond, or netherite ingot).: UNSUPPORTED<br>  - This is done by looking at the beacon block and clicking the &quot;Done&quot; button (green checkmark) while an item is in the empty slot.: SUPPORTED<br>  - Activating a beacon allows you to select primary and secondary powers for players within range.: SUPPORTED<br>  - Primary powers include effects like Regeneration, and secondary powers can further enhance the primary effect.: SUPPORTED<br>  - The beacon then emits a beam that provides these effects to players within range.: SUPPORTED<br>  - Feeding the beacon an item is the method to activate it.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly mentions that feeding an item (iron ingot, gold ingot, etc.) is part of the process to select status effects.', 'incorrect': 'The AI incorrectly states that feeding an item *activates* the beacon. Activation requires placing the beacon on a pyramid of mineral blocks with a clear view of the sky, not feeding it an item. The item is only required to *select* or *change* the status effects after activation.'}, 'completeness': {'missing': &quot;The AI omits critical details about the pyramid structure (size, layers, mineral blocks), the requirement for a clear view of the sky, the beam's functionality, and how the pyramid size affects range and effects. It also fails to explain the primary/secondary power mechanics clearly (e.g., Level II effects at 4 layers).&quot;, 'partial': 'The AI touches on status effects and the beam but does not fully explain their dependencies or how to activate the beacon initially.'}, 'hallucinations': {'present': &quot;The AI implies that feeding an item *activates* the beacon, which is false. Activation is separate from selecting effects. The AI also oversimplifies the GUI process (e.g., no mention of the pyramid's role in enabling secondary powers).&quot;, 'absent': 'No entirely fabricated information (e.g., nonexistent items or mechanics) is present.'}, 'relevance': {'on_topic': 'The answer stays on topic but misrepresents the core activation process.', 'off_topic': 'None.'}, 'chunk_usage': {'underutilized': 'The AI ignores key details from the chunks, such as the pyramid structure, sky visibility, and pyramid power levels, which are essential for activation.', 'misused': 'The AI conflates activation (pyramid + sky) with effect selection (feeding items).'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens if I try to sleep in a bed in the Nether?</div>
+                                <div class="reference-text">Ref: Beds can only be used in the Overworld. If you try to use a bed in the Nether or the End, it will explode violently, similar to TNT but with added fire damage. This is because those dimensions lack the day/night cycle needed for the bed's sleep function.</div>
+                            </td>
+                            <td class="answer-cell">If you try to sleep in a bed in the Nether, it will explode.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks completeness, omitting key details about the explosion's power, fire damage, and the reason for the explosion.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: bed_3)**: Score 1 - This chunk is somewhat related but not directly useful for answering the question. It contains detailed information about bed mechanics in the Overworld (e.g., spawn points, suffocation, weather resets) but only briefly mentions that beds explode in invalid dimensions without emphasizing the Nether or the explosion's effects. It does not clearly state the consequences of sleeping in the Nether, which is the core of the question.<br><br>    - **Chunk 2 (ID: bed_1)**: Score 3 - This chunk is highly relevant. It explicitly states that attempting to sleep in a bed in the Nether (or End/custom dimensions) causes the bed to explode with a power of 5, sets fire to surrounding blocks, and provides additional details like the explosion strength and death message. This directly answers the question and aligns with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If you try to sleep in a bed in the Nether, it will explode.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is correct in stating that the bed will explode in the Nether, which aligns with both the REFERENCE ANSWER and the RETRIEVED CHUNKS (CHUNK 2). No factual errors were made.', 'completeness': &quot;The answer is incomplete. It does not mention the explosion's power (stronger than TNT), the added fire damage, or the reason for the explosion (lack of day/night cycle in the Nether/End). These details are present in both the REFERENCE ANSWER and CHUNK 2.&quot;, 'hallucinations': 'No hallucinations were detected. The AI did not invent any information not present in the chunks or reference.', 'relevance': 'The answer stays on topic and directly addresses the question.', 'use_of_chunks': 'The AI used the chunks correctly but did not incorporate all relevant details from CHUNK 2 (e.g., explosion power, fire damage, or the reason for the explosion).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I find blazes and what do they drop?</div>
+                                <div class="reference-text">Ref: Blazes spawn naturally in Nether fortresses in groups of 2 or 3 at light level 11 or less, and also from monster spawners in Nether fortresses. They are the only source of blaze rods, which are essential for brewing and crafting Eyes of Ender.</div>
+                            </td>
+                            <td class="answer-cell">You can find blazes in **Nether fortresses**. They drop **blaze rods** when killed. Blaze powder can be crafted from blaze rods, and is used to fuel brewing stands and create eyes of ender.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits some key details about spawn conditions and the exact number of blazes per group.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: blaze_1)**: Score 3 - Highly relevant. It directly answers the question by stating where blazes can be found (Nether fortresses, naturally in groups of 2 or 3 at light level 11 or less, and from monster spawners in Nether fortresses). It also confirms they drop blaze rods, which are essential for brewing and crafting Eyes of Ender, matching the Reference Answer exactly.<br><br>    - **Chunk 2 (ID: blaze_powder)**: Score 2 - Relevant but partially helpful. While it explains what blaze powder is (made from blaze rods) and its uses (brewing and crafting Eyes of Ender), it does not directly answer the question about *where* to find blazes or what they drop. It provides context about the drop's utility but misses the core location/spawn details.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find blazes in Nether fortresses.: SUPPORTED<br>  - They drop blaze rods when killed.: SUPPORTED<br>  - Blaze powder can be crafted from blaze rods.: SUPPORTED<br>  - Blaze powder is used to fuel brewing stands.: SUPPORTED<br>  - Blaze powder is used to create eyes of ender.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that blazes are found in Nether fortresses and drop blaze rods. It also correctly mentions the use of blaze powder for brewing and crafting Eyes of Ender.', 'verification': 'This aligns with both the REFERENCE ANSWER and the RETRIEVED CHUNKS (CHUNK 1 and CHUNK 2).'}, 'completeness': {'missing_details': ['The AI does not mention the spawn conditions (light level 11 or less).', 'The AI does not specify that blazes spawn in groups of 2 or 3.', 'The AI does not mention that blazes can also spawn from monster spawners in Nether fortresses.', 'The AI does not explicitly state that blaze rods are essential for brewing and crafting Eyes of Ender (though it implies this by mentioning blaze powder).'], 'present_details': 'The core answer (location and drops) is correct and present.'}, 'hallucinations': {'check': 'No hallucinations detected. All information is supported by the REFERENCE ANSWER and RETRIEVED CHUNKS.', 'verification': 'The AI did not add any unsupported or invented information.'}, 'relevance': {'check': 'The answer stays strictly on topic and does not deviate from the question.', 'verification': 'The response directly addresses the question about where to find blazes and what they drop.'}, 'use_of_chunks': {'check': 'The AI used the chunks correctly but did not extract all available details (e.g., spawn conditions, group size).', 'verification': 'CHUNK 1 contains the missing details, but the AI did not include them in its answer.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use a brewing stand?</div>
+                                <div class="reference-text">Ref: A brewing stand is used to brew potions using water bottles and suitable ingredients. It generates in end ships with Instant Health II potions and in igloo basements with a Splash Potion of Weakness. Place blaze powder as fuel, water bottles in the bottom slots, and ingredients in the top slot to brew.</div>
+                            </td>
+                            <td class="answer-cell">Here's how to use a brewing stand, based on the provided text:<br><br>*   **Ingredients:** Place ingredients in the brewing stand. Ingredients are distributed in enabled slots, going left to right starting from the first row; if the crafter has all item slots filled then items are added to the lowest count item stack of the same type.<br>*   **Ingredients Placement**: Place ingredients in the brewing stand. Ingredients are distributed in enabled slots, going left to right starting from the first row; if the crafter has all item slots filled then items are added to the lowest count item stack of the same type.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is largely incorrect and hallucinates irrelevant details about ingredient distribution, failing to address the core question about brewing stand usage.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (ID: brewing_stand)** is **highly relevant (3)**:<br>    - Directly answers the question by explaining how to use a brewing stand, including the need for blaze powder as fuel, water bottles in the bottom slots, and ingredients in the top slot.<br>    - Mentions the generation contexts (end ships, igloo basements) and the potions found there, which are part of the Reference Answer.<br>    - Provides additional useful details (e.g., fuel consumption, brewing time) that enhance the answer without distracting from the core information.<br><br>    **Chunk 2 (ID: hopper_5)** is **somewhat related (1)**:<br>    - While it describes how hoppers interact with brewing stands, it does not directly answer the question about how to *use* a brewing stand.<br>    - The information is tangentially related (e.g., hopper mechanics for automation) but not necessary for a basic understanding of brewing stand usage.<br>    - Could be useful for advanced users but is not relevant to the core question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Place ingredients in the brewing stand.: SUPPORTED<br>  - Ingredients are distributed in enabled slots, going left to right starting from the first row; if the crafter has all item slots filled then items are added to the lowest count item stack of the same type.: UNSUPPORTED<br>  - Place ingredients in the brewing stand. Ingredients are distributed in enabled slots, going left to right starting from the first row; if the crafter has all item slots filled then items are added to the lowest count item stack of the same type.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer is factually inaccurate. It incorrectly describes ingredient placement as if it were a crafting grid (e.g., 'enabled slots, going left to right'), which is not mentioned in the reference or chunks. The reference and chunks clearly state that ingredients go in the *top slot* of the brewing stand, not distributed across multiple slots like a crafting table.&quot;, 'completeness': 'The answer is incomplete. It omits critical steps such as placing blaze powder as fuel, water bottles in the bottom slots, and the brewing process itself. It also ignores the brewing time, fuel consumption, and hopper interactions mentioned in the chunks.', 'hallucinations': &quot;The AI invents details about 'enabled slots' and 'lowest count item stack,' which are unrelated to brewing stands and appear to be copied from the hopper-crafter interaction description in CHUNK 2. This is a clear hallucination.&quot;, 'relevance': 'The answer is partially relevant but strays off-topic by focusing on irrelevant mechanics (e.g., crafting grid behavior) instead of brewing stand usage.', 'use_of_chunks': &quot;The AI misuses the chunks. It incorrectly applies hopper-crafter mechanics (from CHUNK 2) to the brewing stand, despite the chunks explicitly describing brewing stand interactions separately (e.g., 'A hopper on the side face of a brewing stand can deposit only blaze powder or bottles').&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the difference between a cave spider and a regular spider?</div>
+                                <div class="reference-text">Ref: Cave spiders are smaller than regular spiders, have less health, but inflict Poison with their attacks. They only spawn from spawners in mineshafts at light level 0, unlike regular spiders which spawn naturally throughout the Overworld.</div>
+                            </td>
+                            <td class="answer-cell">Here's the difference between a cave spider and a regular spider, based on the provided text:<br><br>*   **Cave Spiders:** Cave spiders spawn in a light level of 0, within a 3x1x3 space centered on a solid block. They can also spawn in Monster Rooms and Woodland Mansions from monster spawners, and in Trial Chambers from trial spawners.<br>*   **Regular Spiders:** Regular spiders spawn in a light level of 0, within a 3x1x3 space centered on a solid block. They can also spawn in Monster Rooms and Woodland Mansions from monster spawners, and in Trial Chambers from trial spawners.<br><br>The main difference is that the text doesn't specify any differences between cave spiders and regular spiders.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 57%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is largely incorrect and misses key differences, while also providing redundant and irrelevant information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (cave_spider)**: Highly relevant (Score: 3). It directly addresses the key differences between cave spiders and regular spiders, including:<br>      1. Size (smaller variant),<br>      2. Health (less health),<br>      3. Attack effects (inflicts Poison),<br>      4. Spawning behavior (only from spawners in mineshafts at light level 0).<br>      This chunk fully supports the Reference Answer.<br><br>    - **Chunk 2 (spider_1)**: Highly relevant (Score: 3). While it focuses on regular spiders, it provides critical comparative details by describing:<br>      1. Natural spawning conditions (Overworld, light level 0),<br>      2. Behavior (neutral/hostile based on light level),<br>      3. Spawning exclusions (e.g., not from spawners only, unlike cave spiders).<br>      This chunk complements Chunk 1 by clarifying how regular spiders differ from cave spiders in spawning and behavior, aligning with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Cave spiders spawn in a light level of 0, within a 3x1x3 space centered on a solid block.: UNSUPPORTED<br>  - Cave spiders can spawn in Monster Rooms and Woodland Mansions from monster spawners.: UNSUPPORTED<br>  - Cave spiders can spawn in Trial Chambers from trial spawners.: SUPPORTED<br>  - Regular spiders spawn in a light level of 0, within a 3x1x3 space centered on a solid block.: SUPPORTED<br>  - Regular spiders can spawn in Monster Rooms and Woodland Mansions from monster spawners.: SUPPORTED<br>  - Regular spiders can spawn in Trial Chambers from trial spawners.: SUPPORTED<br>  - The main difference is that the text doesn't specify any differences between cave spiders and regular spiders.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer fails to identify any of the critical differences between cave spiders and regular spiders, such as size, health, poison attacks, or spawn conditions. Instead, it incorrectly states that the text does not specify differences, which is false based on the reference and chunks.', 'completeness': 'The answer is incomplete. It omits all major distinguishing features (e.g., cave spiders are smaller, have less health, inflict poison, and spawn only from spawners in mineshafts). It also ignores behavioral and environmental differences.', 'hallucinations': 'No outright hallucinations, but the AI misrepresents the chunks by implying no differences exist, which is contradicted by the provided context.', 'relevance': 'The answer is partially relevant but off-topic in its focus on spawn mechanics (which are similar for both spiders) rather than the actual differences. It fails to address the core question.', 'use_of_chunks': 'The AI poorly utilizes the chunks. It focuses on irrelevant details (e.g., spawn mechanics) while ignoring the explicit differences listed in the chunks, such as health, size, poison, and spawn exclusivity.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens to items if I break a chest?</div>
+                                <div class="reference-text">Ref: When a chest is broken, it drops itself along with all its contents. An axe is the fastest tool for breaking chests. If one half of a large chest is destroyed, the items from that half drop while the other half remains intact with its items.</div>
+                            </td>
+                            <td class="answer-cell">If you break a chest, the items inside will drop. If you break a copper chestplate, the durability of the used copper chestplates are added together, plus an extra 5% durability.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is largely incorrect, mixing up chests with chestplates and introducing irrelevant details while missing key information about breaking chests.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: chestplate)**: This chunk discusses chestplates (armor), which is completely unrelated to the question about breaking chests (storage blocks). It provides no information about what happens to items when a chest is broken, nor does it mention chests as containers. This chunk could lead to an incorrect or misleading answer (e.g., confusing a chestplate with a chest).<br>    - **Chunk 2 (ID: copper_chestplate)**: This chunk is also about chestplates (specifically copper chestplates) and their properties, enchantments, and repair mechanisms. Like Chunk 1, it is entirely irrelevant to the question about breaking chests and their contents. It does not address storage blocks or item drops at all.<br>    Neither chunk contains any information mentioned in the Reference Answer or helps answer the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If you break a chest, the items inside will drop.: UNSUPPORTED<br>  - If you break a copper chestplate, the durability of the used copper chestplates are added together, plus an extra 5% durability.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is factually inaccurate. It incorrectly conflates breaking a chest (a storage block) with breaking a copper chestplate (an armor item). The reference answer clearly states that breaking a chest drops its contents, but the AI focuses on chestplate durability mechanics, which are irrelevant to the question.', 'completeness': 'The answer is incomplete. It fails to address the core question about what happens to items when a chest is broken, including critical details like the chest itself dropping, the behavior of large chests, or the optimal tool for breaking chests (axe).', 'hallucinations': 'The AI introduces unsupported information about copper chestplate durability mechanics, which are not mentioned in the reference answer or relevant to the question. This is a clear hallucination in the context of the question.', 'relevance': 'The answer is not relevant to the question. It strays entirely from the topic of breaking chests to discussing chestplate repair mechanics, which are unrelated.', 'use_of_chunks': 'The AI incorrectly used the provided chunks, which were about chestplates, to answer a question about chests. It did not address the actual topic of the question (chests as storage blocks) and instead focused on irrelevant details from the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do chickens spawn and what do they produce?</div>
+                                <div class="reference-text">Ref: Chickens are passive mobs found in most grassy biomes. They are the main source of raw chicken, feathers, and eggs. They can also spawn from thrown eggs, with each egg having a chance to spawn a baby chicken.</div>
+                            </td>
+                            <td class="answer-cell">Chickens spawn in most biomes in the Overworld and in Nether Wastes, Crimson Forest, and Nether Fortress in the Nether. They can also spawn as a jockey from a thrown egg or as a jockey from a zombie spawn.<br><br>Chickens produce:<br>* Wheat Seeds<br>* Beetroot Seeds<br>* Melon Seeds<br>* Pumpkin Seeds<br>* Torchflower Seeds<br>* Pitcher Pod<br>* Lead</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 36%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 27%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant inaccuracies and hallucinations, particularly regarding what chickens produce, while partially addressing spawning mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (ID: chicken_3)**:<br>    - **Score: 3 (Highly relevant)**<br>    - This chunk directly answers the question by explaining how chickens spawn (naturally in grassy biomes and from thrown eggs) and what they produce (raw chicken, feathers, and eggs). It also details the mechanics of egg-throwing (chance to spawn baby chickens) and egg-laying frequency, which aligns perfectly with the Reference Answer.<br><br>    **Chunk 2 (ID: chicken_1)**:<br>    - **Score: 2 (Relevant)**<br>    - This chunk provides useful but partial information. It confirms that chickens are passive mobs found in grassy biomes (matching the Reference Answer) and are the source of raw chicken, feathers, and eggs. However, it lacks explicit details about egg-throwing mechanics (e.g., chance to spawn baby chickens from eggs), which is a key part of the question. The chunk also includes tangential details (e.g., jockey mechanics, biome variants) that are not required for the answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Chickens spawn in most biomes in the Overworld: SUPPORTED<br>  - Chickens spawn in Nether Wastes, Crimson Forest, and Nether Fortress in the Nether: SUPPORTED<br>  - They can also spawn as a jockey from a thrown egg: SUPPORTED<br>  - They can also spawn as a jockey from a zombie spawn: SUPPORTED<br>  - Chickens produce Wheat Seeds: UNSUPPORTED<br>  - Chickens produce Beetroot Seeds: UNSUPPORTED<br>  - Chickens produce Melon Seeds: UNSUPPORTED<br>  - Chickens produce Pumpkin Seeds: UNSUPPORTED<br>  - Chickens produce Torchflower Seeds: UNSUPPORTED<br>  - Chickens produce Pitcher Pod: UNSUPPORTED<br>  - Chickens produce Lead: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'spawning': &quot;Partially correct. The AI mentions spawning in Overworld biomes and Nether locations (Nether Wastes, Crimson Forest, Nether Fortress), which aligns with the chunks. However, it incorrectly states that chickens spawn as jockeys from 'a thrown egg' (they spawn from thrown eggs independently, not as jockeys). The reference to 'jockey from a zombie spawn' is correct but incomplete.&quot;, 'production': 'Completely incorrect. The AI lists seeds and other items (e.g., Lead, Pitcher Pod) as products of chickens, which is not supported by the reference or chunks. The reference and chunks clearly state chickens produce raw chicken, feathers, and eggs.'}, 'completeness': {'spawning': 'Incomplete. The AI omits key details like the 1/8 chance of spawning from thrown eggs, the possibility of spawning 3 extra baby chickens, and the biome-specific variants (temperate, warm, cold). It also misses natural spawning conditions (e.g., grass blocks, light levels).', 'production': 'Missing entirely. The AI fails to mention raw chicken, feathers, or eggs, which are the primary products of chickens.'}, 'hallucinations': {'production': 'Severe hallucination. The AI invents items (e.g., seeds, Lead, Pitcher Pod) that chickens do not produce. These are not mentioned in the reference or chunks.', 'spawning': 'Minor hallucination. The AI incorrectly links thrown eggs to jockey spawning, which is not supported by the chunks.'}, 'relevance': 'Mostly on-topic but diverges significantly by focusing on incorrect production items. The spawning details are relevant but incomplete.', 'chunk_usage': 'The AI partially uses the chunks for spawning details but ignores critical information (e.g., products, egg-spawning mechanics) and adds unsupported details (e.g., seeds as products).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">What does chorus fruit do when eaten?</div>
+                                <div class="reference-text">Ref: Chorus fruit is a food item from the End that can be eaten even when hunger is full. Eating it restores hunger and may randomly teleport the player up to 8 blocks in any direction. It can also be smelted into popped chorus fruit.</div>
+                            </td>
+                            <td class="answer-cell">When chorus fruit is eaten, it restores fall damage, regardless of the distance the player has fallen.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually correct but severely incomplete and misses the primary effects of eating chorus fruit.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: chorus_fruit)**: Score 3 - Highly relevant. This chunk directly answers the question by explaining what chorus fruit does when eaten, including restoring hunger, potential teleportation (up to 8 blocks), and its use in smelting into popped chorus fruit. All key points from the Reference Answer are covered here.<br>    - **Chunk 2 (ID: popped_chorus_fruit)**: Score 1 - Somewhat related. While it mentions popped chorus fruit (which is derived from chorus fruit), it does not address the effects of eating chorus fruit itself. The information is tangentially related but not useful for answering the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - When chorus fruit is eaten, it restores fall damage, regardless of the distance the player has fallen.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is factually accurate regarding the restoration of fall damage, as this is mentioned in CHUNK 1. However, this is a minor and secondary effect of eating chorus fruit.', 'completeness': 'The AI answer is highly incomplete. It fails to mention the primary effects: restoring hunger (even when full), the random teleportation effect (up to 8 blocks), and the smelting use case. These are all critical details in both the REFERENCE ANSWER and CHUNK 1.', 'hallucinations': 'No hallucinations detected. The information provided is supported by the chunks.', 'relevance': 'The answer is relevant but overly narrow. It focuses on a minor effect while ignoring the core functionality of the item.', 'use_of_chunks': 'The AI partially used CHUNK 1 but omitted the most important details. It did not address the teleportation or hunger restoration, which are the defining features of chorus fruit.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does a compass work in Minecraft?</div>
+                                <div class="reference-text">Ref: A compass points horizontally toward the Overworld's spawn point. If used on a lodestone, it becomes a lodestone compass that points to that lodestone's position instead. In other dimensions, a regular compass spins randomly.</div>
+                            </td>
+                            <td class="answer-cell">Here's a breakdown of how a compass works in Minecraft, based on the provided text:<br><br>**Basic Function:** A compass points towards a lodestone that it is paired with. <br><br>**How Pairing Works:**<br>*   A compass becomes paired with a lodestone when they are in the same location.<br>*   If the lodestone is destroyed while the compass is in a container (like a chest or shulker box), the compass will not register that the lodestone is destroyed until the item is retrieved.<br><br>**When Pairing is Broken:** If the lodestone is destroyed while the compass is not in a container, the compass will spin randomly, as it no longer has a lodestone to point towards.<br><br><br><br></td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but omits key details about the default behavior of compasses (pointing to spawn point) and their behavior in different dimensions, leading to incompleteness.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: compass)**: Score 3 - Highly relevant. This chunk directly answers the question by explaining how a compass works in Minecraft, including its behavior in the Overworld, with lodestones, and in other dimensions. It covers all key points mentioned in the Reference Answer.<br>    - **Chunk 2 (ID: lodestone)**: Score 2 - Relevant but partially helpful. While it provides useful context about lodestones and their interaction with compasses, it does not fully address the core question about how a compass works in general. It complements Chunk 1 but is not sufficient alone.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A compass points towards a lodestone that it is paired with.: UNSUPPORTED<br>  - A compass becomes paired with a lodestone when they are in the same location.: SUPPORTED<br>  - If the lodestone is destroyed while the compass is in a container (like a chest or shulker box), the compass will not register that the lodestone is destroyed until the item is retrieved.: SUPPORTED<br>  - If the lodestone is destroyed while the compass is not in a container, the compass will spin randomly, as it no longer has a lodestone to point towards.: SUPPORTED<br>  - Basic Function: A compass points towards the Overworld's spawn point by default (not just a lodestone).: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly describes how a compass pairs with a lodestone and the conditions under which pairing breaks (e.g., lodestone destruction).', 'incorrect_or_missing': &quot;The AI fails to mention that a *regular* compass (not paired with a lodestone) points to the Overworld's spawn point by default. It also omits that compasses spin randomly in other dimensions (Nether/End) unless paired with a lodestone.&quot;}, 'completeness': {'missing_parts': ['Default behavior of a regular compass (pointing to spawn point).', 'Behavior in different dimensions (spinning randomly unless paired with a lodestone).', 'Explicit distinction between regular and lodestone compasses.']}, 'hallucinations': 'None detected. The AI sticks to information supported by the chunks.', 'relevance': 'The answer stays on topic but is overly focused on lodestone compasses, ignoring the broader context of regular compasses.', 'chunk_usage': 'The AI uses parts of [CHUNK 1] and [CHUNK 2] but omits critical details about regular compasses and dimension-specific behavior.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do cows spawn and what can I get from them?</div>
+                                <div class="reference-text">Ref: Cows spawn naturally in the Overworld in most grassy biomes. They are a source of leather, beef, and milk. You can milk a cow using an empty bucket. Mooshrooms can also produce cows after being sheared.</div>
+                            </td>
+                            <td class="answer-cell">Cows spawn on grass blocks with at least two blocks of space above in most Overworld biomes. They can also spawn after shearing a mooshroom. <br><br>You can get the following from cows:<br>* Milk (by using a bucket on them)<br>* Beef (by killing them)</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">41/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 80%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some details like leather as a drop and specific biome exceptions for spawning.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: cow)**: Highly relevant (Score: 3). This chunk directly answers both parts of the question:<br>      1. **How cows spawn**: It mentions cows spawn naturally in the Overworld in most grassy biomes (with specific exceptions), require grass blocks with space above, and can also spawn from shearing mooshrooms.<br>      2. **What you can get from them**: It lists leather, beef, and milk (via bucket), which matches the Reference Answer exactly. It also provides additional context (e.g., breeding, variants) that is related but not strictly necessary for the answer.<br><br>    - **Chunk 2 (ID: frozen_river)**: Completely irrelevant (Score: 0). This chunk describes the Frozen River biome and its mob spawns (e.g., strays, rabbits, polar bears). It does not mention cows, their spawning mechanics, or any items they drop, making it useless for answering the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Cows spawn on grass blocks with at least two blocks of space above in most Overworld biomes.: SUPPORTED<br>  - They can also spawn after shearing a mooshroom.: SUPPORTED<br>  - You can get milk from cows (by using a bucket on them).: SUPPORTED<br>  - You can get beef from cows (by killing them).: SUPPORTED<br>  - You can get leather from cows (implied by omission in the AI answer).: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'spawning': 'Correctly states cows spawn on grass blocks with space above in most Overworld biomes and after shearing a mooshroom. However, it misses the biome exceptions (e.g., snowy plains, meadows) mentioned in the chunks.', 'drops': 'Correctly lists milk and beef but omits leather, which is a key drop mentioned in both the reference and chunks.'}, 'completeness': {'question_parts': 'Answers both parts of the question (spawning and drops) but incompletely. Missing leather and biome exceptions for spawning.', 'reference_comparison': 'Reference includes leather, beef, milk, and mooshroom shearing. AI misses leather and biome details.'}, 'hallucinations': 'No hallucinations detected. All information is supported by the chunks or reference.', 'relevance': 'Fully relevant to the question, staying on topic throughout.', 'chunk_usage': 'AI correctly uses the chunks but omits some details (e.g., leather, biome exceptions) that are explicitly mentioned in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does a creeper explode and can it be charged?</div>
+                                <div class="reference-text">Ref: A creeper quietly approaches players, hisses, and explodes if not retreated from in time. The explosion destroys blocks and deals massive damage based on proximity and difficulty. When lightning strikes within 4 blocks of a creeper, it becomes charged and its explosion is significantly more powerful.</div>
+                            </td>
+                            <td class="answer-cell">A creeper explodes after 1.5 seconds (30 ticks) when it is within 3 blocks of a player, flashing and expanding and destroying (and dropping as items) blocks in the area. A creeper can be charged; a charged creeper explodes after 1.5 seconds (30 ticks) when it is within 3 blocks of a player, flashing and expanding and destroying (and dropping as items) blocks in the area.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 43%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks key details about how a creeper becomes charged and the effects of a charged explosion.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: creeper_3)** is **highly relevant (3)** because it directly answers both parts of the question:<br>      1. It explains how a creeper explodes (approaches, hisses, explodes if not retreated from).<br>      2. It details how a creeper becomes charged (lightning strike within 4 blocks) and the effects of being charged (significantly more powerful explosion).<br>      The chunk also includes additional details (e.g., explosion power, mob head drops) that are not in the Reference Answer but are correct and enrich the response without misleading.<br><br>    - **Chunk 2 (ID: creeper_1)** is **highly relevant (3)** because it also directly answers the question:<br>      1. It describes the creeper's explosion mechanism (quiet approach, hiss, explosion if not retreated) and its effects (block destruction, damage).<br>      2. It confirms how a creeper becomes charged (lightning strike) and the consequences (amplified explosion power).<br>      The chunk provides slightly less detail than Chunk 1 but still fully covers the Reference Answer's requirements.<br><br>    Both chunks are useful and could independently lead to a correct answer. No irrelevant or misleading information is present.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A creeper explodes after 1.5 seconds (30 ticks) when it is within 3 blocks of a player, flashing and expanding and destroying (and dropping as items) blocks in the area.: SUPPORTED<br>  - A creeper can be charged;: SUPPORTED<br>  - a charged creeper explodes after 1.5 seconds (30 ticks) when it is within 3 blocks of a player, flashing and expanding and destroying (and dropping as items) blocks in the area.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states the explosion mechanics (1.5 seconds, 3 blocks proximity, block destruction). However, it omits critical details about how a creeper becomes charged (lightning strike within 4 blocks) and the increased power of a charged creeper's explosion, which are present in both the reference and chunks.&quot;, 'completeness': 'The answer partially addresses the question but fails to explain *how* a creeper can be charged or the consequences of being charged (e.g., stronger explosion, mob head drops). These are core parts of the question.', 'hallucinations': 'No hallucinations detected. The AI sticks to information supported by the chunks and reference.', 'missing_info': {'how_charged': 'Missing: Lightning strike within 4 blocks (or other methods like Channeling trident) creates a charged creeper.', 'effects_of_charge': 'Missing: Charged creepers have significantly more powerful explosions (50% stronger than TNT) and can drop mob heads when killing certain mobs.', 'visual_cue': 'Missing: Charged creepers have a blue aura (mentioned in Chunk 1).'}, 'relevance': 'The answer stays on topic but is overly simplistic and omits key mechanics.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I mine diamonds and what tools do I need?</div>
+                                <div class="reference-text">Ref: Diamond ore can only be mined using an iron pickaxe or better. An ore drops a single diamond, but if the pickaxe is enchanted with Fortune, it has a chance of dropping extra diamonds per level, up to 4 diamonds with Fortune III.</div>
+                            </td>
+                            <td class="answer-cell">To mine diamonds, you need to mine **diamond ore**. You can mine diamond ore with an **iron pickaxe** or better. <br><br>Diamond ore is most commonly found at Y=-58 and Y=-59.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but lacks some key details about Fortune enchantment and tool requirements beyond 'iron pickaxe or better.'
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (ID: diamond)**:<br>    - **Score: 3 (Highly relevant)**<br>    - This chunk directly answers the question by specifying that diamond ore can only be mined with an iron pickaxe or better, and it details the effects of the Fortune enchantment (including the maximum of 4 diamonds with Fortune III). This matches the Reference Answer perfectly.<br><br>    **Chunk 2 (ID: diamond_ore)**:<br>    - **Score: 2 (Relevant)**<br>    - This chunk provides useful but partially redundant information. It confirms the mining requirements (iron pickaxe or better) and the Fortune mechanics, but it also includes extraneous details (e.g., ore generation, deepslate variants, Silk Touch) that are not required for the Reference Answer. While helpful, it is less concise than Chunk 1.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To mine diamonds, you need to mine diamond ore.: SUPPORTED<br>  - You can mine diamond ore with an iron pickaxe or better.: SUPPORTED<br>  - Diamond ore is most commonly found at Y=-58 and Y=-59.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that diamond ore must be mined with an iron pickaxe or better and identifies the optimal mining levels (Y=-58 and Y=-59).', 'missing': 'The answer omits critical details about the Fortune enchantment (e.g., chance to drop extra diamonds, max of 4 with Fortune III) and does not clarify that other tools (e.g., wooden/stone pickaxes) drop nothing. It also does not mention Silk Touch as an alternative.'}, 'completeness': {'covered': 'The answer addresses the core question (tools needed and mining location).', 'gaps': 'Fails to explain the impact of enchantments (Fortune/Silk Touch) or the consequences of using inadequate tools. The reference answer and chunks provide more comprehensive guidance.'}, 'hallucinations': 'None detected. All information aligns with the chunks or reference.', 'relevance': 'The answer stays on topic but is overly concise, omitting actionable details that would improve usability.', 'chunk_usage': 'The AI partially uses [CHUNK 1] (tool requirement and mining levels) but ignores [CHUNK 2] (Fortune mechanics) and deeper tool/enchantment nuances from both chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I obtain the dragon egg?</div>
+                                <div class="reference-text">Ref: The dragon egg can be obtained only once per world by defeating the Ender Dragon for the first time. It teleports when clicked directly, so you need to push it with a piston or make it fall onto a non-full block like a torch to collect it as an item.</div>
+                            </td>
+                            <td class="answer-cell">You obtain the dragon egg by defeating the Ender Dragon. The dragon egg appears above the central bedrock structure after the Ender Dragon is defeated.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but lacks critical details about how to actually collect the dragon egg, making it incomplete.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses how to obtain the dragon egg, including the key details from the Reference Answer: obtaining it only once per world by defeating the Ender Dragon, its teleportation behavior, and methods to collect it (piston or non-full block like a torch). It also clarifies edge cases (e.g., mining limitations, gravity effects), which are useful for a complete answer.<br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. It describes the context of the dragon egg's appearance (e.g., spawning on the exit portal after defeating the Ender Dragon) and mentions it appears only the first time (or first/second time due to a bug). However, it lacks explicit instructions on how to *collect* the egg (e.g., piston/torch method), which is critical for the question. The chunk is more focused on the Ender Dragon battle mechanics than the egg itself.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You obtain the dragon egg by defeating the Ender Dragon.: SUPPORTED<br>  - The dragon egg appears above the central bedrock structure after the Ender Dragon is defeated.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that the dragon egg is obtained by defeating the Ender Dragon, which aligns with the REFERENCE and CHUNKS. No factual errors here.', 'completeness': 'The answer is incomplete. It omits key details from the REFERENCE and CHUNKS, such as the fact that the egg teleports when clicked directly and requires specific methods (e.g., pistons or non-full blocks like torches) to collect it as an item. It also fails to mention that the egg is obtainable only once per world (or twice due to a bug, per CHUNK 1).', 'hallucinations': 'No hallucinations detected. The AI did not invent any unsupported information.', 'relevance': 'The answer stays on topic but is too superficial to be fully useful.', 'use_of_chunks': 'The AI did not fully utilize the provided chunks. Critical details about collection methods and limitations (e.g., teleportation behavior, gravity effects) were ignored.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do I find elytra and how do they work?</div>
+                                <div class="reference-text">Ref: Elytra are found only in end cities, in item frames in the treasure room of end ships. A shulker guards them. When worn as torso armor, they allow gliding by pressing jump while midair. Firework rockets can be used for propulsion while gliding for true flight.</div>
+                            </td>
+                            <td class="answer-cell">You can find **elytra** in **End Cities**. They are found in **loot rooms** within the End Cities, often located at the end of a small parkour area.<br><br>**How they work:** Elytra allow you to glide through the air. To use them, jump and then press the jump button again while in the air. This will spread out your elytra and allow you to glide in a straight line. You can steer by using the jump button to adjust your direction. Elytra are useful for traveling long distances and exploring the End dimension.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 57%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 57%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but lacks key details about elytra location and mechanics, and contains minor inaccuracies in usage instructions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (elytra_1)**: Score 3 - Highly relevant. It directly answers both parts of the question: where to find elytra (end ships in end cities, guarded by a shulker) and how they work (gliding mechanics, firework propulsion, and usage as torso armor). All key details from the Reference Answer are present.<br>    - **Chunk 2 (end_city_1)**: Score 2 - Relevant but partially helpful. It provides useful context about end cities and their structure, including the fact that elytra are found in end ships (which are part of end cities). However, it lacks specific details about elytra mechanics (e.g., gliding, firework propulsion) and focuses more on the broader structure of end cities. This chunk could help locate elytra but doesn't fully answer the 'how they work' part of the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find elytra in End Cities.: SUPPORTED<br>  - They are found in loot rooms within the End Cities, often located at the end of a small parkour area.: CONTRADICTED<br>  - Elytra allow you to glide through the air.: SUPPORTED<br>  - To use them, jump and then press the jump button again while in the air.: SUPPORTED<br>  - This will spread out your elytra and allow you to glide in a straight line.: SUPPORTED<br>  - You can steer by using the jump button to adjust your direction.: UNSUPPORTED<br>  - Elytra are useful for traveling long distances and exploring the End dimension.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Elytra are found in End Cities', 'Elytra allow gliding through the air', 'Jumping activates gliding'], 'incorrect_or_missing': ['Elytra are specifically found in *end ships* (not general loot rooms)', 'A shulker guards the elytra (not mentioned)', 'Firework rockets can be used for propulsion (missing)', &quot;Elytra are found in *item frames* in the treasure room (not just 'loot rooms')&quot;, 'Steering is done by aiming view, not just pressing jump (misleading)']}, 'completeness': {'answered_parts': ['Where to find elytra (partially)', 'Basic gliding mechanics'], 'missing_parts': ['Exact location in end ships (item frames, treasure room)', 'Shulker guarding the elytra', 'Firework rocket propulsion', 'Fall damage mechanics', 'Collision damage details']}, 'hallucinations': [&quot;Minor: 'Loot rooms' is too vague (should specify end ships/treasure rooms)&quot;, 'Misleading: Steering via jump button (should clarify view aiming)'], 'relevance': 'The answer stays on topic but oversimplifies critical details.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get emeralds in Minecraft?</div>
+                                <div class="reference-text">Ref: Emeralds can be obtained by mining emerald ore with an iron pickaxe or better (Fortune enchantment increases drops up to 4 with Fortune III), or by trading with villagers and wandering traders. Emeralds are primarily used as currency for village trading.</div>
+                            </td>
+                            <td class="answer-cell">Here's how you can get emeralds in Minecraft, based on the provided information:<br><br>*   **Mining Emerald Ore:** The most common way is to mine emerald ore. It generates in mountains and windswept hills biomes between y-levels -16 and 8. It can replace stone, andesite, diorite, granite, tuff, and deepslate.<br>*   **Mining Deepslate Emerald Ore:** This is a rarer variant that generates in the same y-levels as regular emerald ore.<br>*   **Trading with Villagers:** Villagers will trade emeralds for other items.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but omits key details like pickaxe requirements, Fortune enchantment, and alternative methods (e.g., foxes, chests).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: emerald)** is highly relevant (score: 3) because it directly addresses how to obtain emeralds in Minecraft, covering both mining (with details on pickaxe requirements and Fortune enchantment) and trading with villagers/wandering traders. It also confirms emeralds' primary use as currency, matching the Reference Answer exactly.<br><br>    - **Chunk 2 (ID: emerald_ore)** is also highly relevant (score: 3) because it provides detailed information on mining emerald ore, including biome requirements, tool requirements, and the effects of Silk Touch/Fortune. While it includes extra details (e.g., deepslate emerald ore rarity, sound effects), these do not detract from the core answer and could even enhance understanding for advanced players.<br><br>    Both chunks fully satisfy the criteria by containing all information in the Reference Answer and directly answering the question without misleading details.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The most common way is to mine emerald ore.: UNSUPPORTED<br>  - It generates in mountains and windswept hills biomes between y-levels -16 and 8.: CONTRADICTED<br>  - It can replace stone, andesite, diorite, granite, tuff, and deepslate.: SUPPORTED<br>  - Mining Deepslate Emerald Ore: This is a rarer variant that generates in the same y-levels as regular emerald ore.: SUPPORTED<br>  - Trading with Villagers: Villagers will trade emeralds for other items.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Mining emerald ore in mountains/windswept hills biomes', 'Deepslate emerald ore as a rarer variant', 'Trading with villagers'], 'incorrect': [], 'unsupported': []}, 'completeness': {'missing': ['Iron pickaxe or better requirement for mining', 'Fortune enchantment details (up to 4 emeralds with Fortune III)', 'Wandering traders as a trading source', 'Foxes dropping emeralds (100% chance if holding)', 'Emeralds generating in village chests', 'Silk Touch behavior (drops ore block instead of emeralds)'], 'partial': ['Trading mentioned but not elaborated (e.g., faster than mining)']}, 'hallucinations': 'None detected—all points are grounded in the chunks.', 'relevance': 'Fully on-topic, but lacks depth in key areas.', 'chunk_usage': {'used': ['Emerald ore generation (CHUNK 2)', 'Trading (CHUNK 1)'], 'ignored': ['Fortune/Silk Touch mechanics (CHUNK 1)', 'Foxes/chests (CHUNK 1)', 'Pickaxe requirements (CHUNK 1/2)']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are the different ways to enchant items?</div>
+                                <div class="reference-text">Ref: There are four ways to enchant items: using an enchanting table with lapis lazuli and experience, combining an enchanted book with an item on an anvil, combining two identical items with different enchantments on an anvil, or using commands.</div>
+                            </td>
+                            <td class="answer-cell">Here's a breakdown of the different ways to enchant items, based on the provided text:<br><br>**1. Using an Enchanting Table (Survival Mode):**<br><br>*   Place the item you want to enchant in the table's first slot.<br>*   Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.<br>*   The table will offer a list of enchantments based on your enchantment seed, the item type and material, and the number of lapis lazuli used.<br><br>**2. Using an Enchanting Table (Creative Mode):**<br><br>*   Place the item you want to enchant in the table's first slot.<br>*   Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.<br>*   The table will offer a list of enchantments based on your enchantment seed, the item type and material, and the number of lapis lazuli used.<br><br>**3. Using an Enchanting Table (Combining Items):**<br><br>*   Place the item you want to enchant in the table's first slot.<br>*   Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.<br>*   Place another enchanted item or book in the second slot. This will combine the two items, resulting in a new item with a higher enchantment level (up to the maximum allowed).<br><br></td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but omits key methods and includes some incorrect or misleading details, particularly about the enchanting table's functionality.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It explicitly lists the four primary ways to enchant items in Survival mode, which directly matches the Reference Answer. The methods mentioned are:<br>      1. Using an enchanting table with lapis lazuli and experience.<br>      2. Combining an enchanted book with an item on an anvil.<br>      3. Combining two identical items with different enchantments on an anvil.<br>      4. Using commands (though the Reference Answer omits this, it is still a valid method).<br>      The chunk also includes additional context (e.g., villager trades, fishing), but the core answer is complete and correct.<br><br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. It provides detailed mechanics about enchanting tables and anvils (e.g., combining enchantments, experience costs), which are related to the question. However, it does not explicitly list all four methods in a concise way like the Reference Answer or Chunk 1. While it supports the answer, it is less direct and could require synthesis to extract the full list of methods.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Place the item you want to enchant in the table's first slot.: SUPPORTED<br>  - Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.: SUPPORTED<br>  - The table will offer a list of enchantments based on your enchantment seed, the item type and material, and the number of lapis lazuli used.: SUPPORTED<br>  - Using an Enchanting Table (Creative Mode): Place the item you want to enchant in the table's first slot.: SUPPORTED<br>  - Using an Enchanting Table (Creative Mode): Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.: SUPPORTED<br>  - Using an Enchanting Table (Creative Mode): The table will offer a list of enchantments based on your enchantment seed, the item type and material, and the number of lapis lazuli used.: SUPPORTED<br>  - Using an Enchanting Table (Combining Items): Place the item you want to enchant in the table's first slot.: UNSUPPORTED<br>  - Using an Enchanting Table (Combining Items): Place 1-3 lapis lazuli in the lapis lazuli slots. The number of lapis lazuli determines the enchantment level offered.: UNSUPPORTED<br>  - Using an Enchanting Table (Combining Items): Place another enchanted item or book in the second slot. This will combine the two items, resulting in a new item with a higher enchantment level (up to the maximum allowed).: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Using an enchanting table with lapis lazuli and experience (though oversimplified)', 'Combining enchanted books with items on an anvil', 'Combining two identical items with different enchantments on an anvil'], 'incorrect': ['The AI incorrectly suggests that combining items can be done in the enchanting table (this is only possible in an anvil).', &quot;The AI does not clarify that the 'combining' method in the enchanting table is not a valid way to enchant items—it only offers random enchantments, not combinations.&quot;]}, 'completeness': {'missing': ['The AI omits the method of using commands to enchant items (a key part of the reference answer).', 'The AI does not mention obtaining enchanted items from villagers, fishing, mob drops, or treasure chests (though these are not part of the core enchanting methods, they are relevant to the broader topic).', 'The AI does not distinguish between Survival and Creative mode clearly for the anvil methods.']}, 'hallucinations': {'present': ['The AI incorrectly states that combining items can be done in the enchanting table (this is not supported by the chunks or reference).', 'The AI implies that the enchanting table can combine enchantments like an anvil, which is false.']}, 'relevance': {'on_topic': 'The answer stays on topic but drifts into incorrect mechanics.', 'off_topic': 'None, but the inaccuracies make parts of the answer misleading.'}, 'use_of_chunks': {'correct_usage': 'The AI correctly references the enchanting table and anvil methods from the chunks.', 'incorrect_usage': &quot;The AI misrepresents the enchanting table's functionality by suggesting it can combine items like an anvil.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does an ender chest work?</div>
+                                <div class="reference-text">Ref: An ender chest stores items that are exclusive to each player and can be accessed from any ender chest in any dimension. It requires a Silk Touch pickaxe to collect; otherwise it drops 8 obsidian. Ender chests generate in certain End city treasure rooms.</div>
+                            </td>
+                            <td class="answer-cell">An ender chest functions as a way to spawn endermites, which is the only way for them to spawn without using cheats. When an ender pearl lands, there is a 5% chance that it will spawn an endermite at the player's position or at the pearl's landing site.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is completely off-topic and hallucinates information not present in the reference or chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: ender_chest)**: Score 3 - Highly relevant. This chunk directly answers the question by explaining how an ender chest works, including its player-exclusive storage, accessibility across dimensions, Silk Touch requirement for collection, obsidian drop behavior, and natural generation in End cities. All key points from the Reference Answer are covered, along with additional useful details (e.g., inventory persistence, multiplayer utility).<br>    - **Chunk 2 (ID: ender_pearl_1)**: Score 0 - Completely irrelevant. This chunk discusses ender pearls, which are unrelated to the question about ender chests. It could mislead or confuse the answer by introducing unrelated mechanics (e.g., teleportation, piglin bartering).<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An ender chest functions as a way to spawn endermites, which is the only way for them to spawn without using cheats.: UNSUPPORTED<br>  - When an ender pearl lands, there is a 5% chance that it will spawn an endermite at the player's position or at the pearl's landing site.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer incorrectly states that an ender chest functions as a way to spawn endermites, which is entirely unrelated to the question. The reference and chunks clearly describe the ender chest's storage mechanics, not endermite spawning (which is related to ender pearls, as mentioned in CHUNK 2).&quot;, 'completeness': 'The AI answer fails to address any part of the question about how an ender chest works. It does not mention storage exclusivity, cross-dimension access, Silk Touch requirements, or any other relevant details.', 'hallucinations': 'The AI invents a false connection between ender chests and endermite spawning, which is not supported by the reference or chunks. This is a clear hallucination.', 'relevance': &quot;The answer is entirely irrelevant to the question. It discusses ender pearls and endermites, which are unrelated to ender chests beyond sharing the 'ender' prefix.&quot;, 'use_of_chunks': 'The AI did not use the provided chunks correctly. CHUNK 1 contains all the relevant information about ender chests, but the AI ignored it and instead pulled unrelated details from CHUNK 2 (ender pearls).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">What makes endermen hostile and how do they teleport?</div>
+                                <div class="reference-text">Ref: Endermen become hostile when damaged or when players look directly at their face. They teleport erratically and away from dangers like lava, projectiles, and water. They spawn at light level 0 in the Overworld and End, and can occasionally pick up and move certain blocks.</div>
+                            </td>
+                            <td class="answer-cell">Endermen become hostile when they take damage. They teleport by selecting a random block in a 4x3x4 (XYZ) region horizontally centered on the enderman and vertically encompassing it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses key details and includes an irrelevant fact about block-picking, which is not part of the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (enderman_2): Score 3 - Highly relevant**<br>    - Directly answers the question about what makes endermen hostile (damage or direct eye contact, including exceptions like transparent blocks or pumpkins).<br>    - Explains teleportation behavior (erratic teleportation away from dangers like water, projectiles, and lava, as well as teleportation mechanics when chasing or taking damage).<br>    - Includes additional relevant details like spawn conditions (light level 0) and block interactions, which align with the Reference Answer.<br><br>    **Chunk 2 (enderman_3): Score 3 - Highly relevant**<br>    - Provides detailed mechanics of teleportation, including distance limits (19 blocks horizontally, 22 vertically) and environmental checks (e.g., avoiding waterlogged blocks).<br>    - Explains teleportation triggers (e.g., taking damage, attacking, or random teleportation) and constraints (e.g., needing non-solid blocks above the destination).<br>    - Confirms endermen's ability to pick up and move blocks, which is mentioned in the Reference Answer.<br>    - While some details are more technical than the Reference Answer, they fully support the question's requirements.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Endermen become hostile when they take damage.: SUPPORTED<br>  - Endermen become hostile when players look directly at their face.: UNSUPPORTED<br>  - They teleport by selecting a random block in a 4x3x4 (XYZ) region horizontally centered on the enderman and vertically encompassing it.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'Endermen become hostile when they take damage (partially correct, as the reference also includes looking directly at their face).', 'incorrect': 'The teleportation explanation is incomplete and misrepresented. The AI incorrectly states the teleportation mechanism (4x3x4 region) is for teleporting, when this is actually related to block-picking behavior, not teleportation.', 'missing': 'The AI omits the critical detail that endermen also become hostile when players look directly at their face. It also fails to explain the actual teleportation mechanics (e.g., erratic teleportation, distance limits, environmental triggers like lava/water).'}, 'completeness': 'The answer is incomplete. It only addresses one trigger for hostility (damage) and does not explain teleportation properly. The question has two parts, and the AI only partially answers the first and misrepresents the second.', 'hallucinations': 'The AI includes irrelevant information about endermen picking up blocks (4x3x4 region), which is not part of the question or the teleportation mechanism. This is a hallucination in the context of the question.', 'relevance': 'The answer stays mostly on topic but includes off-topic details (block-picking) and misses key points about hostility triggers and teleportation behavior.', 'chunk_usage': &quot;The AI misinterprets the chunks. The teleportation mechanics are detailed in the chunks (e.g., distance, environmental checks), but the AI ignores these and instead pulls unrelated block-picking behavior. The hostility trigger about looking at endermen is also missing from the AI's answer despite being in the chunks.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can foxes be tamed and how do they behave?</div>
+                                <div class="reference-text">Ref: Foxes cannot be directly tamed, but a fox spawned through breeding will trust and defend the player that bred it. Wild foxes run away from non-trusted players. They spawn in taigas in groups of 2-4, hunt small animals, can carry items in their mouth, and will eat anything edible.</div>
+                            </td>
+                            <td class="answer-cell">Yes, foxes can be tamed. They have a **Neutral (trust a different player)** behavior.<br><br>Here's a summary of their behavior:<br><br>*   **Taming:** Trusting foxes can fall asleep even if attached to a lead.<br>*   **Neutral Behavior**: They are neutral towards players they trust and can fall asleep even when attached to a lead.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains factual inaccuracies about taming foxes and omits key behavioral details, though it avoids major hallucinations.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (ID: fox_3)**:<br>    - Score: 2 (Relevant)<br>    - Reasoning: This chunk provides detailed information about fox behaviors (e.g., picking up items, eating food, effects of held items) but does not directly address the core question of taming or trust mechanics. It partially aligns with the Reference Answer's mention of foxes carrying items and eating edible things but lacks the critical detail about breeding/trusting players. Useful for context but not sufficient for a correct answer.<br><br>    **Chunk 2 (ID: fox_2)**:<br>    - Score: 1 (Somewhat related)<br>    - Reasoning: This chunk focuses on fox attack behaviors, jumping mechanics, and interactions with other mobs (e.g., wolves, polar bears). While it describes wild fox behaviors (e.g., sleeping, fleeing), it does not mention taming, breeding, or trust—key elements of the Reference Answer. Tangentially related but not directly helpful for answering the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Yes, foxes can be tamed.: CONTRADICTED<br>  - They have a **Neutral (trust a different player)** behavior.: SUPPORTED<br>  - Trusting foxes can fall asleep even if attached to a lead.: SUPPORTED<br>  - They are neutral towards players they trust and can fall asleep even when attached to a lead.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'error': &quot;The AI incorrectly states that foxes 'can be tamed' (direct taming is impossible per REFERENCE). The REFERENCE clarifies that only *bred* foxes trust players, while the AI conflates this with general taming.&quot;, 'correct': &quot;The mention of 'Neutral (trust a different player)' behavior is accurate (CHUNK 2 metadata).&quot;}, 'completeness': {'missing': 'Critical omissions include: (1) Wild foxes flee from non-trusted players (REFERENCE), (2) Foxes spawn in groups of 2-4 in taigas (REFERENCE), (3) Hunting behavior (small animals, item-carrying, edible items) (REFERENCE/CHUNK 1). The AI focuses narrowly on sleep/lead mechanics (CHUNK 2) but ignores core behaviors.', 'partial': 'The answer touches on trust/neutral behavior but lacks depth (e.g., no mention of defense mechanics for trusted foxes).'}, 'hallucinations': {'none': &quot;No outright fabrications, but the phrasing 'Yes, foxes can be tamed' is misleading given the REFERENCE's nuance.&quot;}, 'relevance': {'on_topic': 'The answer stays on-topic but cherry-picks minor details (sleep/leads) over broader behavioral traits.'}, 'chunk_usage': {'issue': &quot;The AI relies on CHUNK 2 (sleep/lead behavior) but ignores CHUNK 1's item interaction details and the REFERENCE's taming/spawning rules. It fails to synthesize key information across sources.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do ghasts spawn and how do they attack?</div>
+                                <div class="reference-text">Ref: Ghasts spawn in the Nether in large open spaces. They are large floating hostile mobs that shoot explosive fireballs at players. Their fireballs can be deflected back at them by hitting them, which is an achievement. They drop ghast tears and gunpowder when killed.</div>
+                            </td>
+                            <td class="answer-cell">Ghasts spawn in the **Nether Wastes, Soul Sand Valley, and Basalt Deltas within Bastion Remnants.**<br><br>They attack by **shooting fireballs at players**, which deal damage to entities and can set nearby blocks on fire upon impact. They can also deflect projectiles or melee attacks, dealing damage to themselves if hit directly by a deflected fireball.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits key details about spawning conditions and fireball deflection mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers both parts of the question:<br>      1. **Spawn location**: Ghasts spawn in the Nether (specifically Nether wastes, soul sand valleys, basalt deltas, and bastion remnants) in large open spaces (5×5×4 blocks).<br>      2. **Attack behavior**: They shoot explosive fireballs at players, which can be deflected back (achievement-worthy), and details their targeting mechanics.<br>      This chunk fully aligns with the Reference Answer and provides additional useful context (e.g., spawning conditions, fireball mechanics).<br><br>    - **Chunk 2 (Score: 2)**: Relevant but less critical. It expands on ghast behavior (e.g., fireball mechanics, immunity to fire, interactions with other mobs) but does not directly address the core question (spawn location or primary attack method). While it adds depth, it is not essential for a correct answer and could distract from the key points.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Ghasts spawn in the Nether Wastes, Soul Sand Valley, and Basalt Deltas within Bastion Remnants.: SUPPORTED<br>  - They attack by shooting fireballs at players, which deal damage to entities and can set nearby blocks on fire upon impact.: SUPPORTED<br>  - They can also deflect projectiles or melee attacks, dealing damage to themselves if hit directly by a deflected fireball.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'spawning': &quot;Correctly lists Nether Wastes, Soul Sand Valley, and Basalt Deltas but incorrectly includes 'Bastion Remnants' as a spawn location (they spawn *near* Bastion Remnants, not *within* them, per CHUNK 1). Also misses the requirement for large open spaces (5×5×4 blocks).&quot;, 'attack': &quot;Correctly states fireball attacks but omits the 3-second cooldown, strafing behavior, and line-of-sight requirements. The deflection mechanic is mentioned but lacks clarity (e.g., 'killing them instantly' is not explained).&quot;}, 'completeness': {'missing': ['Spawning conditions (open space, light level independence, group sizes per biome).', 'Fireball deflection details (achievement, instant kill on direct hit).', 'Drops (ghast tears/gunpowder).', 'Behavioral nuances (crying sounds, hitbox specifics, targeting range).']}, 'hallucinations': &quot;None detected, but the phrasing 'within Bastion Remnants' is misleading (CHUNK 1 clarifies they spawn *near* fortresses/remnants, not inside).&quot;, 'relevance': &quot;Fully on-topic, but the answer is overly concise given the chunks' depth.&quot;, 'chunk_usage': 'AI used CHUNK 1/2 for spawn locations and attack mechanics but omitted critical details (e.g., spawning rules, deflection specifics).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [25, 35, 42, 15, 15, 15, 25, 20, 35, 41, 35, 40, 30, 35, 38, 35, 10, 25, 25, 42],
+                    backgroundColor: [25, 35, 42, 15, 15, 15, 25, 20, 35, 41, 35, 40, 30, 35, 38, 35, 10, 25, 25, 42].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [25, 35, 42, 15, 15, 15, 25, 20, 35, 41, 35, 40, 30, 35, 38, 35, 10, 25, 25, 42].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [75.0, 64.6, 45.0, 52.8],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [83.3, 66.7, 83.3, 66.7, 100.0, 0.0, 83.3, 66.7, 83.3, 50.0, 100.0, 83.3, 83.3, 83.3, 100.0, 83.3, 50.0, 100.0, 50.0, 83.3],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [66.7, 100.0, 100.0, 33.0, 57.0, 0.0, 36.0, 100.0, 60.0, 80.0, 100.0, 100.0, 100.0, 57.0, 60.0, 66.7, 0.0, 33.0, 75.0, 66.7],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [33.3, 66.7, 66.7, 33.3, 33.3, 33.3, 33.3, 0.0, 33.3, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 33.3, 0.0, 33.3, 33.3, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [60.0, 100.0, 100.0, 0.0, 40.0, 50.0, 27.0, 0.0, 50.0, 80.0, 43.0, 67.0, 100.0, 57.0, 100.0, 60.0, 0.0, 50.0, 40.0, 33.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
