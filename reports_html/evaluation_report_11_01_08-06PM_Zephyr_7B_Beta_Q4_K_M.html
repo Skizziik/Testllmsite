@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-11 20:06 | Questions: 20 | Model: Zephyr 7B Beta (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Zephyr 7B Beta (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;BAAI/bge-small-en-v1.5&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.6,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 2200,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #10b981">865/1000</div>
+                <div class="subtext">86.5% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #10b981">43.2</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">74.9%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #f59e0b">71.7%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #f59e0b">78.2%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">75.8%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens when I drink milk while poisoned in Minecraft? Does it fully cure me or just reduce the effect?</div>
+                                <div class="reference-text">Ref: Drinking milk completely removes the poison status effect, along with all other status effects. It doesn't just reduce the effect - it fully cures you by clearing all active effects.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the provided context, drinking milk while poisoned in Minecraft will fully cure you of the Poison effect. The text states that &quot;Milk buckets can be obtained from cows, mooshrooms, and goats by pressing while looking at them with an empty bucket. A milk bucket has an 8.5% chance of dropping from a wandering trader, if the trader is killed while holding it. To drink milk, press and hold while it is selected in the hotbar. Drinking it immediately removes all status effects from the player and returns an empty bucket.&quot; Additionally, the text mentions that &quot;Milk buckets are a drink obtained from a bucket on cows, mooshrooms and goats that can be consumed to clear all effects&quot; and that &quot;Drinking milk immediately removes all status effects from the player and returns an empty bucket.&quot; Therefore, drinking milk while poisoned will remove the Poison effect and fully cure you in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 86%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant, but it includes minor redundant details about milk bucket acquisition that are not directly relevant to the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: poison)**: Score 2. This chunk is relevant because it mentions that poison can be cured by drinking milk. However, it does not explicitly state whether milk *fully* cures the effect or just reduces it, which is the core of the question. It also includes tangential details about poison mechanics that are not directly useful for answering the question.<br>    - **Chunk 2 (ID: milk_bucket)**: Score 3. This chunk is highly relevant because it directly answers the question by stating that drinking milk 'immediately removes all status effects from the player,' which includes poison. This matches the Reference Answer's requirement of confirming that milk fully cures the effect.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Drinking milk while poisoned in Minecraft will fully cure you of the Poison effect.: SUPPORTED<br>  - Milk buckets can be obtained from cows, mooshrooms, and goats by pressing while looking at them with an empty bucket.: SUPPORTED<br>  - A milk bucket has an 8.5% chance of dropping from a wandering trader, if the trader is killed while holding it.: SUPPORTED<br>  - To drink milk, press and hold while it is selected in the hotbar.: SUPPORTED<br>  - Drinking it immediately removes all status effects from the player and returns an empty bucket.: SUPPORTED<br>  - Milk buckets are a drink obtained from a bucket on cows, mooshrooms and goats that can be consumed to clear all effects.: SUPPORTED<br>  - Drinking milk immediately removes all status effects from the player and returns an empty bucket.: SUPPORTED<br>  - Therefore, drinking milk while poisoned will remove the Poison effect and fully cure you in Minecraft.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that drinking milk fully cures the Poison effect (and all other status effects), aligning with both the REFERENCE ANSWER and the provided CHUNKS (CHUNK 1 and CHUNK 2). No factual errors were found.', 'completeness': 'The AI answer addresses the core question (whether milk fully cures or just reduces the effect) and confirms it fully cures. However, it could have been more concise by omitting details about milk bucket acquisition (e.g., drop chances from wandering traders), which are not directly relevant to the question.', 'hallucinations': 'No hallucinations were detected. All information is supported by the provided CHUNKS.', 'relevance': 'The answer stays on topic but includes extraneous details about milk bucket sources, which slightly dilute the focus. The core answer remains correct and relevant.', 'use_of_chunks': 'The AI effectively uses CHUNK 2 (milk_bucket) to confirm that milk removes all status effects, including Poison. CHUNK 1 (poison) is also referenced implicitly, as it mentions milk as a cure for Poison.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I duplicate an allay in Minecraft? I heard it involves music somehow.</div>
+                                <div class="reference-text">Ref: To duplicate an allay, you need to give it an amethyst shard while it is dancing near a playing jukebox. The allay will consume the shard and split into two allays. After duplication, both allays have a five-minute cooldown before they can duplicate again.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To duplicate an allay in Minecraft, you need to make it dance by playing a music disc on a nearby jukebox. While the allay is dancing, give it an amethyst shard. The allay will then split into two allays and consume the shard. Both new allays have a five-minute cooldown before they can duplicate again. This duplication method requires the Exploration update or later. Note that you cannot name the allay using a named tag while it is dancing, as this prevents the duplication from working. However, tethering the allay to a fence with a lead and then naming it will allow you to give it items and duplicate it. Additionally, if an allay dies while holding a totem of undying, it instead returns to full health and the totem is destroyed, as with any mob holding a totem of undying.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">44/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 62%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but includes minor unsupported details and a small error regarding named tags.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: allay_2)**: Score 3 - Highly relevant. This chunk directly contains the information needed for the correct answer, explicitly stating that an allay can be duplicated by giving it an amethyst shard while it is dancing near a playing jukebox. It also mentions the cooldown period, which matches the Reference Answer.<br>    - **Chunk 2 (ID: tutorialredstone_music_1)**: Score 0 - Completely irrelevant. This chunk discusses how to create music using note blocks and redstone, which is tangentially related to the mention of 'music' in the question but does not provide any information about duplicating allays or the role of jukeboxes in the process. It could mislead the user into focusing on redstone music rather than the actual duplication mechanism.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To duplicate an allay in Minecraft, you need to make it dance by playing a music disc on a nearby jukebox.: SUPPORTED<br>  - While the allay is dancing, give it an amethyst shard.: SUPPORTED<br>  - The allay will then split into two allays and consume the shard.: SUPPORTED<br>  - Both new allays have a five-minute cooldown before they can duplicate again.: SUPPORTED<br>  - This duplication method requires the Exploration update or later.: UNSUPPORTED<br>  - Note that you cannot name the allay using a named tag while it is dancing, as this prevents the duplication from working.: UNSUPPORTED<br>  - However, tethering the allay to a fence with a lead and then naming it will allow you to give it items and duplicate it.: UNSUPPORTED<br>  - Additionally, if an allay dies while holding a totem of undying, it instead returns to full health and the totem is destroyed, as with any mob holding a totem of undying.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Duplication requires an allay dancing near a playing jukebox.', 'An amethyst shard must be given to the allay to trigger duplication.', 'The allay splits into two and consumes the shard.', 'Both allays have a five-minute cooldown before duplicating again.'], 'incorrect_or_unsupported': [&quot;The claim that 'you cannot name the allay using a named tag while it is dancing' is not supported by the reference or chunks. The chunks mention naming tags but do not state they prevent duplication.&quot;, &quot;The note about the 'Exploration update or later' is unnecessary and not in the reference or chunks.&quot;, 'The detail about tethering with a lead and naming is overly specific and not directly relevant to the duplication process.']}, 'completeness': {'covered': ['Core duplication mechanics (jukebox, amethyst shard, cooldown).'], 'missing': [&quot;No mention of the allay needing to be *near* the jukebox (though this is implied by 'dancing near').&quot;, 'No explicit clarification that the jukebox must be *playing* (not just present).']}, 'hallucinations': {'present': ['The named tag limitation during dancing is not in the reference or chunks.', &quot;The 'Exploration update' detail is unsupported.&quot;], 'absent': [&quot;No major fabrications (e.g., no false mechanics like 'using a specific music disc').&quot;]}, 'relevance': {'on_topic': 'The answer stays focused on allay duplication but includes tangential details (e.g., totem of undying, lead tethering) that are not directly relevant to the question.'}, 'chunk_usage': {'used_correctly': 'The AI correctly extracts the duplication mechanics from [CHUNK 1].', 'ignored_or_misused': 'Overemphasizes unrelated details (e.g., totem of undying, lead tethering) from the chunk, which are not part of the question.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why does my acacia tree look blue-green instead of the normal orange color?</div>
+                                <div class="reference-text">Ref: Acacia tree leaves change color based on the biome they're in. If an acacia is in a colder biome, such as a taiga or mountains biome, the leaves will have a blue-green hue instead of the normal color. Leaves are checked individually for biome coloration.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Based on the provided context, the color of an acacia tree's leaves may differ depending on the biome it is in. If your acacia tree looks blue-green instead of the normal orange color, it could be because the tree is located in a colder biome such as a taiga or mountains biome. The leaves are checked individually for biome coloration rather than as part of a larger tree, so trees that were grown between biomes may have multiple shades on each side.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the normal orange color's biome context.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            The provided CHUNK 1 is highly relevant (score: 3) because it directly addresses the question by explaining that acacia tree leaves change color based on the biome they are in, specifically mentioning that colder biomes like taiga or mountains result in a blue-green hue instead of the normal orange color. This matches the Reference Answer exactly and provides the necessary information to answer the question correctly. No other chunks were provided for evaluation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The color of an acacia tree's leaves may differ depending on the biome it is in.: SUPPORTED<br>  - If your acacia tree looks blue-green instead of the normal orange color, it could be because the tree is located in a colder biome such as a taiga or mountains biome.: SUPPORTED<br>  - The leaves are checked individually for biome coloration rather than as part of a larger tree.: SUPPORTED<br>  - Trees that were grown between biomes may have multiple shades on each side.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly identifies that the blue-green hue occurs in colder biomes (taiga or mountains) and explains that leaves are checked individually for biome coloration. This matches both the REFERENCE and CHUNK 1 perfectly.', 'completeness': 'The AI answer covers the core reason (biome-dependent coloration) and the mechanism (individual leaf checks). However, it omits mentioning that the *normal* orange color is tied to the savanna biome, which is implied in the REFERENCE and explicitly stated in CHUNK 1. This is a minor omission.', 'hallucinations': 'No hallucinations detected. All information is supported by the provided chunks and reference.', 'relevance': 'The answer stays strictly on topic and directly addresses the question without tangential details.', 'use_of_chunks': 'The AI effectively uses CHUNK 1, extracting the key details about biome-dependent coloration and leaf checks. No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the best Y-level to find ancient debris in the Nether?</div>
+                                <div class="reference-text">Ref: On average, Y-level 16 has the most ancient debris. Ancient debris generates in two batches: one cluster attempts to generate from levels 8 to 24 with a triangle distribution, and an additional cluster generates evenly from levels 8 to 119.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>On average, ancient debris generates most frequently at Y-level 16 in the Nether. However, it can generate anywhere between levels 8 and 119, with two clusters of ores generating per chunk in Java Edition 1.12 and earlier, and up to five clusters generating per chunk in later versions. So while Y-level 16 is a good place to start looking, it's still possible to find ancient debris at other depths as well.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details about the distribution clusters and their generation ranges.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: ancient_debris)**: Score 3 - Highly relevant. This chunk directly answers the question by specifying that Y-level 16 has the most ancient debris on average and details the generation mechanics (two clusters: one from levels 8 to 24 with a triangle distribution, and another from levels 8 to 119). This matches the Reference Answer exactly.<br>    - **Chunk 2 (ID: nether_wastes)**: Score 1 - Somewhat related. While it mentions that ancient debris is found in the Nether wastes, it does not provide any specific Y-level information or generation details. It is tangentially related but not useful for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - On average, ancient debris generates most frequently at Y-level 16 in the Nether.: SUPPORTED<br>  - It can generate anywhere between levels 8 and 119.: SUPPORTED<br>  - Two clusters of ores generate per chunk in Java Edition 1.12 and earlier.: UNSUPPORTED<br>  - Up to five clusters generate per chunk in later versions.: SUPPORTED<br>  - So while Y-level 16 is a good place to start looking, it's still possible to find ancient debris at other depths as well.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies Y-level 16 as the most frequent generation point for ancient debris and acknowledges the range of 8 to 119.', 'minor_issue': &quot;The AI mentions 'two clusters in Java Edition 1.12 and earlier' and 'up to five clusters in later versions,' which is partially correct but oversimplifies the generation mechanics (e.g., the triangle distribution for the first cluster and the even distribution for the second cluster are not explicitly mentioned).&quot;}, 'completeness': {'covered': 'The AI answers the core question (best Y-level) and provides additional context about generation ranges and cluster counts.', 'missing': 'The AI does not explicitly state the two distinct generation batches (one with triangle distribution from 8-24 and another evenly from 8-119) as described in the reference and chunks. It also omits the average number of ancient debris blocks per chunk (1.65 or 1.56 in Java 1.16.5).'}, 'hallucinations': 'None detected. All information aligns with the chunks or reference, though some details are generalized.', 'relevance': 'The answer stays strictly on topic and does not deviate from the question about ancient debris generation.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I open the secret door in an ancient city? I found the structure but can't figure out how to get in.</div>
+                                <div class="reference-text">Ref: The secret entrance in ancient cities is opened by activating a sculk sensor in the basement. In Java Edition, making a vibration around the chiseled deepslate block in front of the frame activates the sensor and opens the piston door. In Bedrock Edition, only vibrations with frequency 8 (eating or drinking) can activate it.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To open the secret door in an ancient city, you need to activate a sculk sensor located in the hidden basement beneath the structure. The sensor is triggered by vibrations, and there are different ways to create these vibrations:<br><br>1. For the first circuit, you can make a vibration around the chiseled deepslate block in front of the frame at the city center. This will activate the sculk sensor and open the piston door. The door closes 180 game ticks after the sensor is deactivated due to a pulse extender between the sensor and door.<br><br>2. For the second circuit, you need to create vibrations on the path in front of the frame at the city center with a frequency equal to 8 (eating or drinking). This will activate the piston door through a signal strength filter that only allows vibrations with this specific frequency.<br><br>3. In both circuits, there is also a T flip-flop between the sculk sensor and piston door. Once the sensor is activated, the door remains open until it's triggered again.<br><br>To access the hidden basement, look for the secret entrance located at the base of the structure underneath the wooden bridge between the city center and the wall. Good luck!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only minor omissions regarding the edition-specific differences (Java vs. Bedrock) explicitly mentioned in the reference.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (Score: 2)**: This chunk provides useful context about the ancient city's structure, including the location of the secret entrance ('underneath the wooden bridge between the city center and the wall'). However, it does not explicitly explain how to open the secret door, which is the core of the question. It is partially helpful but lacks the critical activation details.<br>    - **CHUNK 2 (Score: 3)**: This chunk is highly relevant as it directly addresses the question by explaining the mechanism to open the secret door. It details the role of the sculk sensor, the chiseled deepslate block, and the differences between Java and Bedrock Editions (e.g., frequency 8 vibrations for Bedrock). This chunk alone could lead to a correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To open the secret door in an ancient city, you need to activate a sculk sensor located in the hidden basement beneath the structure.: SUPPORTED<br>  - The sensor is triggered by vibrations.: SUPPORTED<br>  - For the first circuit, you can make a vibration around the chiseled deepslate block in front of the frame at the city center.: SUPPORTED<br>  - This will activate the sculk sensor and open the piston door.: SUPPORTED<br>  - The door closes 180 game ticks after the sensor is deactivated due to a pulse extender between the sensor and door.: SUPPORTED<br>  - For the second circuit, you need to create vibrations on the path in front of the frame at the city center with a frequency equal to 8 (eating or drinking).: SUPPORTED<br>  - This will activate the piston door through a signal strength filter that only allows vibrations with this specific frequency.: SUPPORTED<br>  - In both circuits, there is also a T flip-flop between the sculk sensor and piston door.: CONTRADICTED<br>  - Once the sensor is activated, the door remains open until it's triggered again.: SUPPORTED<br>  - To access the hidden basement, look for the secret entrance located at the base of the structure underneath the wooden bridge between the city center and the wall.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies the need to activate a sculk sensor via vibrations, the role of the chiseled deepslate block, and the frequency-8 requirement (eating/drinking) for Bedrock Edition. It also accurately describes the pulse extender and T flip-flop mechanics.', 'minor_omission': 'The AI does not explicitly distinguish between Java and Bedrock Edition behaviors as clearly as the reference does. While it mentions both vibration methods, it does not label them by edition, which could cause slight confusion for users.'}, 'completeness': {'covered': 'The AI answers all core parts of the question: location of the secret door (basement under the wooden bridge), activation methods (vibrations, frequency-8), and redstone mechanics (pulse extender, T flip-flop).', 'missing': 'The edition-specific distinction (Java vs. Bedrock) is implied but not explicitly stated, which is a minor gap.'}, 'hallucinations': 'None detected. All information aligns with the chunks and reference, with no invented details.', 'relevance': 'The answer stays strictly on-topic and addresses the question directly without tangential information.', 'chunk_usage': 'The AI effectively uses both chunks, particularly [CHUNK 2], which provides the redstone mechanics and activation methods. It synthesizes the information well without adding unsupported details.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can I use a block of netherite to power a beacon? Is it as effective as diamond blocks?</div>
+                                <div class="reference-text">Ref: Yes, blocks of netherite can be used to power a beacon. The beacon can be powered by a 3x3 square of netherite blocks underneath it, and you can mix netherite blocks with blocks of iron, gold, diamond, or emerald. All these blocks work equally well for powering the beacon.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Yes, you can use a block of netherite to power a beacon. In fact, a beacon can be powered by a 3x3 square of netherite blocks underneath it, and optionally includes a 5x5, 7x7, and 9x9 layer in the shape of a pyramid under the original layer to increase the effects from the beacon. The layers do not have to be entirely netherite blocks, as any combination of blocks of iron, blocks of gold, blocks of diamond, blocks of emerald, or netherite blocks can power a beacon.<br><br>In terms of effectiveness, both diamond and netherite blocks are capable of powering a beacon. However, the blast resistance and hardness of netherite blocks are higher than those of diamond blocks, making them more durable in certain situations. Additionally, netherite blocks have the added benefit of being resistant to fire and lava, while diamond blocks are not. Ultimately, the choice between using diamond or netherite blocks to power a beacon may depend on your specific needs and preferences.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 88%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but includes minor unsupported details about durability and fire/lava resistance, which are not directly relevant to the beacon's powering mechanism.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Block of Netherite)**: Scores **3** (Highly relevant). It directly answers the question by stating that netherite blocks can power a beacon and that they work equally well as other blocks (iron, gold, diamond, emerald). It also provides additional context about pyramid layers, which aligns with the Reference Answer.<br>    - **Chunk 2 (Block of Diamond)**: Scores **2** (Relevant). It confirms that diamond blocks can power a beacon and mentions that other blocks (including netherite) can be mixed in. However, it does not explicitly state whether netherite is *as effective* as diamond, which is part of the question. While helpful, it is slightly less complete than Chunk 1.<br>    - Neither chunk is irrelevant, but Chunk 1 is more directly aligned with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Yes, you can use a block of netherite to power a beacon.: SUPPORTED<br>  - A beacon can be powered by a 3x3 square of netherite blocks underneath it.: SUPPORTED<br>  - Optionally includes a 5x5, 7x7, and 9x9 layer in the shape of a pyramid under the original layer to increase the effects from the beacon.: SUPPORTED<br>  - The layers do not have to be entirely netherite blocks, as any combination of blocks of iron, blocks of gold, blocks of diamond, blocks of emerald, or netherite blocks can power a beacon.: SUPPORTED<br>  - Both diamond and netherite blocks are capable of powering a beacon.: SUPPORTED<br>  - The blast resistance and hardness of netherite blocks are higher than those of diamond blocks.: SUPPORTED<br>  - Netherite blocks have the added benefit of being resistant to fire and lava, while diamond blocks are not.: SUPPORTED<br>  - Ultimately, the choice between using diamond or netherite blocks to power a beacon may depend on your specific needs and preferences.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that netherite blocks can power a beacon and that they are equally effective as diamond blocks for this purpose. It also accurately describes the pyramid structure and the mix of blocks allowed.', 'reference_comparison': 'Matches the REFERENCE ANSWER and CHUNK 1/2, confirming netherite and diamond blocks are equally effective for powering beacons.'}, 'completeness': {'covered': 'The AI answers all parts of the question: (1) Can netherite blocks power a beacon? (2) Are they as effective as diamond blocks? It also provides additional context about the pyramid structure.', 'missing': 'None directly related to the question, but the answer could have been more concise by omitting durability/fire resistance details (not asked).'}, 'hallucinations': {'present': &quot;No outright hallucinations, but the AI adds unsupported emphasis on durability and fire/lava resistance as 'added benefits' for beacon powering, which is irrelevant to the question. These properties are mentioned in CHUNK 1 but not tied to beacon effectiveness in the REFERENCE or CHUNKS.&quot;, 'impact': 'Minor, as the core answer remains correct.'}, 'relevance': {'on_topic': 'The answer stays on topic but drifts slightly by discussing durability/fire resistance, which are not part of the question or REFERENCE ANSWER.', 'focus': 'The first two sentences are perfectly relevant; the rest introduces tangential details.'}, 'chunk_usage': {'correct': 'The AI uses CHUNK 1 and CHUNK 2 effectively to confirm netherite/diamond equivalence for beacon powering.', 'unsupported_additions': 'The durability/fire resistance details are pulled from CHUNK 1 but are not relevant to the question.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why does blue ice make boats go so fast? Is it faster than regular ice?</div>
+                                <div class="reference-text">Ref: Blue ice is much more slippery (0.989) than regular ice or packed ice (0.98). Boats on blue ice can reach a top speed of 72.73 m/s, compared to only 40 m/s on regular ice and packed ice. This makes blue ice ideal for fast transportation systems.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Blue ice is much more slippery than regular ice, causing entities to slide more easily. This includes boats, which can travel even faster on blue ice than they can on regular ice or packed ice. In fact, boats can reach a top speed of 72.73 meters per second (about 258 mph) on blue ice, compared to a maximum speed of 40 meters per second (about 144 mph) on regular ice and packed ice. So yes, blue ice makes boats go much faster than regular ice does.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission of the slipperiness values (0.989 vs. 0.98) for context, which does not affect the core answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: blue_ice)** is **highly relevant (3)** because it directly addresses the question by:<br>      1. Comparing the slipperiness of blue ice (0.989) to regular ice/packed ice (0.98), which is explicitly mentioned in the Reference Answer.<br>      2. Providing the exact boat speeds on blue ice (72.73 m/s) vs. regular ice/packed ice (40 m/s), matching the Reference Answer.<br>      3. Confirming that blue ice is faster than regular ice, which is the core of the question.<br><br>    - **Chunk 2 (ID: ice_2)** is **relevant (2)** but less precise because:<br>      1. It mentions boat speeds on ice (40 m/s) and blue ice (72 m/s), which aligns with the Reference Answer, but it does not explicitly compare the two or highlight the slipperiness values.<br>      2. It includes tangential details (e.g., Nether boat highways, melting mechanics) that are not needed for the question, slightly diluting its relevance.<br>      3. While it supports the correct answer, it requires additional context from Chunk 1 to fully address the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Blue ice is much more slippery than regular ice, causing entities to slide more easily.: SUPPORTED<br>  - This includes boats, which can travel even faster on blue ice than they can on regular ice or packed ice.: SUPPORTED<br>  - Boats can reach a top speed of 72.73 meters per second (about 258 mph) on blue ice.: SUPPORTED<br>  - Boats can reach a maximum speed of 40 meters per second (about 144 mph) on regular ice and packed ice.: SUPPORTED<br>  - So yes, blue ice makes boats go much faster than regular ice does.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that blue ice is slipperier than regular ice and provides the exact speed values (72.73 m/s for blue ice vs. 40 m/s for regular ice/packed ice), matching the reference and chunks. The slipperiness values (0.989 vs. 0.98) are mentioned in the chunks but omitted in the AI answer, though this is a minor detail.', 'completeness': 'The answer fully addresses the question, including the comparison between blue ice and regular ice speeds. It does not miss any critical information from the reference or chunks.', 'hallucinations': 'No hallucinations detected. All information is supported by the reference and chunks.', 'relevance': 'The answer stays strictly on topic, focusing on the speed of boats on blue ice vs. regular ice.', 'use_of_chunks': 'The AI effectively uses the provided chunks (especially CHUNK 1) to derive the answer, without adding unsupported information.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get mushrooms from a bogged skeleton? Can I shear them like sheep?</div>
+                                <div class="reference-text">Ref: Yes, you can shear a bogged to get 2 mushrooms. Each mushroom has an equal chance of being either brown or red. After shearing, the bogged cannot be sheared again and the mushrooms on its head are permanently removed.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: A bogged skeleton drops 2 mushrooms when sheared. However, after being sheared, the mushrooms growing from its head are permanently removed, and it cannot be sheared again. Bogged behave like normal skeletons and shoot tipped arrows that inflict Poison for 4 seconds on any target they hit. They also take freezing damage in powder snow and do not convert into strays. Being an undead mob, they are affected by the Smite enchantment but ignored by the wither. Unlike regular skeletons, bogged in powder snow take freezing damage and do not convert into strays. So, you can't shear them like sheep, but you can still get mushrooms from a bogged skeleton by shearing it once.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 89%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details about the equal chance of mushroom types (brown/red) and the tool requirement (shears).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (shears_1)**: Highly relevant (score: 3). It directly answers the question by stating that shearing a bogged drops 2 mushrooms (with equal chances of being red or brown) and that the bogged cannot be sheared again afterward. This matches the Reference Answer exactly.<br>    - **Chunk 2 (bogged_2)**: Highly relevant (score: 3). It also directly answers the question by confirming that a bogged drops 2 mushrooms when sheared (with equal chances for red or brown) and that the mushrooms are permanently removed afterward. This chunk provides additional context (e.g., bogged behavior) but the core answer aligns perfectly with the Reference Answer.<br>    Both chunks are useful and could independently lead to a correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A bogged skeleton drops 2 mushrooms when sheared.: SUPPORTED<br>  - After being sheared, the mushrooms growing from its head are permanently removed.: SUPPORTED<br>  - It cannot be sheared again.: SUPPORTED<br>  - Bogged behave like normal skeletons and shoot tipped arrows that inflict Poison for 4 seconds on any target they hit.: SUPPORTED<br>  - They also take freezing damage in powder snow and do not convert into strays.: SUPPORTED<br>  - Being an undead mob, they are affected by the Smite enchantment but ignored by the wither.: SUPPORTED<br>  - Unlike regular skeletons, bogged in powder snow take freezing damage and do not convert into strays.: SUPPORTED<br>  - So, you can't shear them like sheep, but you can still get mushrooms from a bogged skeleton by shearing it once.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that a bogged drops 2 mushrooms when sheared, cannot be sheared again, and the mushrooms are permanently removed. It also accurately describes bogged behavior (poison arrows, freezing damage in powder snow, undead traits).', 'minor_omissions': &quot;The AI does not explicitly mention the equal chance of mushrooms being brown or red (though this is implied by '2 mushrooms'). It also does not state that shears are required (though this is contextually obvious from the chunks).&quot;}, 'completeness': {'core_answer': 'The AI fully answers the primary question (how to get mushrooms from a bogged) and the secondary question (whether they can be sheared like sheep).', 'missing_details': 'The equal probability of mushroom types and the tool requirement (shears) are not explicitly stated, though these are minor omissions.'}, 'hallucinations': 'None. All information is supported by the chunks or reference answer.', 'relevance': 'The answer stays strictly on topic, addressing the question about shearing bogged and mushroom drops. The additional details about bogged behavior are relevant but not strictly necessary for the question.', 'chunk_usage': 'The AI effectively uses both chunks, particularly [CHUNK 1] for shearing mechanics and [CHUNK 2] for bogged behavior. No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens if I put an item with Curse of Binding on and then die? Do I lose it forever?</div>
+                                <div class="reference-text">Ref: When you die with an item enchanted with Curse of Binding, it drops normally like any other item. The curse only prevents you from removing the item while alive - it doesn't make the item disappear on death. However, if keepInventory is enabled, you keep the cursed item even after death.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>If you put an item with Curse of Binding on and then die, the item will not be dropped on the ground. Instead, it will disappear from the world entirely. This is because Curse of Binding prevents the item from being removed from any armor slot unless the player is in Creative mode or the item breaks. In Hardcore mode, if the keepInventory gamerule is set to true, the item will still be kept by the player after death, but only breaking the item can remove it. If the item is a carved pumpkin or mob head, placing and breaking the block removes the curse. However, in singleplayer Hardcore mode, since death is permanent, no items can be retrieved after dying, including cursed ones.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies and hallucinations, particularly regarding the behavior of Curse of Binding on death.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by stating that an item with Curse of Binding drops normally upon death (unless `keepInventory` is enabled), which matches the Reference Answer. It also clarifies that the curse only prevents removal while alive and confirms the behavior with `keepInventory`.<br>    - **Chunk 2 (Score: 0)**: Completely irrelevant. It discusses Curse of Vanishing, which causes items to disappear upon death, but the question is specifically about Curse of Binding. This chunk could mislead users into thinking the item is lost forever, which is incorrect for the asked enchantment.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If you put an item with Curse of Binding on and then die, the item will not be dropped on the ground.: CONTRADICTED<br>  - Instead, it will disappear from the world entirely.: CONTRADICTED<br>  - This is because Curse of Binding prevents the item from being removed from any armor slot unless the player is in Creative mode or the item breaks.: SUPPORTED<br>  - In Hardcore mode, if the keepInventory gamerule is set to true, the item will still be kept by the player after death, but only breaking the item can remove it.: SUPPORTED<br>  - If the item is a carved pumpkin or mob head, placing and breaking the block removes the curse.: SUPPORTED<br>  - However, in singleplayer Hardcore mode, since death is permanent, no items can be retrieved after dying, including cursed ones.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'error': &quot;The AI incorrectly states that the item 'will not be dropped on the ground' and 'will disappear from the world entirely.' This is false—the REFERENCE and CHUNK 1 explicitly state that the item drops normally on death (unless `keepInventory` is enabled). The AI conflates Curse of Binding with Curse of Vanishing (CHUNK 2), which is the enchantment that causes items to vanish on death.&quot;, 'supporting_evidence': &quot;REFERENCE: 'it drops normally like any other item.' CHUNK 1: 'An item with Curse of Binding cannot be removed... unless the player... dies.'&quot;}, 'completeness': {'missing': 'The AI omits key details: (1) The item drops normally on death (unless `keepInventory` is true), (2) The curse does not persist after death (unless `keepInventory` is enabled), and (3) The only way to remove the item in Hardcore mode is by breaking it or dying (if `keepInventory` is false).', 'partial_coverage': 'The AI does mention `keepInventory` and Hardcore mode but misrepresents their implications.'}, 'hallucinations': {'invented': &quot;The claim that the item 'disappears from the world entirely' is entirely unsupported by the chunks or reference. This is a direct confusion with Curse of Vanishing.&quot;, 'misattribution': 'The AI incorrectly attributes the behavior of Curse of Vanishing to Curse of Binding.'}, 'relevance': {'on_topic': 'The answer stays on-topic but is fundamentally incorrect due to the hallucination.', 'irrelevant_details': 'The mention of carved pumpkins/mob heads (while technically correct) is tangential to the core question and distracts from the main error.'}, 'chunk_usage': {'failure': &quot;The AI ignored CHUNK 1's clear statement that the item drops on death and instead fabricated behavior based on CHUNK 2 (Curse of Vanishing). It also misapplied the `keepInventory` rule, suggesting the item is kept *only* if broken, which is misleading.&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can I use a bone to tame an aggressive wolf that's attacking me?</div>
+                                <div class="reference-text">Ref: No, bones cannot tame a hostile wolf. A bone can only be used on a wild (neutral) wolf to have a chance of taming it. If a wolf is already aggressive and attacking you, you cannot tame it with bones.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>If the aggressive wolf is not already tamed, you can use a bone to try and tame it. Feed the bone to the wolf, and if it accepts the bone (which is random), it will start following you instead of attacking. However, if the wolf is already tamed or hostile towards another player, using a bone on it won't work. In such cases, you may need to find another way to deal with the aggressive wolf, such as fighting it off or luring it away with food.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 25%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 25%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but contains a critical factual error and omits key details about the impossibility of taming an already aggressive wolf.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (Score: 3 - Highly relevant):**<br>    - Directly addresses the core of the question by explicitly stating that bones can only tame *wild* wolves and cannot tame *hostile* or already tamed wolves. This matches the Reference Answer's requirement that bones are ineffective against aggressive wolves.<br>    - Contains the exact information needed to answer the question correctly.<br><br>    **Chunk 2 (Score: 2 - Relevant):**<br>    - Provides useful context about wolf taming (e.g., bones work on untamed wolves, not hostile ones) but is less direct than Chunk 1. It repeats some of the same information (e.g., 'A wolf cannot be tamed if it is hostile') but also includes extraneous details (e.g., teleportation mechanics, health indicators) that are not necessary for answering the question.<br>    - While helpful, it risks diluting the focus with tangential information.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If the aggressive wolf is not already tamed, you can use a bone to try and tame it.: CONTRADICTED<br>  - Feed the bone to the wolf, and if it accepts the bone (which is random), it will start following you instead of attacking.: CONTRADICTED<br>  - However, if the wolf is already tamed or hostile towards another player, using a bone on it won't work.: SUPPORTED<br>  - In such cases, you may need to find another way to deal with the aggressive wolf, such as fighting it off or luring it away with food.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states that bones can be used to tame wild wolves and that the process is random. It also correctly notes that bones won't work on already tamed wolves or wolves hostile to other players.&quot;, 'incorrect': &quot;The AI incorrectly suggests that bones *can* be used to tame an aggressive wolf if it's 'not already tamed.' This contradicts the reference answer and chunks, which explicitly state that bones *cannot* tame a hostile wolf (regardless of prior tamed status).&quot;, 'unsupported': &quot;No hallucinations, but the AI misinterprets the chunks' distinction between 'wild' and 'hostile' wolves.&quot;}, 'completeness': {'missing': 'The AI fails to clarify that bones *cannot* tame an aggressive wolf at all (a key part of the reference answer). It also omits that bones can only be used on *neutral* wolves, not hostile ones.', 'present': 'The answer covers the general use of bones for taming and their limitations with tamed wolves.'}, 'hallucinations': &quot;None detected. All claims are grounded in the chunks, but the interpretation of 'hostile' vs. 'wild' is flawed.&quot;, 'relevance': 'The answer stays on topic but misapplies the rules for hostile wolves.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why can't I craft quartz blocks back into Nether quartz? Other storage blocks can be uncrafted.</div>
+                                <div class="reference-text">Ref: Quartz blocks cannot be crafted back into Nether quartz, unlike blocks made from other ores. This is a unique property of quartz blocks - once you craft them, you cannot reverse the process to recover the original Nether quartz items.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the provided context, blocks of quartz cannot be crafted back into Nether quartz unlike blocks made from other ores. This means that while storage blocks like chests and hoppers can be uncrafted, blocks of quartz cannot be used for storing Nether quartz in this way. This is because when a block of quartz is mined or obtained through other means, it cannot be converted back into the raw material (Nether quartz) that was used to create it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits a minor detail about the uniqueness of quartz blocks compared to other storage blocks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly addresses the question by explaining that quartz blocks cannot be crafted back into Nether quartz, unlike other ore storage blocks. This matches the Reference Answer's key point.<br>    - **Chunk 2** is **completely irrelevant (0)** because it discusses the Nether reactor core, an unrelated block with no connection to quartz blocks or their crafting mechanics. It does not help answer the question and could mislead the user.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - blocks of quartz cannot be crafted back into Nether quartz unlike blocks made from other ores: SUPPORTED<br>  - This means that while storage blocks like chests and hoppers can be uncrafted, blocks of quartz cannot be used for storing Nether quartz in this way: UNSUPPORTED<br>  - This is because when a block of quartz is mined or obtained through other means, it cannot be converted back into the raw material (Nether quartz) that was used to create it: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that quartz blocks cannot be crafted back into Nether quartz, matching the reference and retrieved chunks. No factual errors were made.', 'completeness': 'The answer addresses the core question but misses the explicit mention that this is a *unique property* of quartz blocks (unlike other storage blocks). This detail is present in both the reference and CHUNK 1.', 'hallucinations': 'No hallucinations detected. All information is supported by the provided chunks and reference.', 'relevance': 'The answer stays strictly on topic and does not deviate from the question.', 'use_of_chunks': 'The AI effectively uses CHUNK 1, which directly addresses the question. CHUNK 2 is irrelevant and correctly ignored.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">Do dark oak trees need special conditions to grow? My single sapling won't grow into a tree.</div>
+                                <div class="reference-text">Ref: Dark oak trees require four saplings arranged in a 2x2 grid to grow - they do not grow if planted individually. They also need a 3x3 column of unobstructed space at least 7 blocks above the saplings, and 5x5 layers without obstruction for the top 3 layers.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: According to the provided context, dark oak trees require a 3x3 column of unobstructed space at least 7 blocks above the sapling to grow. Additionally, they need 5x5 layers without obstruction for the top 3 layers of its final height. If your single sapling is not meeting these requirements, it may not be able to grow into a tree. You can also try planting four dark oak saplings arranged in a 2x2 grid to grow the tree faster. I hope this helps! Let me know if you have any further questions.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits the critical requirement of planting four saplings in a 2x2 grid for dark oak trees to grow.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers the question by stating that dark oak trees require four saplings arranged in a 2x2 grid to grow and cannot grow individually. It also provides the exact spatial requirements (3x3 column of unobstructed space at least 7 blocks above the saplings and 5x5 layers for the top 3 layers), matching the Reference Answer entirely.<br>    - **Chunk 2 (Score: 2)**: Relevant but less precise. It confirms the 2x2 sapling requirement for dark oak trees and mentions the 7-block height requirement, but it does not explicitly state the 5x5 layers for the top 3 layers or the 3x3 column detail. It is helpful but incomplete compared to Chunk 1.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - dark oak trees require a 3x3 column of unobstructed space at least 7 blocks above the sapling to grow: SUPPORTED<br>  - they need 5x5 layers without obstruction for the top 3 layers of its final height: SUPPORTED<br>  - If your single sapling is not meeting these requirements, it may not be able to grow into a tree: SUPPORTED<br>  - You can also try planting four dark oak saplings arranged in a 2x2 grid to grow the tree faster: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states the spatial requirements (3x3 column of unobstructed space 7 blocks above the sapling and 5x5 layers for the top 3 layers). However, it fails to emphasize the primary requirement that dark oak trees *must* be planted as four saplings in a 2x2 grid to grow, which is explicitly mentioned in both the reference and chunks.', 'completeness': &quot;The answer is incomplete because it does not address the core issue in the question (the single sapling not growing). The user's problem is directly tied to the 2x2 grid requirement, which is not highlighted as the solution.&quot;, 'hallucinations': 'No hallucinations detected. All provided information is supported by the chunks and reference.', 'relevance': &quot;The answer stays on topic but misses the most critical part of the question (the 2x2 grid requirement). The spatial requirements are relevant but secondary to the user's issue.&quot;, 'use_of_chunks': &quot;The AI used the chunks correctly for the spatial requirements but did not sufficiently leverage the key detail about the 2x2 grid planting requirement, which is the primary reason the single sapling won't grow.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I find blue orchids in Minecraft? I've been looking everywhere.</div>
+                                <div class="reference-text">Ref: Blue orchids generate exclusively in swamp biomes on dirt and grass blocks. They are the only flower that spawns naturally in swamps. You can also use bone meal on grass blocks in swamps to generate them, or buy them from wandering traders for 1 emerald.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>Blue orchids can be found naturally in swamp biomes. They generate exclusively on dirt and grass blocks in swamps as part of vegetation features. If you're having trouble finding them, I recommend exploring swamp areas more thoroughly, as they may be hiding among the other plants and flowers. Additionally, bone meal can be used to increase the chance of blue orchids generating when applied to a grass block in a swamp biome. Good luck with your search!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct and relevant but misses some key details like the wandering trader option and specific bone meal mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: blue_orchid)**: Score 3 - Highly relevant. This chunk directly answers the question by specifying that blue orchids generate exclusively in swamp biomes on dirt and grass blocks, can be obtained via bone meal in swamps, or bought from wandering traders. It includes all key details from the Reference Answer and more, making it fully useful for answering the question correctly.<br><br>    - **Chunk 2 (ID: frozen_river)**: Score 0 - Completely irrelevant. This chunk describes the Frozen River biome, its mobs, and spawn conditions, which have no connection to blue orchids or the question asked. It could mislead or confuse the user if included in the answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Blue orchids can be found naturally in swamp biomes.: SUPPORTED<br>  - They generate exclusively on dirt and grass blocks in swamps as part of vegetation features.: SUPPORTED<br>  - If you're having trouble finding them, I recommend exploring swamp areas more thoroughly, as they may be hiding among the other plants and flowers.: UNSUPPORTED<br>  - Additionally, bone meal can be used to increase the chance of blue orchids generating when applied to a grass block in a swamp biome.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that blue orchids generate exclusively in swamp biomes on dirt and grass blocks.', 'missing': 'It does not mention that blue orchids can be bought from wandering traders for 1 emerald or the specific mechanics of bone meal usage (e.g., area of effect or chance to generate).'}, 'completeness': {'covered': 'The AI covers the natural generation and bone meal usage as methods to obtain blue orchids.', 'missing': &quot;It omits the wandering trader method and the specific details about bone meal's effect (e.g., area size, chance to generate). The reference answer includes these details, and they are also present in the chunks.&quot;}, 'hallucinations': 'None detected. The AI does not invent any unsupported information.', 'relevance': &quot;The answer stays fully on topic and addresses the user's question about where to find blue orchids.&quot;, 'chunk_usage': {'used': 'The AI uses information from CHUNK 1 (natural generation in swamps and bone meal usage).', 'ignored': 'It ignores the wandering trader detail and the specific bone meal mechanics (e.g., area size) mentioned in CHUNK 1.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">How fast does an amethyst cluster grow to full size? I want to farm amethyst shards.</div>
+                                <div class="reference-text">Ref: It takes approximately 8192.4 seconds (about 2 hours 16 minutes) for an unobstructed budding amethyst block to fully grow all its clusters. Each face requires 4 growth stages, and only one face is randomly selected per growth tick. Obstructing any face reduces the overall growth rate.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: According to the provided context, an amethyst bud placed on a budding amethyst grows over time, going through three growth stages - small, medium, and large - before reaching its fourth and final growth stage as an amethyst cluster. The math applied in the context suggests that it takes approximately 6.827 in-game days (or 2 hours 16 minutes 32 seconds) for an amethyst bud to grow from small to fully grown, which is the fourth and final growth stage as an amethyst cluster. So, farming amethyst shards involves finding amethyst geodes with budding amethyst and waiting for the buds to grow into clusters. Once the clusters are fully grown, they will drop amethyst shards when mined.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits minor details about obstruction effects and the exact calculation logic.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: amethyst_cluster_1)**: Score 1 - This chunk provides detailed information about amethyst clusters, their growth stages, and how they drop amethyst shards when mined. However, it does not explicitly answer the question about the time it takes for an amethyst cluster to grow to full size. It is tangentially related but not directly useful for the specific question asked.<br><br>    - **Chunk 2 (ID: budding_amethyst)**: Score 3 - This chunk is highly relevant as it directly addresses the growth time of amethyst clusters. It includes the calculation for the average time it takes for an amethyst cluster to grow to full size (8192 seconds or ~2 hours 16 minutes), which matches the Reference Answer. It also explains the growth mechanics, making it essential for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An amethyst bud placed on a budding amethyst grows over time, going through three growth stages - small, medium, and large - before reaching its fourth and final growth stage as an amethyst cluster.: SUPPORTED<br>  - The math applied in the context suggests that it takes approximately 6.827 in-game days (or 2 hours 16 minutes 32 seconds) for an amethyst bud to grow from small to fully grown, which is the fourth and final growth stage as an amethyst cluster.: SUPPORTED<br>  - Farming amethyst shards involves finding amethyst geodes with budding amethyst and waiting for the buds to grow into clusters.: SUPPORTED<br>  - Once the clusters are fully grown, they will drop amethyst shards when mined.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states the time it takes for an amethyst cluster to grow (2 hours 16 minutes 32 seconds or 6.827 in-game days), matching the reference and chunks. It also accurately describes the growth stages (small, medium, large, cluster).', 'completeness': 'The answer covers the core question (growth time and farming shards) but misses two details: (1) the effect of obstructing faces on growth rate, and (2) the explicit mention that only one face is randomly selected per growth tick (though this is implied in the calculation).', 'hallucinations': 'None detected. All information aligns with the provided chunks and reference.', 'relevance': 'The answer stays strictly on topic, addressing the growth time and farming of amethyst shards without diverging.', 'chunk_usage': 'The AI effectively uses the chunks, particularly [CHUNK 2], which contains the growth time calculation. However, it does not explicitly reference the obstruction detail from the reference answer, which is not contradicted but also not mentioned in the chunks.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can hostile mobs still spawn in dark forests during the day? The canopy seems really thick.</div>
+                                <div class="reference-text">Ref: Yes, hostile mobs can spawn in dark forests during the day. The dense leaf canopies of dark oak trees block sunlight, creating areas dark enough for hostile mobs to spawn and persist even throughout daytime. This makes survival more challenging in this biome.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>Assistant: Yes, hostile mobs can still spawn in dark forests during the day due to the thick leaf canopy that blocks sunlight. This is different from regular forests where most hostile mobs despawn during the day. The dense shade provided by the dark oak trees allows these mobs to persist even throughout daytime. However, wolves do not naturally spawn in dark forests.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">47/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the specific mention of 'dark oak trees' blocking sunlight (though it implies it). No hallucinations or errors.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: dark_forest)**: Highly relevant (score: 3). It directly addresses the question by explicitly stating that the dense leaf canopies of dark oak trees block sunlight, allowing hostile mobs to spawn and persist during daytime. This matches the Reference Answer's key points.<br>    - **Chunk 2 (ID: dark_forest_hills)**: Somewhat related (score: 1). While it discusses a variant of the dark forest, it focuses on a biome that no longer generates and mentions reduced daytime hostile mob spawning due to broken canopies. This is tangentially related but not useful for answering the question about *current* dark forests during the day. It could even mislead if the user assumes the behavior applies to standard dark forests.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Yes, hostile mobs can still spawn in dark forests during the day due to the thick leaf canopy that blocks sunlight.: SUPPORTED<br>  - This is different from regular forests where most hostile mobs despawn during the day.: UNSUPPORTED<br>  - The dense shade provided by the dark oak trees allows these mobs to persist even throughout daytime.: SUPPORTED<br>  - However, wolves do not naturally spawn in dark forests.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'assessment': 'The AI answer aligns perfectly with the REFERENCE and CHUNKS. It correctly states that hostile mobs can spawn in dark forests during the day due to the thick canopy blocking sunlight, which matches the ground truth and the provided context (CHUNK 1).', 'details': [&quot;REFERENCE: 'dense leaf canopies of dark oak trees block sunlight' → AI: 'thick leaf canopy that blocks sunlight' (correct, though 'dark oak' is implied but not explicitly stated).&quot;, &quot;CHUNK 1: 'dense shade provided by the dark oak trees allows hostile mobs to persist even throughout daytime' → AI: 'dense shade provided by the dark oak trees allows these mobs to persist' (directly supported).&quot;]}, 'completeness': {'assessment': &quot;The AI answer covers the core question (daytime spawning in dark forests) and adds relevant context (wolves not spawning). However, it omits the explicit mention of 'dark oak trees' as the primary cause of the canopy density, which is a minor detail.&quot;, 'details': ['Included: Daytime spawning, canopy blocking sunlight, wolves not spawning (from CHUNK 1).', &quot;Omitted: Explicit mention of 'dark oak trees' as the cause of the canopy (though implied).&quot;]}, 'hallucinations': {'assessment': 'No hallucinations detected. All information is supported by the REFERENCE or CHUNKS.', 'details': ['AI does not invent any unsupported claims (e.g., no mention of other biomes or unrelated mechanics).']}, 'relevance': {'assessment': 'The answer stays strictly on topic and does not deviate into unrelated details (e.g., woodland mansions, biome borders).', 'details': ['Focuses solely on the question of hostile mob spawning during the day in dark forests.']}, 'use_of_chunks': {'assessment': 'The AI effectively uses CHUNK 1, which is the most relevant source. CHUNK 2 (dark forest hills) is irrelevant to the question and correctly ignored.', 'details': ['Key points from CHUNK 1 (canopy density, daytime spawning, wolves) are incorporated accurately.']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">What activates an activator rail and what does it do to different types of minecarts?</div>
+                                <div class="reference-text">Ref: An activator rail can be activated by adjacent power components, powered blocks, redstone comparators/repeaters, or powered redstone dust. When active, it ejects mobs from regular minecarts, repeatedly activates command block minecarts, disables hopper minecarts, and primes TNT minecarts to explode after 4 seconds.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>An activator rail can be activated by applying redstone power to it, either directly through a nearby power source or indirectly through adjacent powered rails. When an activator rail is activated, it performs different actions on various types of minecarts:<br><br>1. Regular Minecarts: If an activator rail is activated when a regular minecart passes over it, the minecart and any passengers inside will be ejected.<br><br>2. Hopper Minecarts: An activated activator rail can also lock or unlock hopper minecarts. When a hopper minecart passes over an inactive activator rail, it becomes locked and cannot pick up items until it passes over an inactive activator rail again or is broken and re-placed. Conversely, when a hopper minecart passes over an activated activator rail, it becomes unlocked and can pick up items again.<br><br>3. TNT Minecarts: If a primed TNT minecart passes over an activated activator rail, it will explode with an explosive power proportional to its speed over the rail.<br><br>Overall, an activator rail is a versatile component in Minecraft that can be used for various purposes, from ejecting entities from regular minecarts to unlocking and locking hopper minecarts and igniting TNT minecarts.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 62%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some key details and contains minor inaccuracies regarding hopper minecart behavior.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    **Chunk 1 (ID: activator_rail_3)**:<br>    - **Score: 3 (Highly relevant)**<br>    - This chunk directly answers the question by detailing:<br>      1. How an activator rail is activated (adjacent power components, powered blocks, etc.).<br>      2. The effects on different minecart types (ejects mobs, activates command block minecarts, disables hopper minecarts, primes TNT minecarts).<br>    - It matches the Reference Answer almost verbatim and provides additional useful context (e.g., activation propagation, timing details).<br><br>    **Chunk 2 (ID: activator_rail_1)**:<br>    - **Score: 1 (Somewhat related)**<br>    - While it mentions the *purpose* of an activator rail (ejecting entities, locking hoppers, igniting TNT), it lacks critical details:<br>      1. Does not explain *how* the rail is activated (key part of the question).<br>      2. Only briefly touches on effects (e.g., no mention of command block minecarts or hopper minecart disabling mechanics).<br>    - The chunk focuses more on placement/breaking mechanics, which are tangential to the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An activator rail can be activated by applying redstone power to it, either directly through a nearby power source or indirectly through adjacent powered rails.: SUPPORTED<br>  - An activator rail is activated by adjacent power components, powered blocks, redstone comparators/repeaters, or powered redstone dust.: UNSUPPORTED<br>  - When an activator rail is activated, it performs different actions on various types of minecarts.: SUPPORTED<br>  - If an activator rail is activated when a regular minecart passes over it, the minecart and any passengers inside will be ejected.: SUPPORTED<br>  - An activated activator rail can also lock or unlock hopper minecarts.: SUPPORTED<br>  - When a hopper minecart passes over an inactive activator rail, it becomes locked and cannot pick up items until it passes over an inactive activator rail again or is broken and re-placed.: CONTRADICTED<br>  - When a hopper minecart passes over an activated activator rail, it becomes unlocked and can pick up items again.: SUPPORTED<br>  - If a primed TNT minecart passes over an activated activator rail, it will explode with an explosive power proportional to its speed over the rail.: SUPPORTED<br>  - An activator rail is a versatile component in Minecraft that can be used for various purposes, from ejecting entities from regular minecarts to unlocking and locking hopper minecarts and igniting TNT minecarts.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Activator rail activation via redstone power is broadly correct.', 'Ejects mobs/players from regular minecarts.', 'Primes TNT minecarts to explode (though timing detail is missing).'], 'incorrect_or_missing': ['Does not specify activation sources (e.g., powered blocks, comparators/repeaters).', &quot;Misstates hopper minecart behavior: an *active* rail *disables* hopper minecarts (not 'locks/unlocks'), and an *inactive* rail enables them.&quot;, 'Omits command block minecart behavior (repeated activation).', 'Missing explosion timing (4 seconds) and speed-proportional power for TNT minecarts.']}, 'completeness': {'covered': ['Activation method (general redstone power).', 'Effects on regular, hopper, and TNT minecarts.'], 'missing': ['Command block minecart interaction.', 'Specific activation sources (e.g., redstone dust, powered blocks).', 'Precise timing/details for TNT minecart explosions.']}, 'hallucinations': &quot;None detected. All claims are grounded in the chunks, though some details are misrepresented (e.g., hopper minecart 'locking').&quot;, 'relevance': 'Fully on-topic, but the hopper minecart explanation is misleading due to incorrect terminology.', 'chunk_usage': {'used_correctly': ['General activation via redstone (Chunk 1).', 'Ejection of mobs (Chunk 1).', 'TNT minecart priming (Chunk 1).'], 'misinterpreted': [&quot;Hopper minecart behavior (Chunk 1's 'disable/enable' was simplified to 'lock/unlock').&quot;], 'ignored': ['Command block minecart details (Chunk 1).', 'Activation propagation (Chunk 1).', 'Specific activation sources (Chunk 1).']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can blocks of raw iron spawn naturally in the world or do I have to craft them?</div>
+                                <div class="reference-text">Ref: Blocks of raw iron can spawn naturally inside huge ore veins below Y=0, with a 2% chance of replacing any given iron ore in the vein. They are a compact storage for raw iron but cannot be smelted directly into blocks of iron.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>Based on the provided context, blocks of raw iron can be found naturally in the world, specifically inside of huge ore veins below Y=0. They have a 2% chance of replacing any given iron ore. Therefore, it is possible to find blocks of raw iron without having to craft them. However, they can only be mined with a stone pickaxe or better, making it more difficult to obtain compared to mining iron ore.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the non-smeltable nature of raw iron blocks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly answers the question by stating that blocks of raw iron can spawn naturally inside huge ore veins below Y=0 with a 2% chance, and it also mentions they cannot be smelted directly into blocks of iron. This matches the Reference Answer perfectly.<br>    - **Chunk 2** is **somewhat related (1)** because it provides information about raw iron as an item (mining, smelting, etc.), but it does not address whether blocks of raw iron spawn naturally or need to be crafted. While tangentially related, it does not help answer the specific question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - blocks of raw iron can be found naturally in the world: SUPPORTED<br>  - specifically inside of huge ore veins below Y=0: SUPPORTED<br>  - They have a 2% chance of replacing any given iron ore: SUPPORTED<br>  - it is possible to find blocks of raw iron without having to craft them: SUPPORTED<br>  - they can only be mined with a stone pickaxe or better: SUPPORTED<br>  - making it more difficult to obtain compared to mining iron ore: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that blocks of raw iron can spawn naturally inside huge ore veins below Y=0 with a 2% chance of replacing iron ore. This matches both the reference and the retrieved chunks (CHUNK 1).', 'completeness': 'The AI answer covers the main question (natural spawning vs. crafting) and includes the mining requirement (stone pickaxe or better). However, it omits the detail that blocks of raw iron cannot be smelted directly into blocks of iron, which is mentioned in both the reference and CHUNK 1.', 'hallucinations': 'No hallucinations detected. All information is supported by the provided chunks and reference.', 'relevance': 'The answer stays strictly on topic and addresses the core question without deviating.', 'chunk_usage': 'The AI effectively uses CHUNK 1 for the natural spawning and mining details but misses the non-smeltable aspect from the same chunk.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the difference between cave air and regular air in Minecraft?</div>
+                                <div class="reference-text">Ref: Cave air is functionally identical to regular air - it has no special properties. Cave air generates in carver caves and some underground structures like mineshafts, strongholds, and monster rooms. Void air is used in unloaded chunks and outside world height limits. All three types behave the same way.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>In Minecraft, both cave air and regular air are blocks that represent the absence of a block or item. However, there is a difference between the two:<br><br>1. Generation: Regular air is generated in all otherwise empty spaces during world generation. Cave air, on the other hand, is found only underground in carver caves and some generated structures like mineshafts, strongholds, monster rooms, and lava lakes.<br><br>2. Properties: Both cave air and regular air allow players and mobs to move through them without suffocating and help them catch their breath if they are drowning in water. However, cave air and void air (used for unloaded chunks and outside the world height limits) have no special properties and function the same as regular air.<br><br>3. Obtaining: Regular air cannot be obtained in the inventory without editing, as it is completely invisible. Cave air and void air can also not be obtained with the command. The only way to obtain them is by destroying other blocks or generating them through cave generation.<br><br>4. Destruction: Both cave air and regular air are destroyed when pushed by a piston. However, they cannot be pulled by sticky pistons.<br><br>In summary, the main difference between cave air and regular air in Minecraft is their location of generation. Regular air is generated everywhere except where blocks have been placed, while cave air is found only underground in specific structures.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">47/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 91%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only minor omissions regarding void air's specific use cases and a slight overemphasis on 'obtaining' air, which isn't central to the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by explaining that cave air is functionally identical to regular air, has no special properties, and generates in carver caves and underground structures like mineshafts, strongholds, and monster rooms. It also clarifies the role of void air, which aligns with the Reference Answer. This chunk provides all the necessary information to answer the question correctly.<br><br>    - **Chunk 2 (Score: 1)**: Somewhat related but not useful for answering the question. While it describes caves and their generation (including carver caves), it does not mention cave air or its properties. The information is tangential and does not help distinguish cave air from regular air, which is the core of the question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - In Minecraft, both cave air and regular air are blocks that represent the absence of a block or item.: SUPPORTED<br>  - Regular air is generated in all otherwise empty spaces during world generation.: SUPPORTED<br>  - Cave air is found only underground in carver caves and some generated structures like mineshafts, strongholds, monster rooms, and lava lakes.: SUPPORTED<br>  - Both cave air and regular air allow players and mobs to move through them without suffocating and help them catch their breath if they are drowning in water.: SUPPORTED<br>  - Cave air and void air have no special properties and function the same as regular air.: SUPPORTED<br>  - Regular air cannot be obtained in the inventory without editing, as it is completely invisible.: SUPPORTED<br>  - Cave air and void air can also not be obtained with the command.: SUPPORTED<br>  - The only way to obtain them is by destroying other blocks or generating them through cave generation.: UNSUPPORTED<br>  - Both cave air and regular air are destroyed when pushed by a piston.: SUPPORTED<br>  - They cannot be pulled by sticky pistons.: SUPPORTED<br>  - The main difference between cave air and regular air in Minecraft is their location of generation.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states that cave air and regular air are functionally identical, with no special properties. It accurately describes cave air's generation in carver caves and underground structures (mineshafts, strongholds, monster rooms). The mention of void air's role (unloaded chunks/world height limits) is also correct but less emphasized than in the reference.&quot;, 'minor_issue': &quot;The AI slightly overstates the 'obtaining' aspect (e.g., 'The only way to obtain them is by destroying other blocks...'), which isn't directly relevant to the question and could confuse readers. The reference and chunks clarify that air is unobtainable in inventory, not that it's 'obtained' via destruction.&quot;}, 'completeness': {'covered': 'The answer addresses the core question (difference in generation and properties) and includes all key points from the reference: functional equivalence, generation locations, and lack of special properties.', 'omissions': &quot;Void air's specific use cases (e.g., Y-level limits for Overworld/Nether/End) are mentioned but not detailed. The reference explicitly lists these, but the AI's summary is still accurate.&quot;}, 'hallucinations': 'None. All information is supported by the chunks or reference. The AI avoids inventing properties or behaviors.', 'relevance': &quot;The answer stays tightly focused on the question, though the 'obtaining' section is tangential. The rest is directly relevant.&quot;, 'chunk_usage': 'The AI effectively synthesizes [CHUNK 1], which provides the bulk of the factual basis. [CHUNK 2] (about caves) is less relevant here, and the AI appropriately ignores it.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can a daylight detector be activated by torches or glowstone instead of sunlight?</div>
+                                <div class="reference-text">Ref: No, daylight detectors can only be activated by natural daylight - sources of block light like torches, glowstone, and other artificial light cannot activate a daylight detector. You can invert a daylight detector to make it output power based on the absence of natural light instead.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>No, sources of block light (such as torches or glowstone) cannot activate a daylight detector. A daylight detector requires sufficient daylight or low enough exposure to daylight in order to output a redstone signal. This is stated in the context provided.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant, but it omits the optional detail about inverting the daylight detector for alternative functionality.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by explicitly stating that 'Sources of block light (torches, glowstone, etc.) cannot activate a daylight detector.' This matches the Reference Answer perfectly and provides additional context about daylight detectors, including their inversion functionality.<br>    - **Chunk 2 (Score: 1)**: Somewhat related but not useful for answering the question. While it provides detailed information about the mechanics of daylight detectors (e.g., inverted detector output, block updates, and block entity details), it does not mention anything about artificial light sources or their inability to activate the detector. Thus, it does not help answer the specific question.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - No, sources of block light (such as torches or glowstone) cannot activate a daylight detector.: SUPPORTED<br>  - A daylight detector requires sufficient daylight or low enough exposure to daylight in order to output a redstone signal.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer correctly states that torches or glowstone cannot activate a daylight detector, matching both the REFERENCE ANSWER and the explicit information in CHUNK 1 ('Sources of block light (torches, glowstone, etc.) cannot activate a daylight detector'). No factual errors were made.&quot;, 'completeness': 'The AI answer fully addresses the core question (whether torches/glowstone can activate the detector) but does not mention the option to invert the daylight detector for power output based on the absence of natural light, which is included in the REFERENCE ANSWER and CHUNK 1. This omission is minor but slightly reduces completeness.', 'hallucinations': 'No hallucinations were detected. The AI answer strictly adheres to the provided chunks and does not invent unsupported information.', 'relevance': 'The answer stays entirely on topic and directly addresses the question without tangential details.', 'use_of_chunks': 'The AI effectively uses CHUNK 1, which explicitly answers the question. It does not incorporate irrelevant details from CHUNK 2 (e.g., block updates, fuel mechanics).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use dandelions to breed animals in Minecraft?</div>
+                                <div class="reference-text">Ref: Dandelions can be used to breed, grow, and lead bees and rabbits. You can also use them to attract bees to pollinate flowers, increasing honey levels in beehives. Additionally, trees grown within 2 blocks of a dandelion have a 5% chance to spawn with a bee nest containing 2-3 bees.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>To breed animals using dandelions in Minecraft, you need to follow these steps:<br><br>1. Find a pair of rabbits or bees that are willing to breed. Rabbits prefer carrots or wheat as food, while bees require flowers to pollinate.<br><br>2. Place a dandelion block near the animals. This will attract them and make them more likely to breed.<br><br>3. Feed the rabbits or bees with some food items to keep them happy and increase their breeding chances.<br><br>4. Wait for the animals to breed, which should happen within a few minutes. You'll see baby animals spawn around the parents.<br><br>5. Collect the newborns and take care of them until they grow up. Remember that rabbits need grass blocks to breed, while bees require flowers.<br><br>Note: Dandelions can also help trees grow with bee nests when placed nearby during tree growth. This is a rare occurrence, but it's worth trying if you want to attract more bees to your world.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">38/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 60%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but omits key details and includes minor irrelevant information.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **CHUNK 1 (ID: dandelion_1)**: Score 1 - This chunk provides general information about dandelions, such as how they generate, their uses in crafting (yellow dye, suspicious stew), and their behavior when broken or interacted with. While it mentions that dandelions can be used to breed rabbits, it does not cover bees or the 5% chance for bee nests on trees, which are key parts of the Reference Answer. Thus, it is only tangentially related to the question.<br><br>    - **CHUNK 2 (ID: dandelion_2)**: Score 3 - This chunk is highly relevant as it directly addresses the question. It explicitly states that dandelions can be used to breed, grow, and lead bees and rabbits, and it includes the detail about trees grown within 2 blocks of a dandelion having a 5% chance to spawn with a bee nest containing 2-3 bees. This matches the Reference Answer almost entirely.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Find a pair of rabbits or bees that are willing to breed.: SUPPORTED<br>  - Rabbits prefer carrots or wheat as food, while bees require flowers to pollinate.: UNSUPPORTED<br>  - Place a dandelion block near the animals. This will attract them and make them more likely to breed.: SUPPORTED<br>  - Feed the rabbits or bees with some food items to keep them happy and increase their breeding chances.: PARTIALLY SUPPORTED (Contexts mention breeding with dandelions but do not specify feeding other items to 'keep them happy' for breeding.)<br>  - Wait for the animals to breed, which should happen within a few minutes. You'll see baby animals spawn around the parents.: UNSUPPORTED (Contexts do not mention timeframes or visual cues for breeding.)<br>  - Collect the newborns and take care of them until they grow up.: UNSUPPORTED (Not mentioned in contexts.)<br>  - Rabbits need grass blocks to breed, while bees require flowers.: UNSUPPORTED (Contexts do not specify grass blocks for rabbits or flowers for bees as breeding requirements beyond dandelions.)<br>  - Dandelions can also help trees grow with bee nests when placed nearby during tree growth.: SUPPORTED<br>  - This is a rare occurrence, but it's worth trying if you want to attract more bees to your world.: SUPPORTED (Contexts mention a 5% chance, implying rarity.)
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Dandelions can be used to breed rabbits and bees.', 'Dandelions attract bees for pollination.', 'Trees grown near dandelions have a chance to spawn with bee nests.'], 'incorrect_or_unsupported': [&quot;Rabbits prefer carrots or wheat as food (not mentioned in chunks/reference; while true, it's irrelevant to dandelion usage).&quot;, &quot;Feeding animals to 'keep them happy' is vague and not directly tied to dandelion usage.&quot;, 'Step 5 mentions grass blocks for rabbits (true but not part of the question) and flowers for bees (redundant since dandelions are flowers).']}, 'completeness': {'missing': ['No mention of using dandelions to *lead* rabbits/bees (key detail from reference).', 'No explicit instruction on how to use dandelions to breed (e.g., holding them near animals).', 'No mention of the 5% chance for bee nests in trees (only vaguely alluded to).', 'No clarification that dandelions directly increase honey levels in beehives (critical detail).']}, 'hallucinations': [&quot;None outright, but the note about 'feeding animals to keep them happy' is overly generic and not supported by the chunks/reference.&quot;], 'relevance': {'on_topic': 'Mostly, but includes tangential details (e.g., rabbit food preferences, grass blocks) that dilute the focus on dandelions.'}, 'chunk_usage': {'used_correctly': ['Dandelions breed rabbits/bees (Chunk 2).', 'Dandelions attract bees for pollination (Chunk 2).', 'Trees near dandelions may spawn bee nests (Chunk 2).'], 'ignored': ['Leading rabbits/bees with dandelions (Chunk 2).', 'Direct honey level increase (Chunk 2).']}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [48, 44, 48, 45, 45, 45, 48, 45, 20, 35, 45, 42, 40, 45, 47, 42, 48, 47, 48, 38],
+                    backgroundColor: [48, 44, 48, 45, 45, 45, 48, 45, 20, 35, 45, 42, 40, 45, 47, 42, 48, 47, 48, 38].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [48, 44, 48, 45, 45, 45, 48, 45, 20, 35, 45, 42, 40, 45, 47, 42, 48, 47, 48, 38].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [71.7, 78.2, 75.0, 75.8],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [83.3, 50.0, 100.0, 66.7, 83.3, 83.3, 83.3, 100.0, 50.0, 83.3, 50.0, 83.3, 50.0, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7, 66.7],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 50.0, 100.0, 80.0, 80.0, 87.5, 100.0, 100.0, 50.0, 25.0, 66.7, 100.0, 75.0, 100.0, 75.0, 66.7, 83.3, 90.9, 100.0, 33.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [100.0, 66.7, 100.0, 66.7, 66.7, 66.7, 100.0, 66.7, 33.3, 33.3, 100.0, 66.7, 66.7, 66.7, 100.0, 66.7, 100.0, 66.7, 100.0, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [86.0, 62.5, 100.0, 60.0, 70.0, 100.0, 100.0, 89.0, 30.0, 25.0, 67.0, 100.0, 100.0, 75.0, 75.0, 62.5, 83.0, 70.0, 100.0, 60.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
