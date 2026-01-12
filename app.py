@@ -210,28 +210,106 @@ def parse_report_date_from_filename(filepath: Path) -> tuple:
     return (0, 0, 0, 0)
 
 
-@app.get("/api/reports")
-async def get_reports(offset: int = 0, limit: int = 25):
-    """Get list of reports with pagination."""
-    if not REPORTS_DIR.exists():
-        return {"reports": [], "total": 0, "has_more": False}
+# ============================================================
+# FILTERS CACHE - built once at startup or first request
+# ============================================================
+_filters_cache = None
+_reports_metadata_cache = None
 
-    # Get all files sorted by date from filename (newest first)
+
+def _build_caches():
+    """Build filters and metadata caches from all reports."""
+    global _filters_cache, _reports_metadata_cache
+
+    if not REPORTS_DIR.exists():
+        _filters_cache = {"models": [], "chunks": []}
+        _reports_metadata_cache = []
+        return
+
+    models = set()
+    chunks = set()
+    reports_metadata = []
+
     all_files = sorted(REPORTS_DIR.glob("*.html"), key=parse_report_date_from_filename, reverse=True)
-    total = len(all_files)
+
+    for filepath in all_files:
+        report_data = parse_html_report(filepath)
+        # Remove questions - not needed for list view
+        report_data.pop('questions', None)
+        reports_metadata.append(report_data)
+
+        # Collect filter values
+        if report_data.get('model'):
+            models.add(report_data['model'])
+        if report_data.get('server_config', {}).get('rag_chunks_number'):
+            chunks.add(report_data['server_config']['rag_chunks_number'])
+
+    _filters_cache = {
+        "models": sorted(list(models)),
+        "chunks": sorted(list(chunks))
+    }
+    _reports_metadata_cache = reports_metadata
+
+
+def _get_filters_cache():
+    """Get filters cache, building it if necessary."""
+    global _filters_cache
+    if _filters_cache is None:
+        _build_caches()
+    return _filters_cache
+
+
+def _get_reports_cache():
+    """Get reports metadata cache, building it if necessary."""
+    global _reports_metadata_cache
+    if _reports_metadata_cache is None:
+        _build_caches()
+    return _reports_metadata_cache
+
+
+def invalidate_cache():
+    """Invalidate caches - call when reports are added/removed."""
+    global _filters_cache, _reports_metadata_cache
+    _filters_cache = None
+    _reports_metadata_cache = None
+
+
+@app.get("/api/filters")
+async def get_filters():
+    """Get all unique filter values (models, chunks) from all reports."""
+    return _get_filters_cache()
+
+
+@app.get("/api/reports")
+async def get_reports(
+    offset: int = 0,
+    limit: int = 25,
+    model: Optional[str] = None,
+    chunks: Optional[int] = None,
+    min_score: Optional[float] = None
+):
+    """Get list of reports with pagination and server-side filtering."""
+    all_reports = _get_reports_cache()
+
+    # Apply filters
+    filtered = all_reports
+
+    if model:
+        filtered = [r for r in filtered if r.get('model') == model]
+
+    if chunks is not None:
+        filtered = [r for r in filtered if r.get('server_config', {}).get('rag_chunks_number') == chunks]
+
+    if min_score is not None:
+        filtered = [r for r in filtered if (r.get('score_percent') or 0) >= min_score]
+
+    total = len(filtered)
 
     # Paginate
-    paginated_files = all_files[offset:offset + limit]
-
-    reports = []
-    for filepath in paginated_files:
-        report_data = parse_html_report(filepath)
-        # Don't include full questions in list view
-        report_data.pop('questions', None)
-        reports.append(report_data)
+    paginated = filtered[offset:offset + limit]
 
     return {
-        "reports": reports,
+        "reports": paginated,
         "total": total,
         "has_more": offset + limit < total
     }

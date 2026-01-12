@@ -781,10 +781,50 @@
         let hasMoreOnServer = false;
         let isLoading = false;
 
+        // Current filter values (for server-side filtering)
+        let currentFilters = {
+            model: '',
+            chunks: '',
+            min_score: ''
+        };
+
         // Load reports on page load
         document.addEventListener('DOMContentLoaded', () => {
-            loadReports();
+            loadFilters();  // Load filters first (all models/chunks)
+            loadReports();  // Then load reports
         });
+
+        async function loadFilters() {
+            try {
+                const response = await fetch('/api/filters');
+                const data = await response.json();
+
+                // Populate model dropdown
+                const modelOptions = document.querySelector('#filterModelDropdown .dropdown-options');
+                data.models.forEach(model => {
+                    const option = document.createElement('div');
+                    option.className = 'dropdown-option';
+                    option.setAttribute('data-value', model);
+                    option.textContent = model;
+                    modelOptions.appendChild(option);
+                });
+
+                // Populate chunks dropdown
+                const chunksOptions = document.querySelector('#filterChunksDropdown .dropdown-options');
+                data.chunks.forEach(chunk => {
+                    const option = document.createElement('div');
+                    option.className = 'dropdown-option';
+                    option.setAttribute('data-value', chunk);
+                    option.textContent = chunk;
+                    chunksOptions.appendChild(option);
+                });
+
+                // Initialize custom dropdowns
+                initDropdowns();
+            } catch (error) {
+                console.error('Failed to load filters:', error);
+            }
+        }
 
         async function loadReports(append = false) {
             if (isLoading) return;
@@ -792,7 +832,20 @@
 
             try {
                 const offset = append ? allReports.length : 0;
-                const response = await fetch(`/api/reports?offset=${offset}&limit=${REPORTS_PER_PAGE}`);
+
+                // Build URL with filters
+                let url = `/api/reports?offset=${offset}&limit=${REPORTS_PER_PAGE}`;
+                if (currentFilters.model) {
+                    url += `&model=${encodeURIComponent(currentFilters.model)}`;
+                }
+                if (currentFilters.chunks) {
+                    url += `&chunks=${currentFilters.chunks}`;
+                }
+                if (currentFilters.min_score) {
+                    url += `&min_score=${currentFilters.min_score}`;
+                }
+
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (append) {
@@ -804,10 +857,8 @@
                 totalReports = data.total;
                 hasMoreOnServer = data.has_more;
 
-                if (!append) {
-                    populateFilters();
-                }
                 isLoading = false;
+                visibleCount = allReports.length;
                 renderReports(allReports);
             } catch (error) {
                 isLoading = false;
@@ -820,32 +871,6 @@
             }
         }
 
-        function populateFilters() {
-            // Get unique models
-            const models = [...new Set(allReports.map(r => r.model))].filter(Boolean).sort();
-            const modelOptions = document.querySelector('#filterModelDropdown .dropdown-options');
-            models.forEach(model => {
-                const option = document.createElement('div');
-                option.className = 'dropdown-option';
-                option.setAttribute('data-value', model);
-                option.textContent = model;
-                modelOptions.appendChild(option);
-            });
-
-            // Get unique chunk counts
-            const chunks = [...new Set(allReports.map(r => r.server_config?.rag_chunks_number))].filter(Boolean).sort((a,b) => a-b);
-            const chunksOptions = document.querySelector('#filterChunksDropdown .dropdown-options');
-            chunks.forEach(chunk => {
-                const option = document.createElement('div');
-                option.className = 'dropdown-option';
-                option.setAttribute('data-value', chunk);
-                option.textContent = chunk;
-                chunksOptions.appendChild(option);
-            });
-
-            // Initialize custom dropdowns
-            initDropdowns();
-        }
 
         function initDropdowns() {
             document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
@@ -980,12 +1005,10 @@
         }
 
         async function showMore() {
-            // If we need more data from server
-            if (hasMoreOnServer && allReports.length <= visibleCount) {
+            // Load more data from server (append mode)
+            if (hasMoreOnServer) {
                 await loadReports(true);
             }
-            visibleCount += REPORTS_PER_PAGE;
-            applyFilters(false);
         }
 
         function getScoreClass(score) {
@@ -1003,7 +1026,7 @@
                 selectedReports.push(reportId);
             }
             updateSelectionUI();
-            renderReports(getFilteredReports());
+            renderReports(allReports);
         }
 
         function updateSelectionUI() {
@@ -1011,26 +1034,15 @@
             document.getElementById('compareBtn').disabled = selectedReports.length < 2;
         }
 
-        function applyFilters(resetPagination = true) {
-            if (resetPagination) {
-                visibleCount = REPORTS_PER_PAGE;
-            }
-            const filtered = getFilteredReports();
-            renderReports(filtered);
-        }
+        function applyFilters() {
+            // Update current filters from UI
+            currentFilters.model = getDropdownValue('filterModelDropdown');
+            currentFilters.chunks = getDropdownValue('filterChunksDropdown');
+            currentFilters.min_score = document.getElementById('filterMinScore').value;
 
-        function getFilteredReports() {
-            const model = getDropdownValue('filterModelDropdown');
-            const chunks = getDropdownValue('filterChunksDropdown');
-            const minScoreStr = document.getElementById('filterMinScore').value;
-            const minScore = minScoreStr !== '' ? parseFloat(minScoreStr) : null;
-
-            return allReports.filter(report => {
-                if (model && report.model !== model) return false;
-                if (chunks && report.server_config?.rag_chunks_number != chunks) return false;
-                if (minScore !== null && (report.score_percent === null || report.score_percent === 0 || report.score_percent < minScore)) return false;
-                return true;
-            });
+            // Reset and reload from server with new filters
+            allReports = [];
+            loadReports(false);
         }
 
         function resetFilters() {
@@ -1038,10 +1050,11 @@
             setDropdownValue('filterChunksDropdown', '', 'All');
             document.getElementById('filterMinScore').value = '';
             selectedReports = [];
-            visibleCount = REPORTS_PER_PAGE;
+            currentFilters = { model: '', chunks: '', min_score: '' };
             document.getElementById('selectionInfo').textContent = '0 selected (max 5)';
             document.getElementById('compareBtn').disabled = true;
-            renderReports(allReports);
+            allReports = [];
+            loadReports(false);
         }
 
         function sortReports(field) {
@@ -1054,13 +1067,12 @@
                     // Was asc, reset to date desc
                     currentSort.field = 'date';
                     currentSort.asc = false;
-                    const filtered = getFilteredReports();
-                    filtered.sort((a, b) => {
+                    allReports.sort((a, b) => {
                         const dateA = a.date ? new Date(a.date + ' ' + (a.time || '00:00')) : new Date(0);
                         const dateB = b.date ? new Date(b.date + ' ' + (b.time || '00:00')) : new Date(0);
                         return dateB - dateA;
                     });
-                    renderReports(filtered);
+                    renderReports(allReports);
                     updateSortButtons();
                     return;
                 }
@@ -1069,8 +1081,7 @@
                 currentSort.asc = false;
             }
 
-            const filtered = getFilteredReports();
-            filtered.sort((a, b) => {
+            allReports.sort((a, b) => {
                 let valA, valB;
 
                 if (field === 'date') {
@@ -1091,7 +1102,7 @@
                 }
             });
 
-            renderReports(filtered);
+            renderReports(allReports);
             updateSortButtons();
         }
 
