@@ -770,6 +770,95 @@ async def get_rag_dynamic_run(timestamp: str, k: int, threshold: float):
         return json.load(f)
 
 
+# ============================================================
+# STABILITY MAP API
+# ============================================================
+
+STABILITY_DATA_DIR = BASE_DIR / "stability_data"
+
+
+def load_stability_db() -> dict:
+    """Load stability database."""
+    db_path = STABILITY_DATA_DIR / "stability_db.json"
+    if db_path.exists():
+        with open(db_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {"metadata": {}, "chunks": {}}
+
+
+@app.get("/api/stability")
+async def get_stability_data():
+    """Get full stability database."""
+    return load_stability_db()
+
+
+@app.get("/api/stability/stats")
+async def get_stability_stats():
+    """Get stability statistics summary."""
+    db = load_stability_db()
+    chunks = db.get("chunks", {})
+    meta = db.get("metadata", {})
+
+    stable = sum(1 for c in chunks.values() if c.get("status") == "stable")
+    unstable = sum(1 for c in chunks.values() if c.get("status") == "unstable")
+    broken = sum(1 for c in chunks.values() if c.get("status") == "broken")
+    tested = sum(1 for c in chunks.values() if c.get("total_runs", 0) > 0)
+
+    total_stability = sum(c.get("stability", 0) for c in chunks.values() if c.get("total_runs", 0) > 0)
+    avg_stability = round(total_stability / tested, 1) if tested > 0 else 0
+
+    return {
+        "total_chunks": meta.get("total_chunks", 0),
+        "tested_chunks": tested,
+        "stable": stable,
+        "unstable": unstable,
+        "broken": broken,
+        "avg_stability": avg_stability,
+        "last_updated": meta.get("last_updated")
+    }
+
+
+@app.get("/api/stability/chunk/{chunk_id}")
+async def get_stability_chunk(chunk_id: str):
+    """Get stability data for a specific chunk."""
+    db = load_stability_db()
+    chunk = db.get("chunks", {}).get(chunk_id)
+
+    if not chunk:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    return chunk
+
+
+@app.get("/api/stability/categories")
+async def get_stability_categories():
+    """Get stability data grouped by category."""
+    db = load_stability_db()
+    chunks = db.get("chunks", {})
+
+    categories = {}
+    for chunk_id, chunk in chunks.items():
+        cat = chunk.get("category", "other")
+        if cat not in categories:
+            categories[cat] = {
+                "name": cat,
+                "total": 0,
+                "tested": 0,
+                "stable": 0,
+                "unstable": 0,
+                "broken": 0
+            }
+
+        categories[cat]["total"] += 1
+        if chunk.get("total_runs", 0) > 0:
+            categories[cat]["tested"] += 1
+            status = chunk.get("status", "untested")
+            if status in ["stable", "unstable", "broken"]:
+                categories[cat][status] += 1
+
+    return list(categories.values())
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
