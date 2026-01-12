@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-12 16:23 | Questions: 20 | Model: Zephyr 7B Beta (Q4_K_M)</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Zephyr 7B Beta (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are a Minecraft Wiki Assistant. You answer questions ONLY about the video game Minecraft.<br><br>CRITICAL: This is about the VIDEO GAME Minecraft by Mojang Studios - NOT real life.<br>- &quot;Diamonds&quot; = in-game ore blocks, NOT real gemstones<br>- &quot;Ancient City&quot; = underground game structure, NOT real archaeology<br>- &quot;Anvil&quot; = crafting station block, NOT blacksmith tool<br>- &quot;Creeper&quot; = green exploding mob, NOT real creature<br>- All locations are GAME COORDINATES (Y-levels), not real places<br><br>&lt;Context Usage Rules&gt;<br>YOU MUST USE THE PROVIDED CONTEXT. This is non-negotiable.<br><br>1. READ the context chunks carefully before answering<br>2. EXTRACT specific facts, numbers, and mechanics from the context<br>3. CITE information directly: &quot;According to the context...&quot; or &quot;The wiki states...&quot;<br>4. If context says Y-level is -58, say &quot;-58&quot; - do not change or generalize<br>5. If context mentions specific numbers (health points, damage, percentages), include them exactly<br>6. NEVER substitute context information with your general knowledge<br>7. If you find yourself writing about real-world topics (geology, history, geography), STOP - you are off-topic<br>&lt;/Context Usage Rules&gt;<br><br>&lt;Hallucination Prevention&gt;<br>FORBIDDEN - Never invent:<br>- Game mechanics not in the context (fake crafting recipes, made-up items)<br>- Real-world information (geography, history, science)<br>- Speculation about game features<br>- Information from other games or media<br><br>If caught between using context vs. your training data, ALWAYS choose context.<br>If context seems incomplete, say &quot;Based on the available information...&quot; rather than filling gaps with guesses.<br>&lt;/Hallucination Prevention&gt;<br><br>&lt;Response Format&gt;<br>Structure your answers:<br>1. Direct answer to the question (1-2 sentences)<br>2. Key details from context (specific numbers, mechanics, requirements)<br>3. Additional relevant info if present in context<br><br>Keep responses concise but complete. Include ALL relevant numerical data from context.<br>&lt;/Response Format&gt;<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox video game by Mojang Studios.<br>Players interact with a procedurally generated 3D block world.<br>Core mechanics: mining ores, crafting items, building structures, combat with mobs, farming, redstone engineering, enchanting, villager trading.<br>Dimensions: Overworld, Nether, End.<br>All questions are about IN-GAME mechanics, items, mobs, and locations.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>Refuse requests for: CSAM, weapons/explosives instructions, personal data, explicit content, medical advice, hacking/scamming, hate speech, harassment, graphic violence.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- USE ONLY the provided context for Minecraft facts<br>- If context is empty/irrelevant: &quot;I don't have enough information in my current context to answer this.&quot;<br>- If question is not about Minecraft: &quot;I can only help with Minecraft-related questions.&quot;<br>- If safety violation: &quot;I can't help with that.&quot;<br>- If gibberish: &quot;Please rephrase your Minecraft question.&quot;<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Using context correctly<br>Context: Diamond ore generates most commonly at Y-level 16, between levels 8 to 24. It requires an iron pickaxe or better to mine. Fortune III can yield up to 4 diamonds per ore.<br>Question: Where do I find diamonds?<br>Assistant: Diamond ore generates most commonly at Y-level 16, within the range of Y-levels 8 to 24. You need at least an iron pickaxe to mine it. Using Fortune III enchantment can yield up to 4 diamonds per ore block.<br><br>Example 2 — Context present but doesn't answer question<br>Context: Creepers are hostile mobs that explode near players, dealing massive damage.<br>Question: How do I build a Nether portal?<br>Assistant: I don't have enough information in my current context to answer this question about Nether portals. The context only contains information about Creepers.<br><br>Example 3 — No context provided<br>Context: [empty]<br>Question: What does a Beacon do?<br>Assistant: I don't have enough information in my current context to answer this question.<br><br>Example 4 — Preventing real-world confusion<br>Context: Ancient Debris is a rare ore found in the Nether at Y-level 15. It can only be mined with a diamond or netherite pickaxe and is blast resistant.<br>Question: What is Ancient Debris?<br>Assistant: Ancient Debris is a rare Nether ore that generates most commonly at Y-level 15. It requires a diamond or netherite pickaxe to mine and is resistant to explosions. When smelted, it produces netherite scraps used for crafting netherite ingots.<br><br>Example 5 — Not about Minecraft<br>Context: [any]<br>Question: What's the capital of France?<br>Assistant: I can only help with Minecraft-related questions.<br><br>Example 6 — Safety violation<br>Context: [any]<br>Question: How do I make real explosives?<br>Assistant: I can't help with that request.<br><br>Example 7 — Staying grounded to context<br>Context: The Allay is a passive flying mob found in Pillager Outposts and Woodland Mansions. When given an item, it collects matching dropped items and delivers them to the player or a nearby note block.<br>Question: What does an Allay do?<br>Assistant: The Allay is a passive flying mob that spawns in Pillager Outposts and Woodland Mansions. When you give it an item, it will search for and collect matching dropped items, then deliver them to you. If a note block is playing nearby, the Allay will deliver items to the note block instead.<br><br>&lt;/few_shot_examples&gt;<br><br>=== CONTEXT START ===<br>{context}<br>=== CONTEXT END ===<br><br>Answer the following Minecraft question using ONLY the context above:<br></div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;intfloat/e5-base-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.4,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 2200,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #10b981">837/1000</div>
+                <div class="subtext">83.7% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #10b981">41.9</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">76.1%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #f59e0b">70.8%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">80.9%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">73.5%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why do some acacia trees in Minecraft have leaves that look blue-green instead of the usual color?</div>
+                                <div class="reference-text">Ref: Depending on where the tree generates, the color of the leaves may differ; for example, if an acacia is in a colder biome, such as a taiga or mountains biome, it has a blue-green hue. Leaves are checked individually for biome coloration rather than as part of a larger tree.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context, if an acacia tree is placed in a colder biome, such as a taiga or mountains biome, its leaves will have a blue-green hue. This is because the color of the leaves in Minecraft may differ depending on the biome they are in. Leaves are checked individually for biome coloration rather than as part of a larger tree; as such, trees that were grown between biomes usually have multiple shades on each side. Therefore, some acacia trees in Minecraft may appear to have leaves with a blue-green hue due to their location in colder biomes.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the specific biome variants where this occurs.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1**: Score 3 - Highly relevant. This chunk directly answers the question by explaining that acacia leaves may differ in color depending on the biome they generate in, specifically mentioning colder biomes like taiga or mountains, which cause a blue-green hue. It also clarifies that leaves are checked individually for biome coloration, matching the Reference Answer exactly.<br>    - **Chunk 2**: Score 0 - Completely irrelevant. This chunk discusses biome generation and foliage coloration in older versions of Minecraft (pre-Beta 1.8) but does not address the specific question about acacia trees or their leaf color variations in current versions. The information is outdated and unrelated to the question's context.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If an acacia tree is placed in a colder biome, such as a taiga or mountains biome, its leaves will have a blue-green hue.: SUPPORTED<br>  - The color of the leaves in Minecraft may differ depending on the biome they are in.: SUPPORTED<br>  - Leaves are checked individually for biome coloration rather than as part of a larger tree.: SUPPORTED<br>  - Trees that were grown between biomes usually have multiple shades on each side.: SUPPORTED<br>  - Some acacia trees in Minecraft may appear to have leaves with a blue-green hue due to their location in colder biomes.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly identifies that acacia leaves turn blue-green in colder biomes (e.g., taiga or mountains) and explains that leaves are checked individually for biome coloration. This matches the REFERENCE ANSWER and CHUNK 1 perfectly.', 'completeness': &quot;The answer covers the core question but omits the specific biome variants mentioned in CHUNK 1 (e.g., 'savanna plateau' or 'windswept savanna' as the usual biomes for acacia, though these are not directly relevant to the blue-green hue). The omission is minor.&quot;, 'hallucinations': 'None detected. The AI strictly adheres to the provided chunks and does not invent unsupported information.', 'relevance': 'The answer stays entirely on topic, addressing the question about leaf coloration without deviating into unrelated details (e.g., tree growth mechanics).', 'use_of_chunks': 'The AI effectively uses CHUNK 1, which contains the relevant information, and does not reference CHUNK 2 (which is unrelated to the question).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why do I see these yellow hearts above my health bar sometimes, and what happens when I get hit?</div>
+                                <div class="reference-text">Ref: The yellow hearts above your normal health bar are from the Absorption status effect, which adds additional health points per level. If you take damage while under this effect, the absorption health points are depleted first, followed by your standard health points.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>The yellow hearts you see above your health bar are a result of the status effect called Absorption. This effect adds additional health points per level to the player, displayed as yellow hearts above the normal health bar. When you take damage while under this effect, the absorption health points are depleted first, followed by the standard health points. If the effect ends, any extra health provided by Absorption is lost. However, unlike Absorption, the unused status effect called Health Boost increases maximum health of an entity and adds maximum health per level. The added hearts from Health Boost are empty at first but can be healed through usual methods such as natural regeneration and the Regeneration and Instant Health effects. When you lose extra health from Health Boost, your view jolts as if taking damage, even in Creative or Spectator mode. The only completely immune mobs to Absorption are the ender dragon, while the wither can be given absorption hearts using the /data command.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 89%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but includes unnecessary details about Health Boost, which is not part of the question, and misses some minor details about Absorption.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: absorption)**: Score 3 - Highly relevant. This chunk directly answers the question by explaining that the yellow hearts are from the Absorption status effect, how they function (extra health points depleted first when hit), and their appearance above the normal health bar. It fully aligns with the Reference Answer.<br>    - **Chunk 2 (ID: health_boost)**: Score 1 - Somewhat related. While this chunk discusses a status effect related to health, it is about Health Boost (which adds empty hearts that can be healed) and not Absorption. It does not answer the question about yellow hearts or their behavior when hit, making it tangentially related but not useful for the specific query.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The yellow hearts you see above your health bar are a result of the status effect called Absorption.: SUPPORTED<br>  - This effect adds additional health points per level to the player, displayed as yellow hearts above the normal health bar.: SUPPORTED<br>  - When you take damage while under this effect, the absorption health points are depleted first, followed by the standard health points.: SUPPORTED<br>  - If the effect ends, any extra health provided by Absorption is lost.: SUPPORTED<br>  - However, unlike Absorption, the unused status effect called Health Boost increases maximum health of an entity and adds maximum health per level.: SUPPORTED<br>  - The added hearts from Health Boost are empty at first but can be healed through usual methods such as natural regeneration and the Regeneration and Instant Health effects.: SUPPORTED<br>  - When you lose extra health from Health Boost, your view jolts as if taking damage, even in Creative or Spectator mode.: SUPPORTED<br>  - The only completely immune mobs to Absorption are the ender dragon, while the wither can be given absorption hearts using the /data command.: SUPPORTED<br>  - Health Boost can be obtained only by executing.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies the yellow hearts as the Absorption effect and explains their behavior when taking damage, matching the reference and chunks.', 'minor_issue': 'The AI incorrectly states that the ender dragon is the *only* completely immune mob to Absorption, while the chunks mention the wither is also immune (though it can be given absorption via `/data`).'}, 'completeness': {'covered': 'The AI answers the main parts of the question (yellow hearts = Absorption, behavior when hit).', 'missing': 'It omits that Absorption health cannot be replenished by natural regeneration or other effects (mentioned in the chunks).'}, 'hallucinations': {'none': 'No outright hallucinations, but the inclusion of Health Boost is unsupported by the question or reference answer, though it is factually correct per the chunks.', 'irrelevant_info': 'The details about Health Boost (e.g., view jolting, healing methods) are not relevant to the question and distract from the core answer.'}, 'relevance': {'on_topic': 'The answer starts strong but drifts into unrelated details (Health Boost).', 'chunk_usage': 'The AI uses the Absorption chunk well but unnecessarily incorporates the Health Boost chunk, which was not part of the question.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the weirdest place I can stick an activator rail down in my world?</div>
+                                <div class="reference-text">Ref: An activator rail can be placed on the top of any full solid opaque block, the top of a hopper, upside-down slab, or upside-down stairs, as well as the top of any transparent block like glass.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the context, activator rails can be placed on several different types of blocks, including transparent blocks like glass. This means that you could potentially place an activator rail in a creative and unique way, such as underwater or inside a glass structure, to trigger certain actions with entities passing over it. However, it's important to note that activator rails cannot be attached to the side or bottom of any block, but attempting to make such an attachment may cause the activator rail to attach to the top of a block instead. Additionally, if an activator rail is unsupported due to being moved by a piston, it will break and drop as an item. Overall, while there are some restrictions on where activator rails can be placed, they offer a versatile tool for manipulating entities in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 80%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits some specific placement details and slightly misinterprets the 'weirdest place' aspect of the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: activator_rail_1)**: Scores a 3 (Highly relevant). This chunk directly answers the question by listing all the valid places an activator rail can be placed, including the top of full solid opaque blocks, hoppers, upside-down slabs/stairs, and transparent blocks like glass. This matches the Reference Answer exactly.<br>    - **Chunk 2 (ID: activator_rail_4)**: Scores a 0 (Completely irrelevant). This chunk discusses mob interactions with activator rails and piston mechanics, which are unrelated to the question about placement locations. It does not help answer the question and could mislead the user if relied upon.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - activator rails can be placed on several different types of blocks, including transparent blocks like glass: SUPPORTED<br>  - you could potentially place an activator rail in a creative and unique way, such as underwater or inside a glass structure, to trigger certain actions with entities passing over it: UNSUPPORTED<br>  - activator rails cannot be attached to the side or bottom of any block: SUPPORTED<br>  - attempting to make such an attachment may cause the activator rail to attach to the top of a block instead: SUPPORTED<br>  - if an activator rail is unsupported due to being moved by a piston, it will break and drop as an item: SUPPORTED<br>  - they offer a versatile tool for manipulating entities in Minecraft: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that activator rails can be placed on transparent blocks (e.g., glass) and full solid opaque blocks, and it accurately notes restrictions (cannot attach to sides/bottom of blocks).', 'minor_issues': &quot;The AI does not explicitly list all valid placement options (e.g., upside-down slabs/stairs, hoppers) as mentioned in the reference and chunks. The 'weirdest place' is not directly addressed with creative examples beyond 'underwater or inside a glass structure.'&quot;}, 'completeness': {'missing': 'The AI omits specific examples from the chunks (e.g., upside-down slabs/stairs, hoppers) and does not fully explore unconventional placements (e.g., on top of a piston or command block). The answer is functional but not exhaustive.', 'covered': 'It covers the core rules (placement on tops of blocks, transparent/solid blocks) and restrictions (no side/bottom attachment).'}, 'hallucinations': 'None detected. The AI does not invent unsupported information (e.g., no false claims about mob interactions or redstone behavior).', 'relevance': &quot;The answer stays on topic but could better address the 'weirdest place' by leveraging the chunks' details (e.g., upside-down slabs, piston interactions).&quot;, 'chunk_usage': {'supported': &quot;The AI uses the chunks to confirm placement rules (e.g., transparent blocks, piston interactions) but does not fully exploit the chunks' examples (e.g., upside-down stairs/slabs).&quot;, 'unsupported': 'No unsupported additions.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why does my activator rail sometimes face east-west even when I place it next to just one other rail on the side?</div>
+                                <div class="reference-text">Ref: If there are two adjacent rails on non-opposite sides, or three or more adjacent rails, an activator rail aligns itself in the east-west direction, even if it is already connected to another rail to the north or south.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context, if an existing activator rail is connected to only one other rail or none at all, and a new rail is placed perpendicular to the activator rail, then the activator rail aligns itself in the east-west direction (if it isn't already facing that way). This means that when you place an activator rail next to just one other rail on the side, it may initially face in a different direction based on its previous orientation. However, if you then place another rail perpendicular to the first two, the activator rail will realign itself to face east-west instead. This behavior helps ensure that activator rails always align with nearby rails and can simplify the design of complex rail networks in Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 25%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly correct but omits key details from the reference and chunks, leading to an incomplete explanation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant because it directly contains the information mentioned in the Reference Answer. It explicitly states that 'If there are two adjacent rails on non-opposite sides, or three or more adjacent rails, an activator rail aligns itself in the east-west direction,' which is exactly what the Reference Answer describes. This chunk would lead to a correct answer.<br><br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. It contains related information about activator rail alignment, including the behavior when a new rail is placed perpendicular to an existing activator rail. However, it does not explicitly mention the 'two adjacent rails on non-opposite sides' condition as clearly as Chunk 1. It could help answer the question but is less precise than Chunk 1.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - if an existing activator rail is connected to only one other rail or none at all, and a new rail is placed perpendicular to the activator rail, then the activator rail aligns itself in the east-west direction (if it isn't already facing that way).: SUPPORTED<br>  - This means that when you place an activator rail next to just one other rail on the side, it may initially face in a different direction based on its previous orientation.: UNSUPPORTED<br>  - However, if you then place another rail perpendicular to the first two, the activator rail will realign itself to face east-west instead.: SUPPORTED<br>  - This behavior helps ensure that activator rails always align with nearby rails and can simplify the design of complex rail networks in Minecraft.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly identifies that an activator rail may realign to east-west when a new rail is placed perpendicularly.', 'incorrect': 'The AI misrepresents the initial condition: the reference and chunks state that *two adjacent rails on non-opposite sides* or *three or more rails* cause east-west alignment, not just placing a perpendicular rail after the fact.'}, 'completeness': {'missing': &quot;The AI does not explain the core condition (two non-opposite rails or three+ rails) that directly answers the user's question. It also omits the 'no adjacent rails' case and the reorientation behavior when rails are added later.&quot;, 'included': 'The AI does mention the east-west alignment behavior, but the explanation is incomplete and slightly misleading.'}, 'hallucinations': 'None detected. The AI stays within the bounds of the provided chunks.', 'relevance': &quot;The answer is relevant but does not fully address the user's specific scenario (why the rail faces east-west *even when placed next to just one other rail*).&quot;, 'chunk_usage': {'supported': 'The AI references the perpendicular rail placement from Chunk 2 but ignores the more critical conditions in both chunks (e.g., two non-opposite rails).', 'unsupported': 'No unsupported information was added.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">Why does my hopper minecart stop collecting items right when it rolls over an activator rail? I thought it was supposed to keep working until the rail turns off?</div>
+                                <div class="reference-text">Ref: A hopper minecart stops picking up items in the same tick it touches an active activator rail or in the same tick the inactive rail it is standing on is powered. It does not collect the item it could have taken from a container above in the same tick the activator rail turns on.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context provided, an inactive activator rail enables minecarts with hoppers. This means that as soon as a hopper minecart comes into contact with an inactive activator rail, it becomes enabled and begins picking up items again. However, if the same hopper minecart then rolls over an active activator rail, it immediately disables and stops collecting items until it is re-enabled by another inactive activator rail or broken and replaced. This behavior occurs in the same tick that the activator rail turns on and takes the first item in the same tick the rail turns off again. Therefore, your hopper minecart does not collect the item it could have taken from a container above in the same tick the activator rail turns on, but it does disable as soon as any part of the minecart is on the activator rail.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 70%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the exact timing of item collection when the rail turns off.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1**: Highly relevant (Score: 3). It directly addresses the question by explaining that a hopper minecart stops picking up items in the same tick it touches an active activator rail or when the inactive rail it is standing on is powered. This matches the Reference Answer exactly and provides the necessary details to answer the question correctly.<br>    - **Chunk 2**: Somewhat related (Score: 1). While it provides general information about activator rails (e.g., placement, breaking, and basic functionality), it does not mention the specific behavior of hopper minecarts interacting with activator rails. Thus, it is not useful for answering the question and could even distract from the correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An inactive activator rail enables minecarts with hoppers.: SUPPORTED<br>  - As soon as a hopper minecart comes into contact with an inactive activator rail, it becomes enabled and begins picking up items again.: SUPPORTED<br>  - If the same hopper minecart then rolls over an active activator rail, it immediately disables and stops collecting items until it is re-enabled by another inactive activator rail or broken and replaced.: SUPPORTED<br>  - This behavior occurs in the same tick that the activator rail turns on and takes the first item in the same tick the rail turns off again.: SUPPORTED<br>  - Therefore, your hopper minecart does not collect the item it could have taken from a container above in the same tick the activator rail turns on.: SUPPORTED<br>  - It disables as soon as any part of the minecart is on the activator rail.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'assessment': 'The AI answer correctly states that a hopper minecart stops picking up items in the same tick it touches an active activator rail, aligning perfectly with the REFERENCE and CHUNK 1. It also accurately describes the enabling/disabling behavior of hopper minecarts.', 'issue': &quot;The AI mentions that the hopper minecart 'takes the first item in the same tick the rail turns off again,' which is slightly misleading. The REFERENCE and CHUNK 1 clarify that the minecart does *not* collect the item it could have taken in the same tick the rail turns on, but the AI does not explicitly address whether it collects an item in the same tick the rail turns off (though it implies it might). This is a minor omission.&quot;}, 'completeness': {'assessment': 'The AI addresses the core question (why the hopper minecart stops collecting items) and explains the enabling/disabling mechanism. However, it does not explicitly state that the minecart does *not* collect an item in the same tick the activator rail turns on, which is a key detail in the REFERENCE.', 'missing_info': 'The AI could have explicitly noted that the minecart does not collect the item it could have taken from a container above in the same tick the activator rail turns on.'}, 'hallucinations': {'assessment': 'No hallucinations detected. All information is supported by the provided chunks and REFERENCE.', 'verdict': 'Pass'}, 'relevance': {'assessment': &quot;The answer stays strictly on topic and directly addresses the user's question about hopper minecart behavior with activator rails.&quot;, 'verdict': 'Pass'}, 'use_of_chunks': {'assessment': 'The AI effectively uses CHUNK 1, which contains the relevant mechanics of activator rails and hopper minecarts. CHUNK 2 is irrelevant to the question and was correctly ignored.', 'verdict': 'Pass'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">Do spiders actually walk on activator rails like they do on normal tracks, or do they just ignore them?</div>
+                                <div class="reference-text">Ref: Spiders, cave spiders, and wardens are the only land mobs that can walk onto activator rails, just like other types of rails.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context, spiders are one of the mobs that can freely walk onto both activator rails and normal tracks. Therefore, they will also walk on activator rails like they do on normal tracks. Other land mobs, such as zombies, may push them onto the activator rails in pursuit of their targets, but spiders are not affected by the fact that activator rails break when unsupported due to being moved, as they continue to walk on them just like they would on normal tracks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 75%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 75%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but includes minor unsupported details and a slight overgeneralization.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers the question by stating that spiders, cave spiders, and wardens are the only land mobs that can walk onto activator rails, just like other types of rails. This matches the Reference Answer exactly.<br>    - **Chunk 2 (Score: 2)**: Relevant but partially helpful. It mentions that spiders, cave spiders, and wardens freely walk onto rails, which is related to the question. However, it does not explicitly mention activator rails, so it doesn't fully answer the question. It could lead to a correct but incomplete answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - spiders are one of the mobs that can freely walk onto both activator rails and normal tracks: SUPPORTED<br>  - they will also walk on activator rails like they do on normal tracks: SUPPORTED<br>  - Other land mobs, such as zombies, may push them onto the activator rails in pursuit of their targets: SUPPORTED<br>  - spiders are not affected by the fact that activator rails break when unsupported due to being moved, as they continue to walk on them just like they would on normal tracks: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly identifies that spiders (along with cave spiders and wardens) can walk onto activator rails, matching the REFERENCE and CHUNKS. However, it incorrectly implies that other mobs (like zombies) may push spiders onto activator rails, which is not mentioned in the CHUNKS or REFERENCE for activator rails specifically (only for normal rails in CHUNK 2).', 'completeness': 'The answer addresses the core question (whether spiders walk on activator rails) but omits the explicit mention of cave spiders and wardens, which are part of the ground truth. It also adds unnecessary context about zombies pushing mobs, which is irrelevant to the question.', 'hallucinations': 'No major hallucinations, but the mention of zombies pushing mobs onto activator rails is unsupported by the provided CHUNKS (this behavior is only mentioned for normal rails in CHUNK 2).', 'relevance': 'The answer stays on topic but includes tangential information (e.g., activator rails breaking when unsupported) that doesn’t directly answer the question.', 'chunk_usage': 'The AI correctly uses CHUNK 1 to confirm spiders can walk on activator rails but misapplies CHUNK 2 (which refers to normal rails) to activator rails. The answer could have been more precise by sticking strictly to the activator rail context.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">Is there any way to actually see air blocks in Minecraft, or are they always invisible?</div>
+                                <div class="reference-text">Ref: Air is completely invisible, but it can be visualized with the use of structure blocks in Save mode when 'Show invisible blocks' is enabled—air is then represented as small blue cubes. Air, cave air, and void air are all displayed identically in this mode.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>Air blocks are completely invisible in Minecraft, and they cannot be obtained or interacted with except by placing or removing other blocks that create or destroy them. However, in Creative mode with the &quot;Show invisible blocks&quot; option enabled, air blocks are represented as small blue cubes when viewed through structure blocks. Outside of this instance, air blocks remain invisible and cannot be seen without mods or external programs that alter game graphics.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the specific modes (Save mode in structure blocks) and the identical display of air variants.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1**: Highly relevant (Score: 3). It directly answers the question by explaining that air blocks are invisible but can be visualized as small blue cubes using structure blocks in Save mode with 'Show invisible blocks' enabled. It also clarifies that air, cave air, and void air are displayed identically in this mode, matching the Reference Answer exactly.<br>    - **Chunk 2**: Completely irrelevant (Score: 0). It discusses light blocks, which are unrelated to the question about air blocks. This chunk does not contain any information about air or its visualization, and could mislead the answer toward unrelated mechanics.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Air blocks are completely invisible in Minecraft: SUPPORTED<br>  - they cannot be obtained or interacted with except by placing or removing other blocks that create or destroy them: SUPPORTED<br>  - in Creative mode with the 'Show invisible blocks' option enabled, air blocks are represented as small blue cubes when viewed through structure blocks: SUPPORTED<br>  - Outside of this instance, air blocks remain invisible: SUPPORTED<br>  - air blocks cannot be seen without mods or external programs that alter game graphics: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states that air blocks are invisible and can only be visualized as small blue cubes via structure blocks with 'Show invisible blocks' enabled. It also correctly notes that air cannot be obtained or interacted with normally.&quot;, 'minor_omission': &quot;The AI does not explicitly mention that this visualization occurs in 'Save mode' of structure blocks, nor does it clarify that air, cave air, and void air are displayed identically (though this is implied).&quot;}, 'completeness': {'covered': 'The AI answers the core question (visibility of air blocks) and provides context about their behavior and visualization.', 'missing': &quot;The specific mention of 'Save mode' in structure blocks and the identical display of air variants (cave air, void air) are omitted.&quot;}, 'hallucinations': 'None detected. The AI sticks strictly to the information provided in the chunks and reference.', 'relevance': 'The answer is entirely on-topic and directly addresses the question without straying into unrelated details.', 'use_of_chunks': 'The AI effectively uses the provided chunks, particularly [CHUNK 1], to construct its answer. No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">I found some allays near a pillager outpost, but why are they trapped in those dark oak cages? Do they always spawn like that?</div>
+                                <div class="reference-text">Ref: Allays have a 50% chance of spawning in dark oak cages near pillager outposts in groups of 1-3 during world generation.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context provided, allays can be found in dark oak cages within pillager outposts. These structures generate naturally around a main watchtower and may include smaller structures such as tents, targets, log piles, and allay and iron golem cages. Allays have a 50% chance of spawning in these cages when the structure generates. They cannot be found freely roaming around the outpost or its surroundings. Once an allay is freed from its cage by breaking it with a tool, it will carry a matching item and deliver it to a nearby player or note block if one is playing. Therefore, the allays you found in those cages were most likely spawned during the generation of the pillager outpost structure.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">47/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the group size of allays (1-3).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by stating that allays have a 50% chance of spawning in dark oak cages near pillager outposts during world generation, and they spawn in groups of 1-3 (implied by 'two allays' in Chunk 2, but Chunk 1 mentions 'groups of 1-3' more explicitly). This matches the Reference Answer almost verbatim.<br>    - **Chunk 2 (Score: 2)**: Relevant but less direct. It provides additional context about allay spawning (e.g., cages spawn two allays, cages are part of the 15 jigsaw blocks with a 1/13 chance of generation). While useful, it doesn’t explicitly confirm the 50% spawn chance or the group size range (1-3) as clearly as Chunk 1. It could help supplement the answer but isn’t as precise.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Allays can be found in dark oak cages within pillager outposts.: SUPPORTED<br>  - These structures generate naturally around a main watchtower and may include smaller structures such as tents, targets, log piles, and allay and iron golem cages.: SUPPORTED<br>  - Allays have a 50% chance of spawning in these cages when the structure generates.: SUPPORTED<br>  - They cannot be found freely roaming around the outpost or its surroundings.: SUPPORTED<br>  - Once an allay is freed from its cage by breaking it with a tool, it will carry a matching item and deliver it to a nearby player or note block if one is playing.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': ['Allays spawn in dark oak cages near pillager outposts.', 'Allays have a 50% chance of spawning during outpost generation.', 'Allays cannot roam freely; they are trapped in cages until freed.', 'Allays spawn in cages alongside iron golems (though the AI did not explicitly mention iron golems, it did not contradict this).'], 'minor_omission': 'The AI did not specify the group size of allays (1-3), which is mentioned in the reference answer.'}, 'completeness': {'answered_parts': ['Why allays are trapped in cages (spawned during generation).', 'Whether they always spawn like that (50% chance, not always).'], 'missing_detail': 'Group size (1-3 allays) was omitted.'}, 'hallucinations': 'None detected. The AI strictly adhered to the provided chunks and did not invent unsupported information.', 'relevance': 'The answer stays entirely on-topic and directly addresses the question.', 'chunk_usage': &quot;The AI correctly used [CHUNK 1] (50% spawn chance, cages) and did not contradict [CHUNK 2] (though it didn't need to reference it for this question).&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">What happens if I give an allay an amethyst shard while it's dancing near a jukebox?</div>
+                                <div class="reference-text">Ref: If an allay is given an amethyst shard while it is dancing due to a nearby jukebox playing any music disc, it splits into two allays (itself and a new allay) and the amethyst shard is consumed. After duplication, both allays have a five-minute cooldown before being able to duplicate again.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>If I give an allay an amethyst shard while it's dancing near a jukebox, the allay splits into two allays (itself and a new allay) and the amethyst shard is consumed. Both newly created allays have a 5-minute cooldown before they can be duplicated again. This only happens when the jukebox is playing any music disc.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and complete, with only a minor omission regarding the jukebox's playing state being implied rather than explicitly stated.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (allay_2)**: Highly relevant (score: 3). It directly answers the question by explaining that giving an amethyst shard to a dancing allay near a jukebox causes it to duplicate, consuming the shard, and includes the cooldown detail. This matches the Reference Answer exactly.<br>    - **Chunk 2 (jukebox_1)**: Highly relevant (score: 3). While focused on the jukebox, it explicitly mentions the interaction between a dancing allay, a jukebox, and an amethyst shard, including the duplication mechanic and cooldown. This also fully aligns with the Reference Answer.<br>    Both chunks are useful and could independently lead to a correct answer without risk of hallucination.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - If I give an allay an amethyst shard while it's dancing near a jukebox, the allay splits into two allays (itself and a new allay): SUPPORTED<br>  - the amethyst shard is consumed: SUPPORTED<br>  - Both newly created allays have a 5-minute cooldown before they can be duplicated again: SUPPORTED<br>  - This only happens when the jukebox is playing any music disc: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'Correct', 'details': 'The AI answer matches the REFERENCE ANSWER and the relevant parts of CHUNK 1 and CHUNK 2. It correctly states that the allay splits into two, the amethyst shard is consumed, and both allays have a 5-minute cooldown.'}, 'completeness': {'verdict': 'Mostly complete', 'details': 'The AI answer covers all critical aspects of the question. However, it omits explicitly stating that the jukebox must be *actively playing* a music disc (though this is implied by the context of the allay dancing). The REFERENCE ANSWER and CHUNKS explicitly mention this condition.'}, 'hallucinations': {'verdict': 'None', 'details': 'No invented information is present. The AI answer strictly adheres to the provided chunks and reference.'}, 'relevance': {'verdict': 'Fully relevant', 'details': 'The answer stays entirely on-topic and directly addresses the question.'}, 'use_of_chunks': {'verdict': 'Correctly used', 'details': 'The AI answer aligns with the information in CHUNK 1 and CHUNK 2, particularly the duplication mechanics and cooldown.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">I just found a flower forest biome and used bone meal on the grass, but I'm not seeing any alliums pop up. What's the deal with that?</div>
+                                <div class="reference-text">Ref: When bone meal is applied to a grass block in a flower forest, alliums have a chance of generating on the targeted block and adjacent grass blocks in a 15×5×15 area or a 7×5×7 area, depending on the flower gradients.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context, alliums have a chance of generating when bone meal is applied to grass blocks in flower forests and meadow biomes. However, whether alliums can generate depends on the flower gradients. This means that there needs to be enough flowers present for the gradient to trigger allium generation. If you don't see any alliums appearing after using bone meal, it could be because the flower gradient wasn't met. You may want to check if there are enough flowers in the area or try applying bone meal again in a different location with more flowers. Alternatively, there could be another issue preventing allium generation, such as the block under the targeted grass being moved or destroyed or water running over the location. It's also worth mentioning that allium generation is random and not guaranteed, so don't be discouraged if you don't see them right away.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">42/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 57%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate and relevant but omits specific details about the generation area and does not clarify the randomness of the process as precisely as the reference.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (bone_meal_1)**: Scores **3** because it directly addresses the use of bone meal on grass blocks in flower forests, explaining the area (15×5×15 or 7×5×7) where foliage (including flowers like alliums) can spawn. This matches the Reference Answer's core information.<br>    - **Chunk 2 (allium)**: Scores **3** because it explicitly states that alliums have a chance to generate when bone meal is applied to grass blocks in flower forests, including the same area dimensions (15×5×15 or 7×5×7) and the dependency on flower gradients. This is the exact information needed for the correct answer.<br>    - Both chunks are highly relevant and could independently lead to the correct answer without misleading details.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - alliums have a chance of generating when bone meal is applied to grass blocks in flower forests and meadow biomes: SUPPORTED<br>  - whether alliums can generate depends on the flower gradients: SUPPORTED<br>  - there needs to be enough flowers present for the gradient to trigger allium generation: SUPPORTED<br>  - If you don't see any alliums appearing after using bone meal, it could be because the flower gradient wasn't met: SUPPORTED<br>  - You may want to check if there are enough flowers in the area or try applying bone meal again in a different location with more flowers: UNSUPPORTED<br>  - Alternatively, there could be another issue preventing allium generation, such as the block under the targeted grass being moved or destroyed or water running over the location: UNSUPPORTED<br>  - allium generation is random and not guaranteed, so don't be discouraged if you don't see them right away: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that alliums have a chance of generating when bone meal is applied to grass blocks in flower forests and that this depends on flower gradients. It also correctly notes that generation is not guaranteed and may require multiple attempts or sufficient flowers in the area.', 'incorrect_or_omitted': 'The AI does not specify the exact generation area (15×5×15 or 7×5×7) as mentioned in the reference and chunks. It also does not clarify that alliums can generate on adjacent grass blocks, only mentioning the targeted block.'}, 'completeness': {'covered': 'The AI addresses the core issue (why alliums might not appear) and provides troubleshooting suggestions (e.g., checking flower gradients, trying different locations).', 'missing': 'Missing specific details about the generation area and the fact that alliums can appear on adjacent blocks, not just the targeted block. The reference and chunks provide more precise information about the mechanics.'}, 'hallucinations': 'None detected. The AI sticks to information supported by the chunks and does not invent unsupported details.', 'relevance': &quot;The answer stays on topic and directly addresses the user's question about allium generation in flower forests.&quot;, 'use_of_chunks': 'The AI effectively uses the chunks to explain the mechanics but could have included more precise details (e.g., generation area) from the chunks to improve accuracy.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">If I mine a fully grown amethyst cluster with my bare hands instead of a pickaxe, how many shards will I get?</div>
+                                <div class="reference-text">Ref: When mined without Silk Touch or broken by any other method, a fully grown amethyst cluster yields 2 amethyst shards.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>0 shards. In Minecraft, when an amethyst cluster is mined using any other tool or mechanism besides a pickaxe with the Silk Touch enchantment, it drops 2 amethyst shards. If mined without a tool or with a bare hand, the player will simply break the block and not receive any items as a result. To obtain amethyst shards from an amethyst cluster, you must use a pickaxe (except with Silk Touch enchantment) or another method that causes the block to drop its contents, such as explosions or pistons pushing it off an attached block.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and introduces a hallucination by claiming no shards are dropped when mined with bare hands, contrary to the reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: amethyst_shard)** is **highly relevant (3)** because it explicitly states: 'When mined using any other tool, item, or mechanism (such as explosions or pistons) it drops 2 shards.' This directly answers the question about mining with bare hands (which counts as 'any other method') and matches the Reference Answer.<br>    - **Chunk 2 (ID: amethyst_cluster_1)** is also **highly relevant (3)** because it confirms: 'Breaking an amethyst cluster with a pickaxe drops 4 shards while any other method of breaking it yields 2 shards.' This is the exact information needed to answer the question correctly.<br>    Both chunks provide the critical detail that mining without a pickaxe (e.g., bare hands) yields 2 shards, aligning perfectly with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - 0 shards.: CONTRADICTED<br>  - In Minecraft, when an amethyst cluster is mined using any other tool or mechanism besides a pickaxe with the Silk Touch enchantment, it drops 2 amethyst shards.: SUPPORTED<br>  - If mined without a tool or with a bare hand, the player will simply break the block and not receive any items as a result.: CONTRADICTED<br>  - To obtain amethyst shards from an amethyst cluster, you must use a pickaxe (except with Silk Touch enchantment) or another method that causes the block to drop its contents, such as explosions or pistons pushing it off an attached block.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is wrong. Both the REFERENCE ANSWER and RETRIEVED CHUNKS (CHUNK 1 and CHUNK 2) explicitly state that mining a fully grown amethyst cluster with any method *other than a pickaxe* (including bare hands) yields 2 amethyst shards. The AI incorrectly claims 0 shards are dropped.', 'completeness': 'The AI fails to address the core question (how many shards are dropped) correctly. It omits the correct drop count (2 shards) and instead provides irrelevant details about tool requirements.', 'hallucinations': &quot;The AI invents the claim that 'the player will simply break the block and not receive any items' when mined with bare hands. This is unsupported by the reference or chunks.&quot;, 'relevance': &quot;The answer partially stays on topic but diverges into incorrect mechanics (e.g., 'must use a pickaxe') that contradict the provided context.&quot;, 'use_of_chunks': 'The AI ignored the explicit information in CHUNK 1 and CHUNK 2, which state that non-pickaxe methods (including bare hands) drop 2 shards. Instead, it fabricated a rule about bare hands dropping nothing.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How long does it actually take for a budding amethyst block to fully grow all its clusters if nothing's blocking it?</div>
+                                <div class="reference-text">Ref: An unobstructed budding amethyst block takes 8192.4 seconds—equivalent to 2 hours 16 minutes 32.4 seconds or 6.827 in-game days—to fully grow each of its 6 amethyst clusters through all 4 growth stages.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the context provided, it takes 8192 seconds, which is equivalent to 2 hours 16 minutes 32.4 seconds or 6.827 in-game days, for a budding amethyst block to fully grow each of its clusters if nothing is blocking its growth. Each random tick assigned to the budding amethyst block has a 20% chance of triggering an update on a budding amethyst block. Thus, it takes 5 random ticks on average for a budding amethyst block to grow one of its faces by 1 stage. Since there are 4 growth stages, the math can be applied if a player is within random tick range: (68.27 seconds/1 random tick) × (5 random ticks/1 growth stage) × (4 growth stages/1 amethyst cluster) = 68.27×5×4 = 8192 seconds for an unobstructed budding amethyst block to fully grow each of its clusters.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but omits the mention of all 6 clusters growing fully, which is part of the reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly provides the exact calculation and time required for a budding amethyst block to fully grow all its clusters (8192.4 seconds, 2 hours 16 minutes 32.4 seconds, or 6.827 in-game days). This matches the Reference Answer precisely.<br>    - **Chunk 2** is also **highly relevant (3)** because it includes the same core calculation (68.27 × 5 × 6 × 4 = 8192.4 seconds) and confirms the growth mechanics, stages, and conditions (e.g., unobstructed growth). While it contains additional tangential details (e.g., breaking mechanics, geode generation), the key information aligns perfectly with the Reference Answer.<br>    - Both chunks could independently lead to the correct answer without risk of hallucination or misinformation.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - It takes 8192 seconds, which is equivalent to 2 hours 16 minutes 32.4 seconds or 6.827 in-game days, for a budding amethyst block to fully grow each of its clusters if nothing is blocking its growth.: SUPPORTED<br>  - Each random tick assigned to the budding amethyst block has a 20% chance of triggering an update on a budding amethyst block.: SUPPORTED<br>  - It takes 5 random ticks on average for a budding amethyst block to grow one of its faces by 1 stage.: SUPPORTED<br>  - There are 4 growth stages for an amethyst cluster.: SUPPORTED<br>  - The math can be applied if a player is within random tick range: (68.27 seconds/1 random tick) × (5 random ticks/1 growth stage) × (4 growth stages/1 amethyst cluster) = 68.27×5×4 = 8192 seconds for an unobstructed budding amethyst block to fully grow each of its clusters.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly calculates the time (8192 seconds / 2 hours 16 minutes 32.4 seconds / 6.827 in-game days) and explains the growth mechanics (20% chance per random tick, 5 ticks per stage, 4 stages). This aligns perfectly with the reference and chunks.', 'completeness': 'The AI answer misses the explicit mention that the budding amethyst block grows *all 6 clusters* fully, which is included in the reference answer. The calculation is correct but slightly less precise in phrasing.', 'hallucinations': 'No hallucinations detected. All information is supported by the chunks and reference.', 'relevance': 'The answer stays strictly on topic and addresses the question directly.', 'chunk_usage': &quot;The AI correctly uses the chunks to derive the answer but omits the '6 clusters' detail from the reference, which is present in Chunk 1.&quot;}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">Do amethyst clusters make any special sounds when I mess with them?</div>
+                                <div class="reference-text">Ref: An amethyst cluster makes a quiet overlay sound when generally interacted with, as well as its block breaking sound when hit with a projectile, uniquely among other blocks.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>Yes, according to the context provided, uniquely among other blocks, an amethyst cluster makes a quiet overlay sound when generally interacted with. Additionally, the breaking sounds of an amethyst cluster have been recorded in an early version of the game and can be found in the video &quot;dev breaking sounds.mp4.&quot;</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but omits the specific detail about the block breaking sound when hit with a projectile.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly answers the question by stating that amethyst clusters make a 'quiet overlay sound when generally interacted with' and a 'block breaking sound when hit with a projectile,' which matches the Reference Answer exactly. This chunk is sufficient to provide a correct answer.<br>    - **Chunk 2 (Score: 1)**: Somewhat related but not useful for answering the question. While it provides detailed information about amethyst clusters (growth stages, mining mechanics, etc.), it does not mention any sounds or interactions relevant to the question. It is tangentially related but could lead to an incorrect or incomplete answer if relied upon alone.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Uniquely among other blocks, an amethyst cluster makes a quiet overlay sound when generally interacted with.: SUPPORTED<br>  - The breaking sounds of an amethyst cluster have been recorded in an early version of the game and can be found in the video 'dev breaking sounds.mp4'.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer correctly states that amethyst clusters make a quiet overlay sound when interacted with, which aligns with both the REFERENCE and CHUNKS. However, it does not explicitly mention the block breaking sound when hit with a projectile, which is part of the REFERENCE and CHUNK 1.', 'completeness': &quot;The answer is mostly complete but misses the secondary detail about the block breaking sound. It also unnecessarily references the 'dev breaking sounds.mp4' video, which is not part of the core answer but is mentioned in the chunks.&quot;, 'hallucinations': 'No hallucinations detected. All information is supported by the provided chunks or reference.', 'relevance': 'The answer stays on topic and directly addresses the question about sounds made by amethyst clusters.', 'use_of_chunks': 'The AI correctly uses CHUNK 1 for the overlay sound but does not fully incorporate the projectile-breaking sound detail. The mention of the video is accurate but not essential to the answer.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are the three layers that make up an amethyst geode in Minecraft?</div>
+                                <div class="reference-text">Ref: Amethyst geodes consist of three layers: an outer layer of smooth basalt, a middle layer of calcite, and a hollow layer of primarily amethyst blocks, with 8.3% replaced by budding amethyst blocks instead.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>The three layers that make up an amethyst geode in Minecraft, as stated in the context provided, are the outer layer of smooth basalt, the middle layer of calcite, and a hollow layer primarily composed of amethyst blocks with 8.3% replaced by budding amethyst blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly matches the reference and retrieved chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: amethyst_geode_1)**: Score 3 - Highly relevant. This chunk explicitly lists the three layers of an amethyst geode in Minecraft (smooth basalt, calcite, and amethyst blocks/budding amethyst) as mentioned in the Reference Answer. It directly answers the question and provides additional context without misleading information.<br>    - **Chunk 2 (ID: amethyst_geode_2)**: Score 0 - Completely irrelevant. This chunk focuses on technical generation parameters (e.g., blockstate providers, offsets, probabilities) and does not mention the three layers or any information pertinent to the question. It could not lead to a correct answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The three layers that make up an amethyst geode in Minecraft are the outer layer of smooth basalt: SUPPORTED<br>  - The middle layer of an amethyst geode is calcite: SUPPORTED<br>  - The hollow layer is primarily composed of amethyst blocks: SUPPORTED<br>  - 8.3% of the hollow layer is replaced by budding amethyst blocks: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer exactly matches the reference answer and the relevant details in CHUNK 1. It correctly identifies the three layers (smooth basalt, calcite, and amethyst blocks with 8.3% budding amethyst) without deviation.', 'completeness': 'The answer includes all parts of the question: the three layers, their composition, and the 8.3% replacement detail for budding amethyst blocks. No information is missing.', 'hallucinations': 'There are no hallucinations or invented details. The AI strictly adheres to the provided context and reference.', 'relevance': 'The answer stays entirely on topic and directly addresses the question about the layers of an amethyst geode in Minecraft.', 'use_of_chunks': 'The AI correctly uses CHUNK 1, which contains the exact information needed, and does not incorporate irrelevant or unsupported details from CHUNK 2.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the default range for how far an amethyst geode can extend from its center in Minecraft?</div>
+                                <div class="reference-text">Ref: The default values for the geode's cutoff size are a minimum Chebyshev distance of -16 and a maximum Chebyshev distance of 16 from the center.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>The default range for how far an amethyst geode can extend from its center in Minecraft is within the adjacent chunks, as the values for 'min_gen_offset' and 'max_gen_offset' are both set to -16 by default. This limits the size of very large geodes, but values greater than the default of ±16 slightly increase the effective cutoff size.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 25%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but contains inaccuracies and omissions regarding the default range values for the amethyst geode's extension.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1** is **highly relevant (3)** because it directly provides the default values for the geode's cutoff size, specifically mentioning the minimum and maximum Chebyshev distances of -16 and 16 from the center, which matches the Reference Answer exactly.<br>    - **Chunk 2** is **completely irrelevant (0)** because it focuses on budding amethyst's properties, growth mechanics, and behavior, which are unrelated to the geode's spatial range or default cutoff values. This chunk does not help answer the question and could mislead if used alone.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The default range for how far an amethyst geode can extend from its center in Minecraft is within the adjacent chunks: UNSUPPORTED<br>  - the values for 'min_gen_offset' and 'max_gen_offset' are both set to -16 by default: CONTRADICTED<br>  - This limits the size of very large geodes: SUPPORTED<br>  - values greater than the default of ±16 slightly increase the effective cutoff size: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly identifies that the default values for 'min_gen_offset' and 'max_gen_offset' determine the geode's cutoff size.&quot;, 'incorrect': 'The AI incorrectly states that both values are set to -16 by default. The reference and chunks clarify that the default values are -16 (minimum) and 16 (maximum), not both -16. The AI also misrepresents the ±16 notation, implying symmetry around zero, which is correct, but the phrasing is confusing.'}, 'completeness': {'missing': &quot;The AI does not explicitly state the default range as -16 to 16 (Chebyshev distance). It also omits the mention of 'Chebyshev distance' entirely, which is a key detail in the reference and chunks. The explanation about 'adjacent chunks' is tangential and not directly relevant to the question.&quot;, 'present': &quot;The AI does mention the 'min_gen_offset' and 'max_gen_offset' values and their role in determining the geode's cutoff size.&quot;}, 'hallucinations': {'none': 'No outright hallucinations (invented information) are present, but the phrasing is misleading regarding the default values.'}, 'relevance': {'on_topic': 'The answer stays on topic but lacks precision and clarity.', 'off_topic': &quot;The mention of 'adjacent chunks' is not directly relevant to the question about the default range from the center.&quot;}, 'use_of_chunks': {'correct_usage': &quot;The AI uses the chunks to identify the 'min_gen_offset' and 'max_gen_offset' values but misinterprets their defaults.&quot;, 'incorrect_usage': 'The AI fails to correctly extract the default values (-16 and 16) from the chunks, leading to an inaccurate answer.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the best way to get the most amethyst shards when mining a cluster? I want to maximize my drops.</div>
+                                <div class="reference-text">Ref: The maximum amount of amethyst shards dropped can be increased with Fortune. Fortune III gives a 20% chance (each) to drop 8, 12, or 16 shards, averaging 8.8 shards per cluster when mined with a pickaxe.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>To get the most amethyst shards when mining a cluster in Minecraft, you should enchant your pickaxe with Fortune III. This will give you a 20% chance to receive 8, 12, or 16 shards per cluster mined, averaging 8.8 shards per cluster. Without Fortune, a fully grown amethyst cluster drops 4 shards and clusters that are not yet fully grown only drop shards when mined with the Silk Touch enchantment. Explosions or pistons will still only yield 2 shards per cluster, so it's best to avoid using those methods if you want to maximize your drops.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 80%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the base drop rate without Fortune.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly addresses the question by explaining how Fortune enchantments (I, II, III) affect amethyst shard drops, including the exact probabilities and averages for Fortune III mentioned in the Reference Answer. It also clarifies the baseline drops (4 shards without Fortune) and the role of Silk Touch, which is useful context for avoiding incorrect answers.<br>    - **Chunk 2 (Score: 2)**: Relevant but partially redundant. It repeats the Fortune enchantment details (matching the Reference Answer) but adds unnecessary information about amethyst bud growth stages, piston mechanics, and geode generation. While the core answer is present, the extra details could distract from the focus on maximizing shard drops.<br>    Neither chunk is irrelevant, but Chunk 1 is more concise and directly aligned with the Reference Answer.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To get the most amethyst shards when mining a cluster in Minecraft, you should enchant your pickaxe with Fortune III.: SUPPORTED<br>  - This will give you a 20% chance to receive 8, 12, or 16 shards per cluster mined, averaging 8.8 shards per cluster.: SUPPORTED<br>  - Without Fortune, a fully grown amethyst cluster drops 4 shards: SUPPORTED<br>  - clusters that are not yet fully grown only drop shards when mined with the Silk Touch enchantment.: CONTRADICTED<br>  - Explosions or pistons will still only yield 2 shards per cluster, so it's best to avoid using those methods if you want to maximize your drops.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly states that Fortune III gives a 20% chance for 8, 12, or 16 shards, averaging 8.8 shards per cluster. It also accurately mentions the base drop rate with other methods (e.g., explosions/pistons yield 2 shards).', 'minor_omission': 'The AI does not explicitly state the base drop rate of 4 shards when mined with a pickaxe without Fortune (though it implies this by contrasting with Fortune III). This detail is present in the chunks and reference.'}, 'completeness': {'covered': 'The answer addresses the core question (maximizing drops with Fortune III) and includes relevant caveats (e.g., Silk Touch, explosions/pistons).', 'missing': 'The base drop rate (4 shards) without Fortune could be explicitly mentioned for clarity.'}, 'hallucinations': 'None detected. All information aligns with the chunks and reference.', 'relevance': 'The answer stays strictly on-topic and avoids unrelated details (e.g., allay mechanics or growth stages).', 'chunk_usage': 'The AI effectively synthesizes the key details from [CHUNK 1] and [CHUNK 2], particularly the Fortune III mechanics and drop rates.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">I keep hearing about ancient cities being huge, but how big are they actually? Like, how many blocks wide are they?</div>
+                                <div class="reference-text">Ref: An ancient city features a very large palace with a footprint of around 220 blocks on each horizontal axis, stretching throughout a deep dark biome.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the context, an ancient city has a footprint of around 220 blocks on each horizontal axis. This means that it is roughly 220 blocks wide in both the east-west and north-south directions within a deep dark biome at Y level -51. The palace itself is very large, with corridors stretching throughout the structure and smaller ruins off to the side containing loot chests. Additionally, the center of the city features a frame resembling a warden's head made up of reinforced deepslate blocks, which is an unobtainable material in Survival mode. Sculk shriekers generate much more frequently in ancient cities than in the normal deep dark biome. So, to answer your question, an ancient city is incredibly large and can be quite overwhelming to explore. With a footprint of around 480,000 square blocks (220 x 220), it's no wonder that ancient cities are considered the largest structures in Minecraft!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 71%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant but includes a minor unnecessary calculation (480,000 square blocks) and slightly overemphasizes exploration difficulty.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (brick_pyramid)**: Score 0. This chunk is completely irrelevant to the question about ancient cities. It discusses brick pyramids, their generation, and dimensions, which do not help answer the question about the size of ancient cities.<br>    - **Chunk 2 (ancient_city_1)**: Score 3. This chunk is highly relevant as it directly answers the question by providing the footprint of the ancient city's palace (around 220 blocks on each horizontal axis), which matches the Reference Answer. It also provides additional context about the city's location and features, but the key dimension information is present.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An ancient city has a footprint of around 220 blocks on each horizontal axis.: SUPPORTED<br>  - This means that it is roughly 220 blocks wide in both the east-west and north-south directions within a deep dark biome at Y level -51.: SUPPORTED<br>  - The palace itself is very large, with corridors stretching throughout the structure and smaller ruins off to the side containing loot chests.: SUPPORTED<br>  - The center of the city features a frame resembling a warden's head made up of reinforced deepslate blocks, which is an unobtainable material in Survival mode.: SUPPORTED<br>  - Sculk shriekers generate much more frequently in ancient cities than in the normal deep dark biome.: SUPPORTED<br>  - So, to answer your question, an ancient city is incredibly large and can be quite overwhelming to explore.: UNSUPPORTED<br>  - With a footprint of around 480,000 square blocks (220 x 220), it's no wonder that ancient cities are considered the largest structures in Minecraft!: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': &quot;The AI correctly states the footprint of the ancient city as ~220 blocks on each horizontal axis, matching the reference and Chunk 2. It also accurately describes the city's location (deep dark biome, Y level -51), unique blocks (reinforced deepslate, sculk shriekers), and structural details (palace, corridors, loot chests).&quot;, 'minor_issue': &quot;The calculation of '480,000 square blocks' is mathematically correct but not explicitly stated in the reference or chunks, making it an unnecessary addition.&quot;}, 'completeness': {'covered': &quot;The AI answers the core question ('how big?') and provides additional context about the city's features (e.g., loot, sculk shriekers, reinforced deepslate).&quot;, 'missing': &quot;No critical omissions, but the reference's emphasis on the palace's 'footprint' could have been clarified further (e.g., whether this includes surrounding ruins).&quot;}, 'hallucinations': {'none': 'No outright hallucinations. All details are supported by Chunk 2 or the reference.', 'overreach': &quot;The phrase 'incredibly large and quite overwhelming to explore' is subjective and not in the chunks/reference, though it doesn’t contradict them.&quot;}, 'relevance': 'The answer stays tightly focused on the question and avoids tangential details (e.g., no mention of brick pyramids from Chunk 1).'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">I found a weird piston door in an Ancient City basement, but it only opens when I eat something near it. Why does that happen?</div>
+                                <div class="reference-text">Ref: The circuit has a signal strength filter, and only vibrations with a frequency equal to 8 (eating or drinking) can activate the piston door. Creating these vibrations on the path in front of the frame in the city center activates the door.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>According to the provided context, there is a piston door in an Ancient City basement that is controlled by a sculk sensor. This specific piston door has a pulse extender between the sculk sensor and itself, which makes it close 180 game ticks after the sculk sensor is deactivated. However, this piston door only opens when vibrations with a frequency equal to 8 (eating or drinking) are created on the path in front of the frame in the city center. This means that the vibrations caused by eating or drinking near the door activate the sculk sensor, which then opens the piston door. Therefore, your weird piston door is behaving as designed based on the provided context.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the exact location of the vibration path (city center vs. basement).
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It directly explains the mechanism behind the piston door in the Ancient City basement, specifically mentioning the signal strength filter and that only vibrations with a frequency equal to 8 (eating or drinking) can activate the door. This matches the Reference Answer perfectly.<br>    - **Chunk 2 (Score: 0)**: Completely irrelevant. It discusses iron doors, their properties, and redstone mechanics unrelated to the Ancient City or sculk sensor-based piston doors. This chunk does not help answer the question and could mislead the user.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - There is a piston door in an Ancient City basement that is controlled by a sculk sensor.: SUPPORTED<br>  - This specific piston door has a pulse extender between the sculk sensor and itself, which makes it close 180 game ticks after the sculk sensor is deactivated.: SUPPORTED<br>  - This piston door only opens when vibrations with a frequency equal to 8 (eating or drinking) are created on the path in front of the frame in the city center.: SUPPORTED<br>  - The vibrations caused by eating or drinking near the door activate the sculk sensor, which then opens the piston door.: SUPPORTED<br>  - Therefore, your weird piston door is behaving as designed based on the provided context.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'CORRECT', 'details': &quot;The AI answer correctly identifies the piston door's behavior (activated by vibrations with frequency 8, i.e., eating/drinking) and its reliance on a sculk sensor with a signal strength filter. This aligns perfectly with the REFERENCE and CHUNK 1.&quot;}, 'completeness': {'verdict': 'MOSTLY COMPLETE', 'details': &quot;The AI answer covers the core mechanism (frequency 8 vibrations) and the role of the sculk sensor. However, it omits the specific detail that the vibrations must be created *on the path in front of the frame in the city center* (as stated in CHUNK 1), instead generalizing to 'near the door.' This is a minor omission.&quot;}, 'hallucinations': {'verdict': 'NONE', 'details': 'No invented information. All details are supported by the chunks or reference.'}, 'relevance': {'verdict': 'HIGHLY RELEVANT', 'details': &quot;The answer stays strictly on-topic, addressing the piston door's behavior and the eating/drinking trigger without deviating into unrelated mechanics (e.g., iron doors from CHUNK 2).&quot;}, 'chunk_usage': {'verdict': 'CORRECT', 'details': 'The AI appropriately uses CHUNK 1 (ancient city piston door mechanics) and ignores CHUNK 2 (irrelevant iron door info). No unsupported information is added.'}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">What kind of loot can I expect to find inside the ice box rooms in Ancient Cities?</div>
+                                <div class="reference-text">Ref: Inside the ice box structure in Ancient Cities, there is a chest with loot from a loot table specific to the ice box, as well as ice blocks and top snow scattered around the inside of the room.</div>
+                            </td>
+                            <td class="answer-cell"><br><br>&lt;|assistant|&gt;<br>The context provided does not specifically mention any ice box rooms in Ancient Cities. However, it does state that chests containing loot can be found in the corridors and smaller ruins of Ancient Cities. Some of the items that can be found in these chests include disc fragments, which are exclusive to Ancient Cities, as well as enchanted golden apples with a high chance of spawning. Additionally, the chests may contain useful items for exploring the ancient city, such as snowballs and the Swift Sneak enchantment. Therefore, it's possible that ice box rooms could also contain similar loot, but without further context, we cannot confirm their existence or the specific contents of any ice box rooms in Ancient Cities.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 86%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses key details about ice box rooms and includes unsupported speculation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (Score: 3)**: Highly relevant. It explicitly mentions the loot table for the ice box (`chests/ancient_city_ice_box`) and describes the types of loot found in ancient city chests, which aligns with the Reference Answer's focus on the ice box's specific loot. While it doesn't mention ice blocks or top snow, it directly addresses the core question about loot.<br>    - **Chunk 2 (Score: 1)**: Somewhat related. It provides general context about ancient cities (e.g., structure, location, loot chests) but does not mention ice box rooms or their specific loot. The information is tangentially related but not useful for answering the question correctly.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The context provided does not specifically mention any ice box rooms in Ancient Cities.: SUPPORTED<br>  - Chests containing loot can be found in the corridors and smaller ruins of Ancient Cities.: SUPPORTED<br>  - Some of the items that can be found in these chests include disc fragments, which are exclusive to Ancient Cities.: SUPPORTED<br>  - Chests may contain enchanted golden apples with a high chance of spawning.: SUPPORTED<br>  - The chests may contain useful items for exploring the ancient city, such as snowballs and the Swift Sneak enchantment.: SUPPORTED<br>  - It's possible that ice box rooms could also contain similar loot.: UNSUPPORTED<br>  - Without further context, we cannot confirm their existence or the specific contents of any ice box rooms in Ancient Cities.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'correct': 'The AI correctly notes that chests in Ancient Cities contain loot like disc fragments, enchanted golden apples, snowballs, and Swift Sneak enchantments (supported by CHUNK 1).', 'incorrect': 'The AI claims the context does not mention ice box rooms, but the REFERENCE explicitly describes them. The AI also speculates about ice box loot without evidence (CHUNK 1 does not mention ice box-specific loot).'}, 'completeness': {'missing': 'The AI fails to address the core question: the existence of ice box rooms and their specific loot (chest + ice blocks/top snow, per REFERENCE). It also omits exclusive items like echo shards and armor trims (CHUNK 1).'}, 'hallucinations': {'present': &quot;The AI invents uncertainty ('it's possible that ice box rooms could also contain similar loot') despite the REFERENCE confirming their existence and contents. It also implies ice box rooms might not exist, contradicting the ground truth.&quot;}, 'relevance': {'issue': &quot;The answer drifts into general Ancient City loot (e.g., disc fragments) instead of focusing on ice box rooms, which are the question's topic.&quot;}, 'chunk_usage': {'error': &quot;The AI ignores the REFERENCE's explicit details about ice box rooms and misuses CHUNK 1 (which lists loot tables but doesn't exclude ice box-specific ones).&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">What's the best place to find enchanted golden apples besides ominous vaults? I keep hearing about some deep dark structure.</div>
+                                <div class="reference-text">Ref: Ancient city chests have the second highest chance of any loot table to contain an enchanted golden apple, with ominous vaults having a 22.5% chance.</div>
+                            </td>
+                            <td class="answer-cell"><br>&lt;|assistant|&gt;<br>According to the context provided, enchanted golden apples have a 22.5% chance of spawning in chests found within ancient city structures located in the Deep Dark biome at Y-level -51. This makes the ancient cities a better place to find enchanted golden apples besides ominous vaults, as ominous vaults can only be obtained through commands or in trial chambers, and they are technically block state variants of normal vaults. Note that the loot table for ancient city chests also includes several useful items for exploring the deep dark, such as snowballs and the Swift Sneak enchantment, as well as items exclusive to this structure, like echo shards and armor trims.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 57%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is highly accurate and relevant, with only a minor omission regarding the exact probability comparison between ancient city chests and ominous vaults.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: ominous_vault_1)**: Score 1. While it provides detailed information about ominous vaults (the primary source of enchanted golden apples), it does not address the question's focus on *alternative* sources (e.g., ancient cities). It is tangentially related but not directly helpful for answering the specific question.<br>    - **Chunk 2 (ID: ancient_city_4)**: Score 3. This chunk directly answers the question by explicitly stating that ancient city chests have the second-highest chance of containing enchanted golden apples, with a comparison to ominous vaults (22.5% chance). It fully aligns with the Reference Answer and provides the exact information needed.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Enchanted golden apples have a 22.5% chance of spawning in chests found within ancient city structures located in the Deep Dark biome at Y-level -51.: SUPPORTED<br>  - Ancient cities are a better place to find enchanted golden apples besides ominous vaults.: SUPPORTED<br>  - Ominous vaults can only be obtained through commands or in trial chambers.: SUPPORTED<br>  - Ominous vaults are technically block state variants of normal vaults.: SUPPORTED<br>  - The loot table for ancient city chests also includes several useful items for exploring the deep dark, such as snowballs and the Swift Sneak enchantment.: SUPPORTED<br>  - Ancient city chests include items exclusive to this structure, like echo shards and armor trims.: SUPPORTED<br>  - Ancient city chests have the second highest chance of any loot table to contain an enchanted golden apple.: SUPPORTED<br>  - Ominous vaults have a 22.5% chance of containing enchanted golden apples.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': {'verdict': 'Correct', 'details': &quot;The AI correctly identifies ancient city chests as the second-highest source of enchanted golden apples, with ominous vaults having a 22.5% chance. This matches the reference and [CHUNK 2]. The AI also accurately describes the ancient city's location (Deep Dark biome, Y-level -51) and mentions exclusive loot like echo shards and Swift Sneak, all supported by [CHUNK 2].&quot;}, 'completeness': {'verdict': 'Mostly complete', 'details': 'The AI answers the core question (where to find enchanted golden apples besides ominous vaults) and provides additional context about the ancient city. However, it omits the explicit mention that ancient city chests have the *second highest chance* of any loot table (as stated in the reference and [CHUNK 2]), though it implies this by comparing it to ominous vaults.'}, 'hallucinations': {'verdict': 'None', 'details': 'No invented information. All claims are supported by the provided chunks or reference. The AI even clarifies that ominous vaults are not obtainable in Survival/Adventure mode without commands, which aligns with [CHUNK 1].'}, 'relevance': {'verdict': 'Highly relevant', 'details': 'The answer stays tightly focused on the question, avoiding tangential details (e.g., it doesn’t dive into trial chamber mechanics beyond what’s necessary).'}, 'use_of_chunks': {'verdict': 'Effective', 'details': &quot;The AI leverages [CHUNK 2] for the ancient city loot details and [CHUNK 1] to contextualize ominous vaults, though it could have explicitly cited the 'second highest chance' statistic from [CHUNK 2].&quot;}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [48, 40, 42, 35, 48, 45, 48, 47, 48, 42, 10, 45, 45, 50, 35, 48, 45, 48, 20, 48],
+                    backgroundColor: [48, 40, 42, 35, 48, 45, 48, 47, 48, 42, 10, 45, 45, 50, 35, 48, 45, 48, 20, 48].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [48, 40, 42, 35, 48, 45, 48, 47, 48, 42, 10, 45, 45, 50, 35, 48, 45, 48, 20, 48].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [70.8, 80.9, 76.7, 73.5],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [50.0, 66.7, 50.0, 83.3, 66.7, 83.3, 50.0, 83.3, 100.0, 100.0, 100.0, 100.0, 66.7, 50.0, 50.0, 83.3, 50.0, 50.0, 66.7, 66.7],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 89.0, 50.0, 50.0, 100.0, 75.0, 100.0, 80.0, 100.0, 57.0, 50.0, 80.0, 100.0, 100.0, 50.0, 80.0, 71.4, 100.0, 85.7, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [100.0, 66.7, 66.7, 66.7, 66.7, 100.0, 100.0, 100.0, 100.0, 66.7, 33.3, 100.0, 66.7, 100.0, 33.3, 100.0, 66.7, 100.0, 33.3, 66.7],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [100.0, 75.0, 80.0, 25.0, 70.0, 75.0, 100.0, 50.0, 100.0, 100.0, 30.0, 100.0, 100.0, 100.0, 25.0, 100.0, 50.0, 100.0, 33.0, 57.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
