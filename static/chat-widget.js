@@ -876,9 +876,19 @@
             const config = await configResponse.json();
             state.serverConfig = config;
 
-            // Connect via WebSocket proxy
-            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${wsProtocol}//${window.location.host}/api/chat/ws`;
+            // Determine WebSocket URL
+            let wsUrl;
+            if (config.tunnel_url) {
+                // Use cloudflared tunnel (convert https:// to wss://)
+                const tunnelUrl = config.tunnel_url.replace('https://', 'wss://').replace('http://', 'ws://');
+                wsUrl = `${tunnelUrl}/ws`;
+                console.log('Using tunnel URL:', wsUrl);
+            } else {
+                // Fallback to local proxy
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                wsUrl = `${wsProtocol}//${window.location.host}/api/chat/ws`;
+                console.log('Using local proxy:', wsUrl);
+            }
 
             state.ws = new WebSocket(wsUrl);
 

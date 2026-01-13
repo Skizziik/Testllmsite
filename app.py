@@ -869,6 +869,9 @@ async def get_stability_categories():
 # ============================================================
 
 # Configuration for TryllServer connection
+# TRYLL_TUNNEL_URL - cloudflared tunnel URL (e.g., https://xxx.trycloudflare.com)
+TRYLL_TUNNEL_URL = os.environ.get("TRYLL_TUNNEL_URL", "")
+# Fallback to direct connection (for local testing)
 TRYLL_SERVER_HOST = os.environ.get("TRYLL_SERVER_HOST", "localhost")
 TRYLL_SERVER_PORT = int(os.environ.get("TRYLL_SERVER_PORT", 1234))
 
@@ -934,23 +937,28 @@ def save_feedback(feedback_list):
 @app.get("/api/chat/config")
 async def get_chat_config():
     """Get TryllServer configuration for display in chat widget."""
-    config_path = Path("C:/Users/utente/AppData/Local/Tryll/server/config.json")
-    if config_path.exists():
-        try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            pass
-
-    return {
+    config = {
         "rag_chunks_number": 5,
         "rag_score_threshold": 0.3,
         "rag_double_tower": True,
         "embedding_model_name": "all-MiniLM-L6-v2",
         "semantic_filter_threshold": 0.6,
         "server_host": TRYLL_SERVER_HOST,
-        "server_port": TRYLL_SERVER_PORT
+        "server_port": TRYLL_SERVER_PORT,
+        "tunnel_url": TRYLL_TUNNEL_URL  # Cloudflare tunnel URL
     }
+
+    # Try to load local config file (for local development)
+    config_path = Path("C:/Users/utente/AppData/Local/Tryll/server/config.json")
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                local_config = json.load(f)
+                config.update(local_config)
+        except:
+            pass
+
+    return config
 
 
 @app.get("/api/chat/chunks")
