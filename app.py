@@ -945,7 +945,6 @@ async def get_chat_config():
         "semantic_filter_threshold": 0.6,
         "server_host": TRYLL_SERVER_HOST,
         "server_port": TRYLL_SERVER_PORT,
-        "tunnel_url": TRYLL_TUNNEL_URL  # Cloudflare tunnel URL
     }
 
     # Try to load local config file (for local development)
@@ -957,6 +956,9 @@ async def get_chat_config():
                 config.update(local_config)
         except:
             pass
+
+    # Always use tunnel_url from environment (don't let local config override it)
+    config["tunnel_url"] = TRYLL_TUNNEL_URL
 
     return config
 
