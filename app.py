@@ -1,9 +1,10 @@
 """
 Tryll RAG Test Dashboard - FastAPI Backend
 Serves HTML reports and provides API for comparison
+Includes Chat Widget with WebSocket proxy to TryllServer
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from pathlib import Path
@@ -12,6 +13,10 @@ import json
 from bs4 import BeautifulSoup
 from typing import Optional
 import os
+import asyncio
+import socket
+from datetime import datetime
+from pydantic import BaseModel
 
 app = FastAPI(title="Tryll RAG Test Dashboard")
 
@@ -857,6 +862,226 @@ async def get_stability_categories():
                 categories[cat][status] += 1
 
     return list(categories.values())
+
+
+# ============================================================
+# CHAT WIDGET API - WebSocket Proxy to TryllServer
+# ============================================================
+
+# Configuration for TryllServer connection
+TRYLL_SERVER_HOST = os.environ.get("TRYLL_SERVER_HOST", "localhost")
+TRYLL_SERVER_PORT = int(os.environ.get("TRYLL_SERVER_PORT", 1234))
+
+# Feedback storage
+FEEDBACK_DIR = BASE_DIR / "feedback_data"
+FEEDBACK_DIR.mkdir(exist_ok=True)
+FEEDBACK_FILE = FEEDBACK_DIR / "feedback.json"
+
+# Knowledge base path for chunk lookups
+KNOWLEDGE_BASE_PATH = Path(os.environ.get(
+    "KNOWLEDGE_BASE_PATH",
+    "C:/Users/utente/Downloads/autotest/MinecraftRAG/minecraft_knowledge_base.json"
+))
+
+# Cache for knowledge base
+_knowledge_base_cache = None
+
+
+class FeedbackRequest(BaseModel):
+    session_id: str
+    question: str
+    answer: str
+    rag_chunk_ids: list[str]
+    is_positive: bool
+    feedback_type: str  # 'quick' or 'detailed'
+    feedback_text: Optional[str] = None
+    suggested_answer: Optional[str] = None
+    server_config: Optional[dict] = None
+
+
+def load_knowledge_base():
+    """Load knowledge base JSON for chunk lookups."""
+    global _knowledge_base_cache
+    if _knowledge_base_cache is None and KNOWLEDGE_BASE_PATH.exists():
+        try:
+            with open(KNOWLEDGE_BASE_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                # Index by ID for fast lookup
+                _knowledge_base_cache = {chunk['id']: chunk for chunk in data}
+        except Exception as e:
+            print(f"Error loading knowledge base: {e}")
+            _knowledge_base_cache = {}
+    return _knowledge_base_cache or {}
+
+
+def load_feedback():
+    """Load feedback from JSON file."""
+    if FEEDBACK_FILE.exists():
+        try:
+            with open(FEEDBACK_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+
+def save_feedback(feedback_list):
+    """Save feedback to JSON file."""
+    with open(FEEDBACK_FILE, 'w', encoding='utf-8') as f:
+        json.dump(feedback_list, f, ensure_ascii=False, indent=2)
+
+
+@app.get("/api/chat/config")
+async def get_chat_config():
+    """Get TryllServer configuration for display in chat widget."""
+    config_path = Path("C:/Users/utente/AppData/Local/Tryll/server/config.json")
+    if config_path.exists():
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+
+    return {
+        "rag_chunks_number": 5,
+        "rag_score_threshold": 0.3,
+        "rag_double_tower": True,
+        "embedding_model_name": "all-MiniLM-L6-v2",
+        "semantic_filter_threshold": 0.6,
+        "server_host": TRYLL_SERVER_HOST,
+        "server_port": TRYLL_SERVER_PORT
+    }
+
+
+@app.get("/api/chat/chunks")
+async def get_chunk_details(ids: str):
+    """Get full details for RAG chunks by their IDs."""
+    chunk_ids = ids.split(',')
+    kb = load_knowledge_base()
+
+    results = []
+    for chunk_id in chunk_ids:
+        chunk_id = chunk_id.strip()
+        if chunk_id in kb:
+            results.append(kb[chunk_id])
+        else:
+            # Try partial match
+            for key in kb:
+                if chunk_id in key or key in chunk_id:
+                    results.append(kb[key])
+                    break
+            else:
+                results.append({
+                    "id": chunk_id,
+                    "text": "Chunk not found in knowledge base",
+                    "metadata": {}
+                })
+
+    return results
+
+
+@app.post("/api/chat/feedback")
+async def submit_feedback(feedback: FeedbackRequest):
+    """Submit user feedback on chat response."""
+    feedback_list = load_feedback()
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "session_id": feedback.session_id,
+        "question": feedback.question,
+        "answer": feedback.answer,
+        "rag_chunk_ids": feedback.rag_chunk_ids,
+        "is_positive": feedback.is_positive,
+        "feedback_type": feedback.feedback_type,
+        "feedback_text": feedback.feedback_text,
+        "suggested_answer": feedback.suggested_answer,
+        "server_config": feedback.server_config
+    }
+
+    feedback_list.append(entry)
+    save_feedback(feedback_list)
+
+    return {"status": "ok", "id": len(feedback_list)}
+
+
+@app.get("/api/chat/feedback")
+async def get_all_feedback():
+    """Get all feedback entries (for admin review)."""
+    return load_feedback()
+
+
+@app.websocket("/api/chat/ws")
+async def websocket_proxy(websocket: WebSocket):
+    """
+    WebSocket proxy to TryllServer.
+    Connects client browser to local TryllServer via socket.
+    """
+    await websocket.accept()
+
+    reader = None
+    writer = None
+
+    try:
+        # Connect to TryllServer
+        reader, writer = await asyncio.open_connection(
+            TRYLL_SERVER_HOST,
+            TRYLL_SERVER_PORT
+        )
+
+        async def forward_to_client():
+            """Forward messages from TryllServer to WebSocket client."""
+            try:
+                while True:
+                    data = await reader.read(4096)
+                    if not data:
+                        break
+                    await websocket.send_text(data.decode('utf-8', errors='replace'))
+            except Exception as e:
+                print(f"Forward to client error: {e}")
+
+        async def forward_to_server():
+            """Forward messages from WebSocket client to TryllServer."""
+            try:
+                while True:
+                    data = await websocket.receive_text()
+                    writer.write(data.encode('utf-8'))
+                    await writer.drain()
+            except WebSocketDisconnect:
+                pass
+            except Exception as e:
+                print(f"Forward to server error: {e}")
+
+        # Run both directions concurrently
+        await asyncio.gather(
+            forward_to_client(),
+            forward_to_server()
+        )
+
+    except ConnectionRefusedError:
+        await websocket.send_text(json.dumps({
+            "error": "TryllServer not running",
+            "message": "Please start TryllServer on your computer"
+        }))
+        await websocket.close()
+    except Exception as e:
+        print(f"WebSocket proxy error: {e}")
+        try:
+            await websocket.send_text(json.dumps({"error": str(e)}))
+        except:
+            pass
+    finally:
+        if writer:
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except:
+                pass
+
+
+# Serve static files (chat widget)
+STATIC_DIR = BASE_DIR / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 if __name__ == "__main__":
