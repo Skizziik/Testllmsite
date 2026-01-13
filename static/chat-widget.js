@@ -929,9 +929,9 @@
     // Handle messages from server
     function handleServerMessage(data) {
         try {
-            // Server sends JSON with trailing comma, handle multiple messages
-            const cleaned = '[' + data.slice(0, -1) + ']';
-            const messages = JSON.parse(cleaned);
+            // Parse JSON message (local_proxy already removes trailing comma)
+            const msg = JSON.parse(data);
+            const messages = [msg]; // Wrap in array for consistent processing
 
             for (const msg of messages) {
                 if (msg.server) {
@@ -1374,7 +1374,8 @@
         close: () => { if (state.isOpen) toggleChat(); },
         showRagDetails: showRagDetails,
         submitQuickFeedback: submitQuickFeedback,
-        showFeedbackModal: showFeedbackModal
+        showFeedbackModal: showFeedbackModal,
+        state: state // For debugging
     };
 
     init();

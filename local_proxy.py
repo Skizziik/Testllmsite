@@ -2,6 +2,10 @@
 Local HTTP/WebSocket proxy for TryllServer.
 Run this locally, then use cloudflared to expose it.
 
+TryllServer uses a binary protocol:
+- Messages are prefixed with 8-byte (uint64) size
+- Message format: [8-byte size][JSON message + comma]
+
 Usage:
 1. Start TryllServer on port 1234
 2. Run: python local_proxy.py
@@ -11,7 +15,7 @@ Usage:
 
 import asyncio
 import json
-import socket
+import struct
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -29,6 +33,7 @@ app.add_middleware(
 
 TRYLL_SERVER_HOST = "localhost"
 TRYLL_SERVER_PORT = 1234
+MESSAGE_SIZE_BYTES = 8  # uint64
 
 
 @app.get("/health")
@@ -41,7 +46,7 @@ async def health():
 async def websocket_proxy(websocket: WebSocket):
     """
     WebSocket proxy to TryllServer.
-    Connects browser WebSocket to local TryllServer TCP socket.
+    Handles the binary protocol (8-byte size prefix).
     """
     await websocket.accept()
 
@@ -59,34 +64,28 @@ async def websocket_proxy(websocket: WebSocket):
         async def forward_to_client():
             """Forward messages from TryllServer to WebSocket client."""
             try:
-                buffer = ""
                 while True:
-                    data = await reader.read(4096)
-                    if not data:
+                    # Read 8-byte size prefix
+                    size_data = await reader.readexactly(MESSAGE_SIZE_BYTES)
+                    if not size_data:
                         break
 
-                    # Decode and accumulate data
-                    buffer += data.decode('utf-8', errors='replace')
+                    message_size = struct.unpack('Q', size_data)[0]
+                    print(f"Receiving message of size: {message_size}")
 
-                    # Try to parse complete JSON messages
-                    # TryllServer sends JSON objects, possibly multiple
-                    while buffer:
-                        buffer = buffer.strip()
-                        if not buffer:
-                            break
+                    # Read the message
+                    message_data = await reader.readexactly(message_size)
+                    message = message_data.decode('utf-8', errors='replace')
 
-                        # Find the end of a JSON object
-                        try:
-                            # Try to parse from the beginning
-                            obj, end_idx = json.JSONDecoder().raw_decode(buffer)
-                            # Send the complete JSON
-                            await websocket.send_text(json.dumps(obj))
-                            # Remove parsed portion
-                            buffer = buffer[end_idx:].strip()
-                        except json.JSONDecodeError:
-                            # Incomplete JSON, wait for more data
-                            break
+                    # Remove trailing comma if present (TryllServer adds it)
+                    if message.endswith(','):
+                        message = message[:-1]
 
+                    print(f"Forwarding to client: {message[:200]}...")
+                    await websocket.send_text(message)
+
+            except asyncio.IncompleteReadError:
+                print("TryllServer closed connection")
             except Exception as e:
                 print(f"Forward to client error: {e}")
 
@@ -96,8 +95,15 @@ async def websocket_proxy(websocket: WebSocket):
                 while True:
                     data = await websocket.receive_text()
                     print(f"Received from client: {data[:100]}...")
-                    writer.write(data.encode('utf-8'))
+
+                    # Encode with size prefix (TryllServer protocol)
+                    message_bytes = (data + ",").encode('utf-8')
+                    size_prefix = struct.pack('Q', len(message_bytes))
+
+                    writer.write(size_prefix + message_bytes)
                     await writer.drain()
+                    print(f"Sent to TryllServer: {len(message_bytes)} bytes")
+
             except WebSocketDisconnect:
                 print("WebSocket disconnected")
             except Exception as e:
@@ -110,12 +116,16 @@ async def websocket_proxy(websocket: WebSocket):
         )
 
     except ConnectionRefusedError:
+        print(f"ERROR: Cannot connect to TryllServer at {TRYLL_SERVER_HOST}:{TRYLL_SERVER_PORT}")
         error_msg = json.dumps({
             "error": "TryllServer not running",
             "message": f"Cannot connect to TryllServer at {TRYLL_SERVER_HOST}:{TRYLL_SERVER_PORT}"
         })
-        await websocket.send_text(error_msg)
-        await websocket.close()
+        try:
+            await websocket.send_text(error_msg)
+            await websocket.close()
+        except:
+            pass
     except Exception as e:
         print(f"WebSocket proxy error: {e}")
         try:
@@ -137,6 +147,8 @@ if __name__ == "__main__":
     print("=" * 50)
     print(f"Proxying to TryllServer at {TRYLL_SERVER_HOST}:{TRYLL_SERVER_PORT}")
     print("WebSocket endpoint: ws://localhost:8765/ws")
+    print("")
+    print("TryllServer protocol: 8-byte size prefix + JSON + comma")
     print("")
     print("Next steps:")
     print("1. Make sure TryllServer is running on port 1234")
