@@ -25,7 +25,9 @@
         lastRagChunks: [],
         lastRagIds: [],
         serverConfig: null,
-        agentId: null
+        agentId: 1,
+        agentCreated: false,
+        models: []
     };
 
     // Create widget HTML
@@ -906,7 +908,7 @@
                 console.log('WebSocket closed');
                 updateConnectionStatus(false, 'Disconnected');
                 state.ws = null;
-                state.agentId = null;
+                state.agentCreated = false;
 
                 // Attempt reconnect
                 if (state.isOpen && state.reconnectAttempts < CONFIG.maxReconnectAttempts) {
@@ -943,8 +945,15 @@
                         updateSendButton();
                     }
                 } else if (msg.models) {
-                    // Models info received
+                    // Models info received - create agent with first available model
                     console.log('Models available:', msg.models);
+                    state.models = msg.models;
+
+                    // Find first model that is ACTUAL (state 4) or OUTDATED (state 3)
+                    const availableModel = msg.models.find(m => m.state === 4 || m.state === 3);
+                    if (availableModel && !state.agentCreated) {
+                        createAgent(availableModel.name);
+                    }
                 } else if (msg.agent) {
                     handleAgentMessage(msg.agent);
                 }
@@ -952,6 +961,37 @@
         } catch (e) {
             console.error('Parse error:', e, data);
         }
+    }
+
+    // Create agent on server
+    function createAgent(modelName) {
+        if (state.agentCreated || !state.ws) return;
+
+        const payload = JSON.stringify({
+            new_agent: {
+                id: state.agentId,
+                name: "WebChatAgent",
+                model: modelName,
+                chat_format: "chatml",
+                temperature: 0.7
+            }
+        });
+
+        console.log('Creating agent with model:', modelName);
+        state.ws.send(payload);
+        state.agentCreated = true;
+
+        // Send initial prompt configuration after small delay
+        setTimeout(() => {
+            const promptPayload = JSON.stringify({
+                agent_message: {
+                    id: state.agentId,
+                    prompt: "You are a helpful Minecraft assistant. Answer questions about Minecraft gameplay, crafting, mechanics, and strategies."
+                }
+            });
+            state.ws.send(promptPayload);
+            console.log('Agent prompt configured');
+        }, 500);
     }
 
     // Handle agent-specific messages
