@@ -27,7 +27,8 @@
         serverConfig: null,
         agentId: 1,
         agentCreated: false,
-        models: []
+        models: [],
+        tunnelBaseUrl: null
     };
 
     // Create widget HTML
@@ -218,8 +219,8 @@
                 position: fixed;
                 bottom: 24px;
                 right: 24px;
-                width: 420px;
-                height: 600px;
+                width: 500px;
+                height: 700px;
                 max-height: calc(100vh - 48px);
                 background: #000000;
                 background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
@@ -869,28 +870,39 @@
         updateConnectionStatus(false, 'Connecting...');
 
         try {
-            // First, get server config
+            // First, get tunnel URL from Render
             const configResponse = await fetch('/api/chat/config');
             if (!configResponse.ok) {
                 throw new Error('Failed to get server config');
             }
 
-            const config = await configResponse.json();
-            state.serverConfig = config;
+            const renderConfig = await configResponse.json();
+            const tunnelUrl = renderConfig.tunnel_url;
 
-            // Determine WebSocket URL
-            let wsUrl;
-            if (config.tunnel_url) {
-                // Use cloudflared tunnel (convert https:// to wss://)
-                const tunnelUrl = config.tunnel_url.replace('https://', 'wss://').replace('http://', 'ws://');
-                wsUrl = `${tunnelUrl}/ws`;
-                console.log('Using tunnel URL:', wsUrl);
-            } else {
-                // Fallback to local proxy
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                wsUrl = `${wsProtocol}//${window.location.host}/api/chat/ws`;
-                console.log('Using local proxy:', wsUrl);
+            if (!tunnelUrl) {
+                updateConnectionStatus(false, 'Tunnel not configured');
+                return;
             }
+
+            // Store tunnel base URL for API calls
+            state.tunnelBaseUrl = tunnelUrl;
+
+            // Get real config from local_proxy (via tunnel)
+            try {
+                const localConfigResponse = await fetch(`${tunnelUrl}/config`);
+                if (localConfigResponse.ok) {
+                    const localConfig = await localConfigResponse.json();
+                    state.serverConfig = localConfig;
+                    console.log('Loaded config from TryllServer:', localConfig);
+                }
+            } catch (e) {
+                console.warn('Could not load config from tunnel:', e);
+                state.serverConfig = renderConfig;
+            }
+
+            // Determine WebSocket URL (convert https:// to wss://)
+            const wsUrl = `${tunnelUrl.replace('https://', 'wss://').replace('http://', 'ws://')}/ws`;
+            console.log('Using tunnel URL:', wsUrl);
 
             state.ws = new WebSocket(wsUrl);
 
@@ -1327,21 +1339,20 @@
         const msgIndex = parseInt(msgEl.dataset.msgIndex);
         const msg = state.messages[msgIndex];
 
-        // Send feedback to server
+        // Send feedback to local_proxy via tunnel
         try {
-            await fetch('/api/chat/feedback', {
+            const feedbackUrl = state.tunnelBaseUrl ? `${state.tunnelBaseUrl}/feedback` : '/api/chat/feedback';
+            await fetch(feedbackUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session_id: state.currentSession?.timestamp || new Date().toISOString(),
                     question: state.currentSession?.question || '',
                     answer: msg?.content || '',
-                    rag_chunk_ids: msg?.ragIds || [],
-                    is_positive: isPositive,
-                    feedback_type: 'quick',
-                    server_config: state.serverConfig
+                    rating: isPositive ? 'positive' : 'negative',
+                    rag_chunks: msg?.ragIds || []
                 })
             });
+            console.log('Feedback submitted:', isPositive ? 'positive' : 'negative');
         } catch (e) {
             console.error('Failed to submit feedback:', e);
         }
@@ -1367,24 +1378,22 @@
         const lastAssistantMsg = state.messages.filter(m => m.role === 'assistant').pop();
 
         try {
-            await fetch('/api/chat/feedback', {
+            const feedbackUrl = state.tunnelBaseUrl ? `${state.tunnelBaseUrl}/feedback` : '/api/chat/feedback';
+            await fetch(feedbackUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    session_id: state.currentSession?.timestamp || new Date().toISOString(),
                     question: state.currentSession?.question || '',
                     answer: lastAssistantMsg?.content || '',
-                    rag_chunk_ids: lastAssistantMsg?.ragIds || [],
-                    is_positive: false,
-                    feedback_type: 'detailed',
-                    feedback_text: text,
-                    suggested_answer: suggestion,
-                    server_config: state.serverConfig
+                    rating: 'negative',
+                    comment: `${text}${suggestion ? '\n\nSuggested answer: ' + suggestion : ''}`,
+                    rag_chunks: lastAssistantMsg?.ragIds || []
                 })
             });
 
             document.getElementById('tryll-feedback-modal').classList.remove('open');
             alert('Thank you for your feedback!');
+            console.log('Detailed feedback submitted');
         } catch (e) {
             console.error('Failed to submit feedback:', e);
             alert('Failed to submit feedback. Please try again.');

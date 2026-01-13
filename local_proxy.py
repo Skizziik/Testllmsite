@@ -11,13 +11,19 @@ Usage:
 2. Run: python local_proxy.py
 3. Run: cloudflared tunnel --url http://localhost:8765
 4. Copy the URL and set it in Render environment variables
+
+Logs are saved to: C:/Users/utente/Desktop/TryllEngine/testllmsite/reports_playes/
 """
 
 import asyncio
 import json
 import struct
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import uvicorn
 
 app = FastAPI(title="TryllServer Local Proxy")
@@ -35,11 +41,159 @@ TRYLL_SERVER_HOST = "localhost"
 TRYLL_SERVER_PORT = 1234
 MESSAGE_SIZE_BYTES = 8  # uint64
 
+# Logging configuration
+LOG_DIR = Path("C:/Users/utente/Desktop/TryllEngine/testllmsite/reports_playes")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+INTERACTIONS_FILE = LOG_DIR / "interactions.json"
+FEEDBACK_FILE = LOG_DIR / "feedback.json"
+
+# Current session tracking
+current_session = {
+    "session_id": None,
+    "started_at": None,
+    "messages": []
+}
+
+
+def load_json_file(filepath: Path) -> list:
+    """Load JSON array from file, return empty list if not exists."""
+    if filepath.exists():
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    return []
+
+
+def save_json_file(filepath: Path, data: list):
+    """Save JSON array to file."""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def log_interaction(direction: str, message_type: str, content: dict):
+    """Log an interaction (question/answer/rag)."""
+    global current_session
+
+    # Start new session if needed
+    if current_session["session_id"] is None:
+        current_session = {
+            "session_id": datetime.now().strftime("%Y%m%d_%H%M%S"),
+            "started_at": datetime.now().isoformat(),
+            "messages": []
+        }
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "direction": direction,  # "client_to_server" or "server_to_client"
+        "type": message_type,
+        "content": content
+    }
+    current_session["messages"].append(entry)
+
+    # Save to file
+    interactions = load_json_file(INTERACTIONS_FILE)
+
+    # Find or create session in interactions
+    session_found = False
+    for i, sess in enumerate(interactions):
+        if sess.get("session_id") == current_session["session_id"]:
+            interactions[i] = current_session
+            session_found = True
+            break
+
+    if not session_found:
+        interactions.append(current_session)
+
+    save_json_file(INTERACTIONS_FILE, interactions)
+
+
+class FeedbackRequest(BaseModel):
+    session_id: Optional[str] = None
+    message_index: Optional[int] = None
+    question: str
+    answer: str
+    rating: str  # "positive" or "negative"
+    comment: Optional[str] = None
+    rag_chunks: Optional[list] = None
+
+
+TRYLL_CONFIG_PATH = Path("C:/Users/utente/AppData/Local/Tryll/server/config.json")
+
 
 @app.get("/health")
 async def health():
     """Health check endpoint."""
     return {"status": "ok", "tryll_server": f"{TRYLL_SERVER_HOST}:{TRYLL_SERVER_PORT}"}
+
+
+@app.get("/config")
+async def get_config():
+    """Get TryllServer configuration from local config file."""
+    if TRYLL_CONFIG_PATH.exists():
+        try:
+            with open(TRYLL_CONFIG_PATH, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                return config
+        except Exception as e:
+            return {"error": str(e)}
+    return {"error": "Config file not found"}
+
+
+@app.post("/feedback")
+async def submit_feedback(feedback: FeedbackRequest):
+    """Save user feedback locally."""
+    feedback_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "session_id": feedback.session_id or current_session.get("session_id"),
+        "question": feedback.question,
+        "answer": feedback.answer,
+        "rating": feedback.rating,
+        "comment": feedback.comment,
+        "rag_chunks": feedback.rag_chunks
+    }
+
+    feedbacks = load_json_file(FEEDBACK_FILE)
+    feedbacks.append(feedback_entry)
+    save_json_file(FEEDBACK_FILE, feedbacks)
+
+    print(f"Feedback saved: {feedback.rating} - {feedback.question[:50]}...")
+    return {"status": "ok", "message": "Feedback saved locally"}
+
+
+@app.get("/logs/interactions")
+async def get_interactions():
+    """Get all logged interactions."""
+    return load_json_file(INTERACTIONS_FILE)
+
+
+@app.get("/logs/feedback")
+async def get_feedback():
+    """Get all feedback."""
+    return load_json_file(FEEDBACK_FILE)
+
+
+@app.get("/logs/stats")
+async def get_stats():
+    """Get statistics about interactions and feedback."""
+    interactions = load_json_file(INTERACTIONS_FILE)
+    feedbacks = load_json_file(FEEDBACK_FILE)
+
+    total_sessions = len(interactions)
+    total_messages = sum(len(s.get("messages", [])) for s in interactions)
+    total_feedback = len(feedbacks)
+    positive_feedback = len([f for f in feedbacks if f.get("rating") == "positive"])
+    negative_feedback = len([f for f in feedbacks if f.get("rating") == "negative"])
+
+    return {
+        "total_sessions": total_sessions,
+        "total_messages": total_messages,
+        "total_feedback": total_feedback,
+        "positive_feedback": positive_feedback,
+        "negative_feedback": negative_feedback,
+        "log_dir": str(LOG_DIR)
+    }
 
 
 @app.websocket("/ws")
@@ -82,6 +236,22 @@ async def websocket_proxy(websocket: WebSocket):
                         message = message[:-1]
 
                     print(f"Forwarding to client: {message[:200]}...")
+
+                    # Log server response
+                    try:
+                        msg_json = json.loads(message)
+                        if "agent" in msg_json:
+                            agent_data = msg_json["agent"]
+                            # Log complete response (state 5 = STREAMING_END)
+                            if agent_data.get("state") == 5 and agent_data.get("response"):
+                                log_interaction("server_to_client", "llm_response", {
+                                    "response": agent_data.get("response"),
+                                    "rag_ids": agent_data.get("rag_ids", []),
+                                    "rag_scores": agent_data.get("rag_scores", [])
+                                })
+                    except:
+                        pass
+
                     await websocket.send_text(message)
 
             except asyncio.IncompleteReadError:
@@ -95,6 +265,18 @@ async def websocket_proxy(websocket: WebSocket):
                 while True:
                     data = await websocket.receive_text()
                     print(f"Received from client: {data[:100]}...")
+
+                    # Log user question
+                    try:
+                        msg_json = json.loads(data)
+                        if "agent_message" in msg_json:
+                            agent_msg = msg_json["agent_message"]
+                            if agent_msg.get("message"):
+                                log_interaction("client_to_server", "user_question", {
+                                    "question": agent_msg.get("message")
+                                })
+                    except:
+                        pass
 
                     # Encode with size prefix (TryllServer protocol)
                     message_bytes = (data + ",").encode('utf-8')
