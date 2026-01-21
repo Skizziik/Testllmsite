@@ -45,6 +45,7 @@ def parse_html_report(filepath: Path) -> dict:
             'id': filepath.stem,
             'filename': filename,
             'model': 'Unknown',
+            'game': 'Minecraft',  # Default to Minecraft for old reports
             'date': '',
             'time': '',
             'score_percent': 0,
@@ -71,6 +72,11 @@ def parse_html_report(filepath: Path) -> dict:
             match = re.search(r'Model:\s*(.+?)(?:\||$)', text)
             if match:
                 report_data['model'] = match.group(1).strip()
+
+            # Extract game name (new format: ... | Game: Stardew Valley)
+            match = re.search(r'Game:\s*(.+?)(?:\||$)', text)
+            if match:
+                report_data['game'] = match.group(1).strip()
 
         # Try to get model from filename if not found in subtitle
         if report_data['model'] == 'Unknown':
@@ -165,6 +171,7 @@ def parse_html_report(filepath: Path) -> dict:
             'id': filepath.stem,
             'filename': filepath.name,
             'model': 'Parse Error',
+            'game': 'Unknown',
             'date': '',
             'time': '',
             'score_percent': 0,
@@ -227,12 +234,13 @@ def _build_caches():
     global _filters_cache, _reports_metadata_cache
 
     if not REPORTS_DIR.exists():
-        _filters_cache = {"models": [], "chunks": []}
+        _filters_cache = {"models": [], "chunks": [], "games": []}
         _reports_metadata_cache = []
         return
 
     models = set()
     chunks = set()
+    games = set()
     reports_metadata = []
 
     all_files = sorted(REPORTS_DIR.glob("*.html"), key=parse_report_date_from_filename, reverse=True)
@@ -248,10 +256,13 @@ def _build_caches():
             models.add(report_data['model'])
         if report_data.get('server_config', {}).get('rag_chunks_number'):
             chunks.add(report_data['server_config']['rag_chunks_number'])
+        if report_data.get('game'):
+            games.add(report_data['game'])
 
     _filters_cache = {
         "models": sorted(list(models)),
-        "chunks": sorted(list(chunks))
+        "chunks": sorted(list(chunks)),
+        "games": sorted(list(games))
     }
     _reports_metadata_cache = reports_metadata
 
@@ -291,7 +302,8 @@ async def get_reports(
     limit: int = 25,
     model: Optional[str] = None,
     chunks: Optional[int] = None,
-    min_score: Optional[float] = None
+    min_score: Optional[float] = None,
+    game: Optional[str] = None
 ):
     """Get list of reports with pagination and server-side filtering."""
     all_reports = _get_reports_cache()
@@ -307,6 +319,9 @@ async def get_reports(
 
     if min_score is not None:
         filtered = [r for r in filtered if (r.get('score_percent') or 0) >= min_score]
+
+    if game:
+        filtered = [r for r in filtered if r.get('game') == game]
 
     total = len(filtered)
 
