@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-01-27 13:38 | Questions: 5 | Model: Llama 3.1 8B Instruct (Q4_K_M) | Game: Stardew Valley</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.1 8B Instruct (Q4_K_M)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Stardew Valley.<br>Your task is to answer the player's question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Stardew Valley is a farming simulation RPG by ConcernedApe.<br>Players inherit a run-down farm and build it into a thriving homestead in Pelican Town.<br>The game features farming, animal husbandry, mining, fishing, foraging,<br>building relationships with villagers, and restoring the Community Center.<br>Seasons cycle every 28 days (Spring, Summer, Fall, Winter).<br>Core mechanics include crop growth, tool upgrades, gift-giving for friendship,<br>skill progression, crafting, cooking, bundles, and unlocking new areas<br>like Skull Cavern and Ginger Island.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br>Dangerous Content:<br>Never provide real-world instructions for creating weapons, poisons, or harmful substances.<br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br>Mod Content:<br>Only answer questions about vanilla Stardew Valley and official 1.6 content, not mods.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Stardew Valley, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>- Use game terms naturally (heart, gold star, regrowth, bundle, etc.).<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br>Example 1 — Relevant article retrieved<br>Context: Ancient Fruit takes 28 days to grow initially, then regrows every 7 days. Grows in spring, summer, and fall. Sells for 550g base price.<br>Question: How long does ancient fruit take to grow?<br>Assistant: Ancient fruit takes 28 days initial growth, then regrows every 7 days. Grows spring/summer/fall. Sells for 550g base.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Abigail loves Amethyst, Pumpkin, and Chocolate Cake. She can be found near the mountain lake on rainy days.<br>Question: What gifts does Sebastian like?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: Where do I catch a sturgeon?<br>Assistant: I don't have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Stardew Valley<br>Context:<br>Question: How do I infect Greenland in Plague Inc?<br>Assistant: I can only help with questions related to Stardew Valley.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I hack the game to get unlimited money?<br>Assistant: I can't help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdfgh 12345???<br>Assistant: I don't understand the question. Please ask something related to Stardew Valley.<br><br><br>Use the following context to answer the player question.<br>It contains retrieved information from Stardew Valley-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.1,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #f59e0b">193/250</div>
+                <div class="subtext">77.2% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #f59e0b">38.6</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">71.1%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #ef4444">40.0%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">100.0%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">70.0%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">How much does the Joja Chair cost in the Joja Furniture Catalogue?</div>
+                                <div class="reference-text">Ref: The Joja Chair is available from the Joja Furniture Catalogue for 0 gold.</div>
+                            </td>
+                            <td class="answer-cell">I do not have enough information in the provided context to answer this question.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 0%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect as it claims insufficient information, despite the cost being inferable from the provided chunks. It fails to address the question completely.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Neither chunk contains information about the Joja Chair. Both chunks (Joja Cushion and Gray Joja Cushion) provide details about cushions, not the chair, which is the subject of the question. Thus, they are completely irrelevant to answering the question correctly and could lead to an incorrect or misleading answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - I do not have enough information in the provided context to answer this question.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer is factually inaccurate. While the exact 'Joja Chair' is not listed in the chunks, the pattern (all Joja furniture items cost 0 gold) strongly implies the chair would also cost 0 gold. The AI ignored this contextual clue.&quot;, 'completeness': 'The answer is incomplete. It does not provide the cost of the Joja Chair, which is the core of the question.', 'hallucinations': &quot;No hallucinations are present, but the AI's refusal to answer is unjustified given the context.&quot;, 'relevance': 'The answer is technically relevant (it addresses the question) but does so poorly by not leveraging the available information.', 'use_of_chunks': 'The AI did not use the chunks effectively. The chunks show a clear pattern (all Joja furniture costs 0 gold), which could have been applied to infer the answer.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How can I get a replacement for my lost Coffee Maker in the game?</div>
+                                <div class="reference-text">Ref: If the original Coffee Maker is lost, a replacement can be purchased at the Lost Items Shop in the Secret Woods.</div>
+                            </td>
+                            <td class="answer-cell">You can purchase a replacement for your lost Coffee Maker at the Lost Items Shop in the Secret Woods.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant, but it omits the minor detail of the cost for the replacement Coffee Maker, which is present in the chunks but not required for correctness.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: coffee_maker)**: Score 3 - Highly relevant. This chunk directly answers the question by stating that a replacement for the lost Coffee Maker can be purchased at the Lost Items Shop in the Secret Woods, which matches the Reference Answer exactly.<br>    - **Chunk 2 (ID: soda_machine)**: Score 0 - Completely irrelevant. This chunk discusses the Soda Machine, which is unrelated to the Coffee Maker or its replacement process. It does not help answer the question and could mislead the user.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can purchase a replacement for your lost Coffee Maker at the Lost Items Shop in the Secret Woods.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer matches the REFERENCE ANSWER and the relevant CHUNK 1 exactly in terms of the location (Lost Items Shop in the Secret Woods) for obtaining a replacement Coffee Maker. No factual errors are present.', 'completeness': &quot;The AI answer fully addresses the core question (how to get a replacement) but omits the trailing 'for ' in CHUNK 1, which suggests the cost might be mentioned later in the source. However, the cost is not specified in the provided chunks, so this omission does not impact correctness.&quot;, 'hallucinations': 'No hallucinations are present. The AI answer strictly adheres to the information in the chunks and reference.', 'relevance': 'The answer is entirely relevant to the question and stays on topic.', 'chunk_usage': 'The AI correctly uses CHUNK 1, which is the relevant context, and ignores the irrelevant CHUNK 2 (Soda Machine). No unsupported information is added.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">How can I get a Bream in Stardew Valley if I don't want to wait until after 6pm to catch one?</div>
+                                <div class="reference-text">Ref: You can catch a Bream regardless of the time of day by using Magic Bait. Alternatively, you can obtain a Bream by having a pet cat with max friendship gift it to you, finding it randomly in Garbage Cans during any season, or purchasing it from the Traveling Cart.</div>
+                            </td>
+                            <td class="answer-cell">You can gift a Bream by having a pet cat with max friendship.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate but incomplete, missing several alternative methods to obtain a Bream without waiting until after 6pm.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: bream)**: Highly relevant (score: 3). It directly answers the question by mentioning that a Bream can be caught regardless of the time of day using Magic Bait, and it also includes other methods mentioned in the Reference Answer (pet cat gift, Garbage Cans, Traveling Cart).<br>    - **Chunk 2 (ID: night_market_1)**: Completely irrelevant (score: 0). It discusses the Night Market festival, which has no connection to catching a Bream or the methods to obtain one outside of the 6pm time constraint.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can gift a Bream by having a pet cat with max friendship.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': 'The AI answer is factually correct. The reference and chunks confirm that a pet cat with max friendship can gift a Bream.', 'completeness': 'The AI answer is incomplete. It only mentions one method (pet cat with max friendship) but omits other methods such as using Magic Bait, finding it in Garbage Cans, or purchasing it from the Traveling Cart, all of which are mentioned in the reference and chunks.', 'hallucinations': 'No hallucinations detected. The AI answer is supported by the provided chunks and reference.', 'relevance': &quot;The answer is relevant to the question but does not fully address the user's request for alternatives to waiting until after 6pm.&quot;, 'use_of_chunks': 'The AI used the chunks partially but failed to include all relevant information from them, particularly the Magic Bait and other methods.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I unlock the recipe for the Farm Computer in Stardew Valley?</div>
+                                <div class="reference-text">Ref: You unlock the recipe for the Farm Computer by completing either the 'Biome Balance' or 'Aquatic Overpopulation' special orders for Demetrius.</div>
+                            </td>
+                            <td class="answer-cell">To unlock the recipe for the Farm Computer in Stardew Valley, you need to complete either the &quot;Biome Balance&quot; or &quot;Aquatic Overpopulation&quot; special orders for Demetrius.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate, complete, and directly aligns with the reference and retrieved chunks without any hallucinations or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: farm_computer)**: Score 3 - Highly relevant. This chunk directly answers the question by stating that the recipe for the Farm Computer is unlocked by completing either the 'Biome Balance' or 'Aquatic Overpopulation' special orders for Demetrius. It contains all the information mentioned in the Reference Answer and is exactly what is needed to answer the question correctly.<br>    - **Chunk 2 (ID: cooking)**: Score 0 - Completely irrelevant. This chunk discusses the cooking mechanic in Stardew Valley, which has no relation to the Farm Computer or how to unlock its recipe. It does not help answer the question and could mislead or confuse the user.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To unlock the recipe for the Farm Computer in Stardew Valley, you need to complete either the 'Biome Balance' or 'Aquatic Overpopulation' special orders for Demetrius.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            {'factual_accuracy': &quot;The AI answer matches the REFERENCE ANSWER and CHUNK 1 exactly, stating that the Farm Computer recipe is unlocked by completing either the 'Biome Balance' or 'Aquatic Overpopulation' special orders for Demetrius.&quot;, 'completeness': 'The answer fully addresses the question, covering all necessary details (the two special orders and the NPC involved). No additional context is required for the question asked.', 'hallucinations': 'There are no hallucinations; the AI does not invent or add unsupported information beyond what is provided in the chunks or reference.', 'relevance': 'The answer stays strictly on topic, focusing solely on how to unlock the Farm Computer recipe without deviating into unrelated details (e.g., functionality or other mechanics).', 'chunk_usage': 'The AI correctly uses CHUNK 1, which is the only relevant chunk for this question. CHUNK 2 (about cooking) is unrelated and appropriately ignored.'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I get the Retro Flower decorative item in the game?</div>
+                                <div class="reference-text">Ref: The Retro Flower is a decorative houseplant furniture item available from the Retro Catalogue.</div>
+                            </td>
+                            <td class="answer-cell">The Retro Flower is a decorative houseplant furniture item available from the Retro Catalogue.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            Perfect answer - exact match with the reference and retrieved chunks, no errors or omissions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            <br>    - **Chunk 1 (ID: retro_flower)**: Score 3 - Highly relevant. This chunk directly answers the question by stating that the Retro Flower is a decorative houseplant furniture item available from the Retro Catalogue, which matches the Reference Answer exactly.<br>    - **Chunk 2 (ID: wall_flower)**: Score 0 - Completely irrelevant. This chunk discusses the Wall Flower, a different item unrelated to the Retro Flower. It does not help answer the question and could mislead the user.<br>  
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The Retro Flower is a decorative houseplant furniture item: SUPPORTED<br>  - available from the Retro Catalogue: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            <br>    1. **Factual accuracy**: The AI answer is identical to the REFERENCE ANSWER and [CHUNK 1], confirming perfect factual accuracy.<br>    2. **Completeness**: The answer fully addresses the question, including the item's name, type (decorative houseplant furniture), and source (Retro Catalogue).<br>    3. **Hallucinations**: No invented information is present; all details are supported by the reference and chunks.<br>    4. **Relevance**: The answer stays strictly on topic and directly responds to the question.<br>    5. **Chunk usage**: The AI correctly used [CHUNK 1] and did not incorporate unsupported information from [CHUNK 2] or elsewhere.<br>  
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5"],
+                datasets: [{
+                    label: 'Score',
+                    data: [20, 48, 25, 50, 50],
+                    backgroundColor: [20, 48, 25, 50, 50].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [20, 48, 25, 50, 50].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [40.0, 100.0, 73.3, 70.0],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [0.0, 50.0, 50.0, 50.0, 50.0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 100.0, 100.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [33.3, 100.0, 33.3, 100.0, 100.0],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [0.0, 100.0, 50.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
