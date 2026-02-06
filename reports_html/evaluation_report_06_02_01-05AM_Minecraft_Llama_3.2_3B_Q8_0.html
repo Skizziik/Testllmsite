@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-02-06 01:05 | Questions: 20 | Model: Minecraft Llama 3.2 3B (Q8_0) | Game: Minecraft</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Minecraft Llama 3.2 3B (Q8_0)</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.2&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.1,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #10b981">802/1000</div>
+                <div class="subtext">80.2% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #10b981">40.1</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #f59e0b">73.8%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #f59e0b">74.2%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #10b981">83.8%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #f59e0b">78.3%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is Curse of Vanishing and how can I get it?</div>
+                                <div class="reference-text">Ref: Curse of Vanishing is a treasure enchantment that causes the item to disappear when the player dies. It can be obtained from fishing, raid drops, and trading with a librarian of any level. It also generates in loot chests of desert pyramids, strongholds, ocean ruins, woodland mansions, pillager outposts, and ancient cities.</div>
+                            </td>
+                            <td class="answer-cell">Curse of Vanishing is a treasure enchantment that prevents an item from dropping when its owner dies. You can obtain it through fishing, raid drops, trading with a librarian, or by finding it in loot chests within specific structures.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI accurately describes Curse of Vanishing and provides multiple valid ways to obtain it, aligning perfectly with the reference and provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines Curse of Vanishing and explains how to obtain it, aligning perfectly with the reference answer. Chunk 2 is irrelevant because it describes Curse of Binding, not Curse of Vanishing, and therefore does not contribute to answering the question correctly.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Curse of Vanishing is a treasure enchantment.: SUPPORTED<br>  - Curse of Vanishing prevents an item from dropping when its owner dies.: SUPPORTED<br>  - You can obtain it through fishing.: SUPPORTED<br>  - You can obtain it through raid drops.: SUPPORTED<br>  - You can obtain it through trading with a librarian.: SUPPORTED<br>  - You can obtain it by finding it in loot chests within specific structures.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI correctly states that Curse of Vanishing is a treasure enchantment that prevents an item from dropping when its owner dies. This is accurate based on both the REFERENCE ANSWER and CHUNK 1. The methods of obtaining it (fishing, raid drops, trading with a librarian, loot chests in specific structures) are also accurately listed and supported by CHUNK 1.<br>2. **Completeness:** The AI addresses both parts of the question: 'What is Curse of Vanishing' and 'how can I get it?'. It provides a good overview of what the enchantment does and lists several common ways to acquire it.<br>3. **Hallucinations:** There are no hallucinations present. All information provided by the AI is supported by the provided context.<br>4. **Relevance:** The AI stays perfectly on topic, answering only about Curse of Vanishing.<br>5. **Chunk Usage:** The AI correctly utilized the information from CHUNK 1 to answer the question.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can beacons be pushed by pistons?</div>
+                                <div class="reference-text">Ref: No, beacons cannot be pushed nor pulled by pistons or sticky pistons. Beacons melt snow and ice like other light sources, and produce light even when they don't emit a beam. A fully powered beacon can fit within the upper level of a desert pyramid with the beam placed in the hole at the top.</div>
+                            </td>
+                            <td class="answer-cell">No, beacons cannot be pushed by pistons.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and directly addresses the question using information from the provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly states that beacons cannot be pushed or pulled by pistons and provides additional details also present in the reference answer. Chunk 2 is irrelevant as it discusses detector rails, not beacons.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Beacons cannot be pushed by pistons.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer 'No, beacons cannot be pushed by pistons' is factually correct. CHUNK 1 explicitly states, 'Beacons cannot be pushed nor pulled by pistons or sticky pistons.' This matches the REFERENCE ANSWER as well.<br>2. Completeness: The AI answer directly and completely answers the question asked.<br>3. Hallucinations: No hallucinations are present. The answer is solely derived from the provided context.<br>4. Relevance: The answer is highly relevant to the question.<br>5. Chunk Usage: The AI correctly utilized CHUNK 1 to formulate its answer.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do mossy stone brick slabs generate naturally?</div>
+                                <div class="reference-text">Ref: Mossy stone brick slabs generate as part of ruined portals in the Overworld. They can be mined using any pickaxe. If mined without a pickaxe, they drop nothing. Mossy stone brick slabs can also be placed under note blocks to produce a bass drum sound.</div>
+                            </td>
+                            <td class="answer-cell">Mossy stone brick slabs generate naturally as part of ruined portals in the Overworld.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI correctly identified the generation location of mossy stone brick slabs, but missed some additional details present in the reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers where mossy stone brick slabs generate naturally (ruined portals in the Overworld) and mentions how they can be mined and their use with note blocks, all of which are present in the reference answer. Chunk 2 is relevant because it mentions mossy stone bricks generating in ruined portals, which is related to mossy stone brick slabs, but it doesn't specifically address the slab variant's generation. It also discusses other generation locations for the block form, which is less direct to the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Mossy stone brick slabs generate naturally as part of ruined portals in the Overworld.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy**: The AI's answer 'Mossy stone brick slabs generate naturally as part of ruined portals in the Overworld' is factually accurate and directly supported by CHUNK 1 and CHUNK 2, as well as the REFERENCE ANSWER.<br>2. **Completeness**: The AI's answer is not fully complete. The REFERENCE ANSWER also mentions how they can be mined (using any pickaxe, dropping nothing without one) and their use under note blocks. While the question specifically asked *where* they generate, a more complete answer might include these related details if they were deemed relevant by the system's interpretation of completeness.<br>3. **Hallucinations**: The AI did not hallucinate any information. All provided information is present in the provided chunks and reference.<br>4. **Relevance**: The AI's answer is highly relevant to the question asked.<br>5. **Chunk Usage**: The AI correctly used the provided chunks, specifically CHUNK 1 and CHUNK 2, to extract the generation location.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">What causes a lead to break?</div>
+                                <div class="reference-text">Ref: A lead breaks if the mob is moving quickly away from the player. It also breaks if the player uses a firework rocket while using elytra. When the player or the knot is more than 7 blocks above the ground, the mob being leashed becomes suspended. Most mobs that can be leashed can still be leashed even if they are attacking the player.</div>
+                            </td>
+                            <td class="answer-cell">Leads break if the mob attached to them despawns, is separated from its boat or minecart, or if a player uses shears on the lead while it's attached to a mob.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses several key reasons for a lead breaking, as stated in the reference answer and provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 directly answers multiple parts of the question regarding when a lead breaks, aligning perfectly with the reference answer. Chunk 2 provides some related information about leads breaking in specific contexts (trader llamas, separation), which is partially relevant but not as comprehensive as Chunk 1.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Leads break if the mob attached to them despawns: UNSUPPORTED<br>  - Leads break if the mob is separated from its boat or minecart: SUPPORTED<br>  - Leads break if a player uses shears on the lead while it's attached to a mob: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1.  **Factual Accuracy:** The AI states that leads break if the mob despawns, is separated from its boat/minecart, or if shears are used. Chunk 1 states that leads break if the mob is moving quickly away from the player, if the player uses a firework rocket with elytra, or if a chunk unloads. Chunk 2 states leads break if the trader or llama dies, if they are separated, or if the player uses shears. The AI's inclusion of 'mob despawns' is not directly stated as a cause for lead breaking in the provided text. The 'separated from boat or minecart' is partially true, as Chunk 2 mentions separation from boats/minecarts causes leads to break.<br>2.  **Completeness:** The AI answer is incomplete. It misses several significant reasons for a lead breaking, such as the mob moving quickly away from the player, the player using a firework rocket with elytra, and chunk unloading. The reference answer also highlights the mob being suspended more than 7 blocks above ground, though this isn't explicitly stated as breaking the lead, but rather suspending the mob.<br>3.  **Hallucinations:** The AI does not invent information not present in the text. However, it omits information and doesn't explicitly state 'mob despawns' as a cause for lead breaking, which is not directly supported by the text as a primary cause for breaking.<br>4.  **Relevance:** The answer is relevant to the question asked.<br>5.  **Chunk Usage:** The AI correctly identified some reasons from the chunks (shears, separation from boats/minecarts) but failed to include other crucial details from both the reference and chunks. The statement about 'mob despawns' is not directly supported by the provided text as a cause for the lead breaking, although a lead can be dropped if a chunk unloads and the mob is left behind.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">What does Instant Health do to undead mobs?</div>
+                                <div class="reference-text">Ref: Instant Health is a status effect that heals players and living mobs. However, undead mobs including the wither are damaged instead, as if with Instant Damage. When applied using a lingering potion, the entity is healed every second. Levels 30-32 provide extreme healing amounts.</div>
+                            </td>
+                            <td class="answer-cell">Instant Health increases health for players and living mobs, damaging the undead.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and uses the provided chunks correctly, but it's slightly incomplete as it doesn't explicitly mention that undead mobs are *damaged instead* as if with Instant Damage.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant because they directly state that Instant Health damages undead mobs. Chunk 2 further specifies that undead mobs (including the wither) are damaged as if with Instant Damage, which aligns perfectly with the reference answer. Chunk 1 provides context about undead mobs and their properties, reinforcing the damage aspect mentioned in Chunk 2.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Instant Health increases health for players and living mobs: SUPPORTED<br>  - Instant Health damages the undead: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI answer correctly states that Instant Health increases health for players and living mobs and damages the undead. This is supported by both the REFERENCE ANSWER and CHUNK 2. CHUNK 1 also states undead mobs are damaged by Instant Health.<br>2. **Completeness:** The AI answer is mostly complete, but it omits the detail that undead mobs are damaged *as if with Instant Damage*. The REFERENCE ANSWER and CHUNK 2 both include this specific clarification.<br>3. **Hallucinations:** No hallucinations are present. The AI only uses information from the provided context.<br>4. **Relevance:** The answer is highly relevant to the question.<br>5. **Chunk Usage:** The AI correctly uses CHUNK 2, which directly addresses the effects of Instant Health. It also implicitly aligns with CHUNK 1's statement about undead mobs being damaged by Instant Health.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a furnace golem in Minecraft?</div>
+                                <div class="reference-text">Ref: A furnace golem was an iron golem variant with a blast furnace as its body. When a furnace golem saw any hostile mob, its face and eyes ignited before attacking, which had a chance of setting the hostile mob on fire. A furnace golem didn't stop attacking until the hostile mob was killed.</div>
+                            </td>
+                            <td class="answer-cell">A furnace golem was an iron golem variant with a blast furnace as its body.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate but incomplete, missing key details about its behavior and interactions.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly describes what a furnace golem is, its appearance, behavior, and attack mechanics, aligning perfectly with the reference answer. Chunk 2 describes a regular furnace block and is irrelevant to the question about a furnace golem.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A furnace golem was an iron golem variant with a blast furnace as its body.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer is factually accurate, stating that a furnace golem is an iron golem variant with a blast furnace as its body. This is supported by CHUNK 1 and the REFERENCE ANSWER.<br>2. Completeness: The answer is incomplete. The REFERENCE ANSWER and CHUNK 1 provide significant additional details about the furnace golem's behavior (igniting face/eyes, chance of setting mobs on fire, relentless attacking until target is killed, lighting surroundings on fire, handing out torches, neutral when spawned but attacks if provoked) and what happens when it's killed (eyes/face revert to gray, dropped items).<br>3. Hallucinations: There are no hallucinations in the AI answer.<br>4. Relevance: The answer is relevant to the question.<br>5. Chunk Usage: The AI correctly used CHUNK 1 to extract the core definition. However, it failed to incorporate other relevant details from the same chunk that would have made the answer more complete.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are copper torches used for?</div>
+                                <div class="reference-text">Ref: A copper torch is a non-solid block that emits light. Copper torches can also be used to craft copper lanterns. They can be broken instantly using anything and drop themselves as an item. A copper torch is removed if its attachment block is moved, removed, or destroyed, or if water or lava flows into its space.</div>
+                            </td>
+                            <td class="answer-cell">Copper torches are primarily used as light sources.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate but incomplete, missing key details about the crafting and environmental effects of copper torches.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers the question about what copper torches are used for, mirroring the reference answer. Chunk 2 is less relevant; while it mentions copper lanterns, which are related to copper torches through crafting, it doesn't directly explain the uses of copper torches themselves.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Copper torches are primarily used as light sources.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The AI correctly identifies that copper torches are used as light sources, which is supported by CHUNK 1 stating, 'A copper torch is a non-solid block that emits light.'<br>Completeness: The answer is incomplete. The REFERENCE ANSWER and CHUNK 1 provide additional uses and properties, such as being craftable into copper lanterns, breaking instantly, and their environmental effects (melting snow and ice). The AI's answer only addresses the primary function of emitting light.<br>Hallucinations: No hallucinations are present.<br>Relevance: The answer is relevant to the question.<br>Chunk Usage: The AI only utilized the lighting aspect mentioned in the chunks, neglecting other crucial details.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I get cocoa beans?</div>
+                                <div class="reference-text">Ref: Cocoa beans are items obtained from cocoa pods and are used to plant more of them, as well as to craft brown dye and cookies. Cocoa pods are plant blocks that can only be placed on jungle log sides and grow cocoa beans. They can be found naturally in jungles.</div>
+                            </td>
+                            <td class="answer-cell">Cocoa beans are dropped by fully grown cocoa pods. These pods can be obtained by planting cocoa beans on jungle logs or wood.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate and uses information from the provided chunks. It could be slightly more complete by mentioning natural generation.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers how to obtain cocoa beans, mentioning cocoa pods, jungles, bonus chests, fishing, and trading, which aligns with the reference answer. Chunk 2 is less relevant as it discusses bamboo jungles but explicitly states that cocoa beans cannot be found there, contradicting the core of the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Cocoa beans are dropped by fully grown cocoa pods.: SUPPORTED<br>  - These pods can be obtained by planting cocoa beans on jungle logs or wood.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            The AI answer correctly states that cocoa beans are dropped by fully grown cocoa pods and that these pods can be obtained by planting cocoa beans on jungle logs or wood. This is supported by CHUNK 1. However, the REFERENCE ANSWER and CHUNK 1 also mention that cocoa pods can be found naturally in jungles, which is a direct way to obtain cocoa beans. The AI's answer implies that planting is the *only* way to obtain the pods, which is not entirely accurate based on the provided context.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I find the Spire armor trim?</div>
+                                <div class="reference-text">Ref: Spire armor trim is a type of smithing template used in smithing tables to add a trim to armor. It is consumed when used, but can be duplicated using an existing template, a purpur block, and diamonds. This item is found in End cities.</div>
+                            </td>
+                            <td class="answer-cell">You can find the Spire armor trim in End cities.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate, complete, and directly addresses the question using information from the provided chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers the question by stating that Spire armor trim is found in End cities. Chunk 2 is irrelevant as it discusses the Snout armor trim, not the Spire armor trim.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find the Spire armor trim in End cities.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer states that the Spire armor trim is found in End cities. This is directly supported by CHUNK 1, which says &quot;This item is found in End cities.&quot;, and also aligns with the REFERENCE ANSWER.<br>2. Completeness: The question asks &quot;Where can I find the Spire armor trim?&quot;. The AI answer directly provides this location. While the reference answer provides more context about what the trim is used for, the question specifically asks for its location, which the AI has fully answered.<br>3. Hallucinations: The AI answer does not introduce any information not present in the provided chunks or reference.<br>4. Relevance: The answer is entirely relevant to the question asked.<br>5. Chunk Usage: The AI correctly utilized CHUNK 1 to extract the location of the Spire armor trim.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">What plants can I find in jungle biomes?</div>
+                                <div class="reference-text">Ref: In jungle biomes, ferns and large ferns are found commonly, and vines grow on most types of blocks, especially jungle trees. Cocoa can grow on the sides of jungle trees. Melons generate in patches similar to pumpkins but are much more common. Single shoots of bamboo can be found scattered throughout the biome.</div>
+                            </td>
+                            <td class="answer-cell">You can find ferns, vines, jungle logs, jungle leaves, cocoa pods, oak logs, and oak leaves in jungle biomes.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 43%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is partially correct but misses key plants mentioned in the reference and chunks, and includes some items that are not strictly plants.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks contain direct information about plants found in jungle biomes, matching the reference answer. Chunk 1 mentions ferns, large ferns, vines, cocoa, melons, and bamboo. Chunk 2 also mentions jungle trees, oak trees, bamboo, ferns, jungle bushes, cocoa pods, and melons. Both chunks directly contribute to answering the question accurately.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - ferns can be found in jungle biomes: SUPPORTED<br>  - vines can be found in jungle biomes: SUPPORTED<br>  - jungle logs can be found in jungle biomes: UNSUPPORTED<br>  - jungle leaves can be found in jungle biomes: UNSUPPORTED<br>  - cocoa pods can be found in jungle biomes: SUPPORTED<br>  - oak logs can be found in jungle biomes: UNSUPPORTED<br>  - oak leaves can be found in jungle biomes: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The AI correctly identifies ferns and cocoa pods. However, it includes 'jungle logs', 'jungle leaves', 'oak logs', and 'oak leaves' which are structural components or blocks, not plants themselves, though they are associated with plants. The reference and chunks explicitly mention 'ferns', 'large ferns', 'vines', 'cocoa', 'melons', and 'bamboo' as plants. The AI omits vines, melons, and bamboo.<br>Completeness: The answer is not complete as it misses several key plants mentioned in the reference and chunks, such as vines, melons, and bamboo.<br>Hallucinations: No direct hallucinations, but the inclusion of 'logs' and 'leaves' as plants is questionable and not directly supported by the reference's plant list.<br>Relevance: The answer is relevant to the question about plants in jungle biomes, but its accuracy and completeness are lacking.<br>Chunk Usage: The AI correctly identified some plants from the chunks (ferns, cocoa pods) but failed to extract all relevant plant information and included non-plant items.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do bells interact with Bad Omen and raids?</div>
+                                <div class="reference-text">Ref: When a player with the Bad Omen effect enters a village with a bell, the claiming mechanisms are forced no matter the time. Claimed bells are points of interest (POIs) and determine the position of a village center among claimed beds and workstations.</div>
+                            </td>
+                            <td class="answer-cell">Bells are unobtainable in Peaceful difficulty via commands. They can still be rung by players and will trigger a raid if the player has Bad Omen.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">20/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies regarding Peaceful difficulty and the interaction of bells with raids under Bad Omen.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains how claimed bells function as points of interest, determine village centers, and are triggered by the Bad Omen effect, which is crucial for answering the question. Chunk 2 is relevant because it defines the Bad Omen effect and mentions its transformation into Raid Omen when entering a village, which sets the stage for the interaction with bells, but it doesn't explicitly detail the bell's role. 
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Bells are unobtainable in Peaceful difficulty via commands.: UNSUPPORTED<br>  - Bells can still be rung by players and will trigger a raid if the player has Bad Omen.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI states that bells are unobtainable in Peaceful difficulty via commands, which is incorrect. CHUNK 2 explicitly states, 'The player can still receive the Bad Omen effect in Peaceful difficulty via commands (all pillager captains despawn in Peaceful), but does not transform into Raid Omen if in a village.' This implies the *effect* can be obtained, not that bells are unobtainable. More importantly, the AI states that ringing a bell *will* trigger a raid if the player has Bad Omen. CHUNK 1 states, 'If a player rings a bell, the villagers run to their beds even if there is no raid.' CHUNK 2 states, 'If a player enters a village with Bad Omen, it transforms into Raid Omen, which triggers a raid after 30 seconds.' The act of *ringing a bell* itself does not trigger a raid; it is the *player entering the village with Bad Omen* that initiates the raid sequence. The interaction of the bell with the Bad Omen effect is that it can be claimed and act as a POI, and if a raid is occurring, ringing it applies the Glowing effect to raid mobs (CHUNK 1). The AI incorrectly links ringing the bell directly to triggering the raid when Bad Omen is present.<br>2. **Completeness:** The answer does not fully address the interaction between bells and raids beyond a false premise. It omits the claiming mechanism of bells as POIs and their role in village center determination, which are key to their interaction with village mechanics.<br>3. **Hallucinations:** The claim that bells are unobtainable in Peaceful via commands is a hallucination. The claim that ringing a bell *will trigger a raid* when the player has Bad Omen is also a misrepresentation of the mechanics, implying a direct causation that isn't present. The direct trigger for a raid is entering the village with the Bad Omen effect.<br>4. **Relevance:** The answer stays on the topic of bells, Bad Omen, and raids.<br>5. **Chunk Usage:** The AI seems to have misinterpreted or conflated information from the chunks. It incorrectly links the ringing of a bell to triggering a raid under Bad Omen, which is not supported by the text. The reference answer states that when a player with Bad Omen *enters* a village with a bell, claiming mechanisms are forced. The AI's answer is a misrepresentation of this.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I cook mutton and how much experience does it give?</div>
+                                <div class="reference-text">Ref: Raw mutton can be cooked in a furnace, smoker, or campfire. Each piece of cooked mutton removed from a furnace output slot gives 0.35 experience, which is 22.4 experience per stack. Butcher villagers may also give players with the Hero of the Village effect cooked mutton.</div>
+                            </td>
+                            <td class="answer-cell">You can cook mutton in a furnace, smoker, or campfire. Each piece of cooked mutton restores hunger and gives 0.35 experience per piece.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">43/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is mostly accurate and uses the provided chunks correctly, but it omits information about the experience gained per stack.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers both parts of the question: how to cook mutton (furnace, smoker, campfire) and the experience gained (0.35 per piece, 22.4 per stack). Chunk 2 is relevant as it discusses raw mutton, which is a precursor to cooked mutton, and indirectly relates to the 'how to cook' aspect, although it doesn't detail the cooking process itself or the experience gained from cooked mutton.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can cook mutton in a furnace, smoker, or campfire.: SUPPORTED<br>  - Each piece of cooked mutton restores hunger.: UNSUPPORTED<br>  - Each piece of cooked mutton gives 0.35 experience per piece.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual accuracy: The AI correctly states that mutton can be cooked in a furnace, smoker, or campfire, and that each piece of cooked mutton gives 0.35 experience. This information is present in CHUNK 1 and the REFERENCE ANSWER.<br>Completeness: The answer addresses both parts of the question (how to cook mutton and how much experience it gives). However, it only mentions the experience per piece and omits the experience per stack (22.4 experience per stack) which is present in CHUNK 1 and the REFERENCE ANSWER.<br>Hallucinations: There are no hallucinations. All information provided is supported by the chunks.<br>Relevance: The answer is directly relevant to the question asked.<br>Chunk Usage: The AI correctly used CHUNK 1 to answer the question about cooking methods and experience gained.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">What are ice patches and where do they spawn?</div>
+                                <div class="reference-text">Ref: Ice patches are blobs of packed ice that generate exclusively in the ice spikes biome. They are small disk-like features of packed ice that generate in the ground, in a 5 by 5 pattern with packed ice three blocks from the center in each direction. The structure is only one block in height.</div>
+                            </td>
+                            <td class="answer-cell">Ice patches are blobs of packed ice that generate exclusively in the ice spikes biome.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI's answer is factually accurate and directly addresses both parts of the question using the provided context.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines ice patches and their spawning location (ice spikes biome), matching the reference answer. Chunk 2 discusses 'ice' in general, its properties, and where it can be found, but it does not specifically define 'ice patches' or their unique spawning patterns as described in the reference answer. While it mentions ice spikes biome, it doesn't explain the specific ice patch structure.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Ice patches are blobs of packed ice.: SUPPORTED<br>  - Ice patches generate exclusively in the ice spikes biome.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            The AI's answer, 'Ice patches are blobs of packed ice that generate exclusively in the ice spikes biome,' is factually accurate. It aligns perfectly with the information presented in CHUNK 1 ('Ice patches are blobs of packed ice that generate exclusively in the ice spikes biome.') and also addresses the 'where do they spawn?' part of the question. The reference answer also states this fact. There are no hallucinations or missing information based on the provided context and reference.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I rotate items in an item frame?</div>
+                                <div class="reference-text">Ref: The displayed item in an item frame can be rotated by right-clicking the frame. If a block is placed inside the frame, it is displayed in miniature, half in and half out of the block. When the item frame is displaying an item, pressing the pick block control picks the displayed item instead of the item frame.</div>
+                            </td>
+                            <td class="answer-cell">You can rotate items in an item frame by right-clicking the frame while holding a rotation value between 0 and .</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is partially correct, but it includes unsupported information about holding a rotation value and the specific range for that value.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains how to rotate items in an item frame (right-clicking) and mentions the miniature display of blocks, pick block functionality, and redstone output related to rotation, all of which are present in the reference answer. Chunk 2 is completely irrelevant as it discusses item entities in general and their spawning/pickup mechanics, not item frames.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can rotate items in an item frame by right-clicking the frame.: SUPPORTED<br>  - You can rotate items in an item frame while holding a rotation value between 0 and .: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The statement 'You can rotate items in an item frame by right-clicking the frame' is factually accurate and supported by CHUNK 1 ('The displayed item can then be rotated by right-clicking the frame.'). However, the addition of 'while holding a rotation value between 0 and .' is not supported by the provided chunks or the reference answer. CHUNK 1 mentions a 'current angle or rotation of the item, as a multiple of 45 degrees, going clockwise. 0 means the item is upright, 1 means the item is turned 45 degrees clockwise from the upright orientation. This value can only ever be between 0 and 7,' but this describes an internal game value, not something the player 'holds' to rotate. <br>2. **Completeness:** The answer addresses how to rotate items but misses the detail about holding the item, which is implied by the 'holding a rotation value' part but not explicitly stated. The reference answer correctly implies you simply right-click the frame with the item already placed. <br>3. **Hallucinations:** The phrase 'while holding a rotation value between 0 and .' is a hallucination as it implies the player interacts with a specific 'rotation value' that they hold, which is not how the mechanic is described in the provided text. The range '0 and .' is also incomplete; the reference only states '0 to 7'. <br>4. **Relevance:** The answer is relevant to the question.<br>5. **Chunk Usage:** CHUNK 1 is used for the core mechanic of right-clicking, but the additional details about holding a rotation value are unsupported.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">What does the Weaving status effect do?</div>
+                                <div class="reference-text">Ref: Weaving is a status effect that lessens the movement speed decrease from being in a cobweb, allowing entities to walk through webs at 50% speed. Additionally, when an entity with Weaving dies, cobwebs are spawned at the location of death.</div>
+                            </td>
+                            <td class="answer-cell">Weaving reduces the speed decrease from being in a cobweb. It also causes entities to spawn cobwebs upon death, except for withers and ender dragons.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 66%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and uses information from the provided chunks, but it could be more complete by mentioning the specific speed reduction.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant as they directly address the Weaving status effect. Chunk 1 explains that it lessens the movement speed decrease in cobwebs (50% speed) and causes cobwebs to spawn upon death. Chunk 2 reiterates the 50% speed through cobwebs with the Weaving effect. Both chunks contain all the necessary information from the reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Weaving reduces the speed decrease from being in a cobweb.: SUPPORTED<br>  - It also causes entities to spawn cobwebs upon death, except for withers and ender dragons.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI correctly states that Weaving lessens the speed decrease from cobwebs and causes cobwebs to spawn upon death, excluding Withers and Ender Dragons. This aligns with both the REFERENCE and CHUNKS.<br>2. Completeness: The answer is mostly complete. It mentions the speed reduction aspect, but it doesn't specify the exact percentage (50% as stated in the reference and chunks). It also correctly notes the exceptions for cobweb spawning upon death.<br>3. Hallucinations: There are no hallucinations. The information provided is directly supported by the retrieved chunks.<br>4. Relevance: The answer is entirely relevant to the question asked.<br>5. Chunk Usage: The AI correctly uses information from CHUNK 1 and CHUNK 2 to formulate its answer.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can pistons push beds in Minecraft?</div>
+                                <div class="reference-text">Ref: Beds are destroyed when a piston tries to push them. They are not pulled by sticky pistons either.</div>
+                            </td>
+                            <td class="answer-cell">No, beds are destroyed when a piston tries to push them.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">50/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">ANS 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is perfectly accurate and directly addresses the question using information from the provided reference chunk.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 2 directly answers the question by stating that beds are destroyed when a piston tries to push them and are not pulled by sticky pistons, which matches the reference answer. Chunk 1 is about slime blocks and their interactions with pistons, which is not directly relevant to how pistons interact with beds.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - beds are destroyed when a piston tries to push them: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer 'No, beds are destroyed when a piston tries to push them' is directly supported by CHUNK 2 which states: 'Beds are destroyed when a piston tries to push them.' The reference answer also confirms this. The AI does not mention being pulled by sticky pistons, which is also in the reference answer but not strictly necessary to answer the question about pushing.<br>2. Completeness: The answer directly addresses the question of whether pistons can push beds, stating they are destroyed in the attempt. It doesn't add extraneous information.<br>3. Hallucinations: No hallucinations are present. The information is derived directly from the provided context.<br>4. Relevance: The answer is highly relevant to the question asked.<br>5. Chunk Usage: The AI accurately used information from CHUNK 2.<br><br>Overall, the answer is excellent and meets all criteria.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can I rename a spawn egg on an anvil?</div>
+                                <div class="reference-text">Ref: Yes, a spawn egg can be renamed on an anvil. When used, it spawns a mob with that name appearing over its head, similar to a mob named with a name tag. However, unlike a name tag, renaming a spawn egg does not prevent hostile mobs from despawning. The mob's name can only be seen by aiming at the mob from four or fewer blocks away.</div>
+                            </td>
+                            <td class="answer-cell">No, you cannot rename a spawn egg on an anvil. Anvils are only used to combine enchantments and apply name tags.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI incorrectly states that spawn eggs cannot be renamed on an anvil, directly contradicting the provided reference and supporting chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 2 is highly relevant as it directly states that 'A renamed spawn egg produces a mob with the same name', which is the core answer to the question. Chunk 1 is somewhat related as it describes spawn eggs but does not mention renaming them on an anvil.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You cannot rename a spawn egg on an anvil.: CONTRADICTED<br>  - Anvils are only used to combine enchantments and apply name tags.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual accuracy: The AI's answer is factually incorrect. The reference answer explicitly states 'Yes, a spawn egg can be renamed on an anvil.' Chunk 2 also states, 'A renamed spawn egg produces a mob with the same name,' implying the renaming process is possible. The AI claims the opposite. Completeness: The AI fails to answer the question accurately. Hallucinations: The AI invents information by stating anvils are only used for enchantments and name tags, which is not supported by the provided text. Relevance: The AI's answer is off-topic due to its inaccuracy. Chunk Usage: The AI did not correctly use the provided chunks, ignoring the clear statements about renaming spawn eggs on anvils.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can vindicators disable my shield?</div>
+                                <div class="reference-text">Ref: Yes, a vindicator can disable the player's shield with its iron axe attack, even when riding a mob. If a player fails to land a melee attack on a vindicator that rides a ravager during a raid in Hard difficulty, the vindicator rider can deal great damage. Illagers also do not retaliate when hit by a missed arrow shot by a pillager or illusioner.</div>
+                            </td>
+                            <td class="answer-cell">Yes, vindicators can disable your shield for 5 seconds if they hit you while you're blocking with it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 67%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate and uses the provided chunks correctly, but it misses a small detail about the shield disabling duration.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant. Chunk 1 directly states that a vindicator's axe attack disables the player's shield for 5 seconds, which is the core information required to answer the question. Chunk 2 complements this by explaining how shields work and that they are temporarily disabled when hit by an axe, corroborating the information in Chunk 1 and providing context for why a vindicator's attack would be significant.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Vindicators can disable a player's shield for 5 seconds if they hit the player while they are blocking with it.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI answer correctly states that vindicators can disable the player's shield. Chunk 1 explicitly states, 'The vindicator's axe attack disables the player's shield for 5 seconds...' and Chunk 2 confirms that shields are 'temporarily disabled when hit by an axe while blocking'. The reference answer also confirms this. This is accurate.<br>2. **Completeness:** The AI answer mentions that vindicators can disable the shield. However, it omits the duration for which the shield is disabled (5 seconds), which is present in both the reference answer and Chunk 1.<br>3. **Hallucinations:** No hallucinations were found. The information provided is directly supported by the reference and chunks.<br>4. **Relevance:** The answer is highly relevant to the question asked.<br>5. **Chunk Usage:** The AI correctly utilized Chunk 1 and Chunk 2 to formulate the answer. It didn't introduce information outside of the provided context.<br><br>**Score Justification:** The answer is almost perfect, accurately conveying the core information. The only detraction is the omission of the 5-second disabling duration, which is a minor detail but present in the source material. This warrants a score of 45/50.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I place torches?</div>
+                                <div class="reference-text">Ref: Torches are non-solid blocks that emit light. They can be broken instantly using anything and drop themselves as an item. A torch is removed if its attachment block is moved, removed, or destroyed, if water or lava flows into its space, or if a piston pushes it or moves a block into its space.</div>
+                            </td>
+                            <td class="answer-cell">Torches can be placed on the top or sides of most solid, opaque blocks.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is mostly accurate but slightly incomplete, as it doesn't mention the specific conditions for placement on some blocks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers the question about where torches can be placed. Chunk 2 is relevant as it discusses torch placement, though it is specifically about 'colored torches' which is a subset of the general question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Torches can be placed on the top or sides of most solid blocks.: SUPPORTED<br>  - Torches can be placed on the top or sides of opaque blocks.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer correctly states that torches can be placed on the top or sides of most solid blocks. This is supported by CHUNK 1 and CHUNK 2. CHUNK 1 states, 'Torches can be placed on the top or the sides of most solid blocks'. CHUNK 2 states, 'Torches can be placed on the top or the sides of most solid blocks'. CHUNK 2 also adds the condition 'solid, opaque, full blocks' which the AI answer includes. <br>2. Completeness: The answer is slightly incomplete because CHUNK 1 and CHUNK 2 mention that 'some blocks require' specific conditions or have exceptions regarding placement, which the AI answer omits. <br>3. Hallucinations: No hallucinations are present. <br>4. Relevance: The answer is directly relevant to the question. <br>5. Chunk Usage: The AI correctly used information from the provided chunks.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the Absorption status effect?</div>
+                                <div class="reference-text">Ref: Absorption is a status effect that adds extra yellow hearts above the normal health bar. If the player takes damage, absorption hearts are depleted first, followed by standard health points. Absorption health cannot be replenished by natural regeneration or other effects and vanishes when the effect ends. The only completely immune mob is the ender dragon.</div>
+                            </td>
+                            <td class="answer-cell">Absorption is a status effect that pads the health bar with extra hearts.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate but incomplete, missing key details about how absorption hearts deplete and their limitations.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly describes the absorption status effect, its visual representation (yellow hearts), how it functions when damage is taken, and its limitations, aligning perfectly with the reference answer. Chunk 2 is irrelevant as it discusses general potion effects, HUD displays, and mob immunities, but does not specifically address the 'Absorption' status effect itself.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Absorption is a status effect that pads the health bar with extra hearts.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual accuracy: The AI answer correctly states that absorption pads the health bar with extra hearts. This is supported by CHUNK 1. <br>2. Completeness: The answer is incomplete. It does not mention that absorption hearts are depleted first before normal health, that they cannot be replenished by natural regeneration or other effects, that they vanish when the effect ends, or that the Ender Dragon is immune.<br>3. Hallucinations: There are no hallucinations. The AI only uses information present in the provided chunks.<br>4. Relevance: The answer is relevant to the question.<br>5. Chunk usage: The AI correctly uses information from CHUNK 1 but fails to incorporate all relevant details from it.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [48, 50, 48, 35, 45, 40, 35, 48, 50, 35, 20, 43, 50, 30, 45, 50, 10, 45, 40, 35],
+                    backgroundColor: [48, 50, 48, 35, 45, 40, 35, 48, 50, 35, 20, 43, 50, 30, 45, 50, 10, 45, 40, 35].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [48, 50, 48, 35, 45, 40, 35, 48, 50, 35, 20, 43, 50, 30, 45, 50, 10, 45, 40, 35].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [74.2, 83.8, 63.3, 78.3],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [50.0, 50.0, 83.3, 83.3, 100.0, 50.0, 66.7, 66.7, 50.0, 100.0, 83.3, 83.3, 66.7, 50.0, 100.0, 100.0, 66.7, 100.0, 83.3, 50.0],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 100.0, 100.0, 66.7, 100.0, 100.0, 100.0, 100.0, 100.0, 42.9, 50.0, 66.7, 100.0, 50.0, 100.0, 100.0, 0.0, 100.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [66.7, 100.0, 100.0, 33.3, 66.7, 66.7, 66.7, 66.7, 100.0, 66.7, 33.3, 66.7, 66.7, 33.3, 66.7, 100.0, 0.0, 66.7, 66.7, 33.3],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [50.0, 100.0, 100.0, 33.0, 100.0, 100.0, 100.0, 50.0, 100.0, 100.0, 50.0, 100.0, 100.0, 50.0, 66.0, 100.0, 0.0, 67.0, 100.0, 100.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
