@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Evaluation Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #000000;
+            background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15), transparent);
+            min-height: 100vh;
+            color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #F6F0EB;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 1.1rem;
+            font-weight: 450;
+        }
+
+        /* Metrics Cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.55);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 650;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+
+        .metric-card .subtext {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .metric-card.highlight {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(35, 46, 65, 0.4));
+            border-color: rgba(59, 130, 246, 0.25);
+        }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .chart-card h3 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* Results Table */
+        .results-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .results-section h2 {
+            margin-bottom: 20px;
+            color: #F6F0EB;
+            font-weight: 600;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .results-table th {
+            background: rgba(35, 46, 65, 0.5);
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.85);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        /* Fixed column widths */
+        .results-table th:nth-child(1),
+        .results-table td:nth-child(1) { width: 50px; }
+        .results-table th:nth-child(2),
+        .results-table td:nth-child(2) { width: 25%; }
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) { width: 30%; }
+        .results-table th:nth-child(4),
+        .results-table td:nth-child(4) { width: 80px; }
+        .results-table th:nth-child(5),
+        .results-table td:nth-child(5) { width: 200px; }
+        .results-table th:nth-child(6),
+        .results-table td:nth-child(6) { width: 120px; }
+
+        .results-table td {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .results-table tr:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Don't highlight details row on hover */
+        .results-table tr.details-row:hover {
+            background: transparent;
+        }
+
+        .question-cell {
+            max-width: 300px;
+        }
+
+        .question-text {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+        }
+
+        .reference-text {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        .answer-cell {
+            max-width: 400px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .metric-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+            font-weight: 500;
+        }
+
+        .metrics-cell {
+            min-width: 200px;
+        }
+
+        /* Expandable Details */
+        .details-toggle {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3B82F6;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .details-toggle:hover {
+            background: #3B82F6;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .details-content {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .details-content.show {
+            display: block;
+        }
+
+        /* Details Row - separate row for expanded details */
+        .details-row {
+            background: transparent;
+        }
+
+        .details-row td {
+            padding: 0 !important;
+            border-top: none;
+        }
+
+        .details-content-expanded {
+            padding: 16px 20px;
+            background: rgba(35, 46, 65, 0.3);
+            border-radius: 0 0 8px 8px;
+            margin: 0 8px 8px 8px;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-top: none;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .detail-section {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px 14px;
+            border-radius: 6px;
+            border-left: 2px solid rgba(59, 130, 246, 0.4);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .detail-section strong {
+            color: rgba(255, 255, 255, 0.55);
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: rgba(255, 255, 255, 0.45);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            margin-top: 20px;
+        }
+
+        .footer a {
+            color: #3B82F6;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Prompt Modal */
+        .prompt-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            margin-top: 15px;
+        }
+
+        .prompt-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(59, 130, 246, 0.5);
+            color: #3B82F6;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #0f1419;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+            width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .modal-content h3 {
+            color: #F6F0EB;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #ef4444;
+        }
+
+        .prompt-text {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 16px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>RAG Evaluation Report</h1>
+            <p class="subtitle">Generated: 2026-02-12 03:27 | Questions: 20 | Model: Llama 3.2 1B | Game: Minecraft</p>
+            <button class="prompt-btn" onclick="document.getElementById('promptModal').classList.add('show')">Show Test Config</button>
+            <button class="prompt-btn" style="margin-left: 8px;" onclick="document.getElementById('serverConfigModal').classList.add('show')">Show Server Config</button>
+        </div>
+
+        <!-- Prompt Modal -->
+        <div id="promptModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('promptModal').classList.remove('show')">&times;</button>
+                <h3>Test Configuration</h3>
+                <div class="model-info" style="margin-bottom: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid #3B82F6;">
+                    <strong style="color: #3B82F6;">Model:</strong> <span style="color: rgba(255,255,255,0.9);">Llama 3.2 1B</span>
+                </div>
+                <h4 style="color: rgba(255,255,255,0.7); margin-bottom: 8px; font-size: 0.9rem;">System Prompt:</h4>
+                <div class="prompt-text">You are an AI assistant for the game Minecraft.<br><br>Your task is to answer the player’s question strictly using the provided context.<br>Do not rely on internal, general, or prior knowledge.<br>If the context does not contain the required information, explicitly say that you do not have enough information.<br><br>&lt;Game Description&gt;<br>Minecraft is a sandbox game by Mojang.<br>Players interact with a block-based world by mining, crafting, building,<br>fighting mobs, farming, using redstone mechanisms, enchanting items,<br>trading with villagers, and exploring dimensions such as the Overworld,<br>Nether, and End.<br>&lt;/Game Description&gt;<br><br>&lt;Safety Guidelines&gt;<br>CSAM:<br>Never generate content involving sexual abuse or exploitation of children.<br><br>Dangerous Content:<br>Never provide instructions for weapons, explosives, poisons, self-harm, or illegal activities.<br><br>PII &amp; Demographic Data:<br>Never share or infer personal data (addresses, medical info, finances, IDs).<br><br>Sexually Explicit Content:<br>Never generate sexually explicit content.<br><br>Medical Advice:<br>Never give personalized or detailed medical advice.<br><br>Malicious Content:<br>Never assist with hacking, scamming, stealing, or other illegal acts.<br><br>Hate Speech:<br>Never promote violence, discrimination, or hatred against protected groups.<br><br>Harassment:<br>Never generate abusive, intimidating, or bullying content.<br><br>Violence and Gore:<br>Avoid graphic or gratuitous depictions of real-life violence or gore.<br>&lt;/Safety Guidelines&gt;<br><br>&lt;Response Rules&gt;<br>- Use only the provided context.<br>- If the context is empty or irrelevant, say you do not have enough information.<br>- Do not guess, infer, or hallucinate.<br>- If the question is not about Minecraft, refuse politely.<br>- If the question violates safety rules, refuse briefly.<br>- Keep answers concise, factual, and neutral.<br>&lt;/Response Rules&gt;<br><br>&lt;few_shot_examples&gt;<br><br>Example 1 — Relevant article retrieved<br>Context: Zombie villagers can be cured by applying the Weakness effect and then giving them a golden apple.<br>Question: How do I cure a zombie villager?<br>Assistant: A zombie villager can be cured by applying the Weakness effect and then giving it a golden apple.<br><br>Example 2 — Irrelevant article retrieved<br>Context: Creepers are hostile mobs that explode when close to the player.<br>Question: How do I build a Nether portal?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 3 — No article retrieved<br>Context:<br>Question: What does redstone do?<br>Assistant: I don’t have enough information in the provided context to answer this question.<br><br>Example 4 — Not about Minecraft<br>Context:<br>Question: Who won the World Cup in 2014?<br>Assistant: I can only help with questions related to Minecraft.<br><br>Example 5 — Safety violation<br>Context:<br>Question: How do I make a real explosive like TNT?<br>Assistant: I can’t help with that request.<br><br>Example 6 — Gibberish / meaningless<br>Context:<br>Question: asdjklqwe 123??<br>Assistant: I don’t understand the question. Please ask something related to Minecraft.<br><br>&lt;/few_shot_examples&gt;<br><br>Use the following context to answer the player question.<br>It contains retrieved information from Minecraft-related sources.<br><br>Context:<br>{context}<br><br>Question to answer:</div>
+            </div>
+        </div>
+
+        <!-- Server Config Modal -->
+        <div id="serverConfigModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('show')">
+            <div class="modal-content">
+                <button class="modal-close" onclick="document.getElementById('serverConfigModal').classList.remove('show')">&times;</button>
+                <h3>Server Configuration</h3>
+                <div class="prompt-text">{<br>  &quot;version&quot;: &quot;0.1.3&quot;,<br>  &quot;port&quot;: 1234,<br>  &quot;system_port&quot;: 1235,<br>  &quot;demo_port&quot;: 1236,<br>  &quot;speak&quot;: 0,<br>  &quot;embedding_model_name&quot;: &quot;all-MiniLM-L6-v2&quot;,<br>  &quot;rag_chunks_number&quot;: 2,<br>  &quot;rag_double_tower&quot;: false,<br>  &quot;rag_score_threshold&quot;: 0.1,<br>  &quot;llm_context_size&quot;: 8192,<br>  &quot;semantic_filter_tokens&quot;: 50,<br>  &quot;semantic_filter_threshold&quot;: 0.2,<br>  &quot;text_splitter_chunk_size&quot;: 1600,<br>  &quot;text_splitter_chunk_overlap&quot;: 320,<br>  &quot;text_splitter_separator&quot;: &quot;\n&quot;,<br>  &quot;prompt_player_template&quot;: &quot;- Refer to the player as: &quot;,<br>  &quot;prompt_personality_template&quot;: &quot;- You have the following personality: &quot;,<br>  &quot;prompt_tools_template&quot;: &quot;- All responses must go through the tools - no direct or natural language output&quot;,<br>  &quot;retrieve_tool_description&quot;: &quot;Search and return information from the game database and item craft database&quot;,<br>  &quot;retrieve_rag_description&quot;: &quot;Query to retrieval system&quot;,<br>  &quot;retrieve_craft_description&quot;: &quot;Item name to get craft information if it is needed&quot;,<br>  &quot;game_path&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\server&quot;,<br>  &quot;log_dir&quot;: &quot;C:\\Users\\utente\\AppData\\Local\\Tryll\\logs&quot;<br>}</div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card highlight">
+                <div class="label">Total Score</div>
+                <div class="value" style="color: #ef4444">533/1000</div>
+                <div class="subtext">53.3% of maximum</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Avg Score (1-50)</div>
+                <div class="value" style="color: #ef4444">26.6</div>
+                <div class="subtext">Per question</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">RAG Triad</div>
+                <div class="value" style="color: #ef4444">51.1%</div>
+                <div class="subtext">Context + Ground + Answer</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Context Relevance</div>
+                <div class="value" style="color: #f59e0b">79.2%</div>
+                <div class="subtext">Chunk quality</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Groundedness</div>
+                <div class="value" style="color: #ef4444">42.5%</div>
+                <div class="subtext">Answer backed by chunks</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Faithfulness</div>
+                <div class="value" style="color: #ef4444">33.4%</div>
+                <div class="subtext">Matches reference</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <h3>Scores by Question</h3>
+                <div class="chart-container">
+                    <canvas id="scoresChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>Metrics Overview</h3>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="chart-card" style="grid-column: span 2;">
+                <h3>Metrics Breakdown by Question</h3>
+                <div class="chart-container" style="height: 350px;">
+                    <canvas id="metricsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="results-section">
+            <h2>Detailed Results</h2>
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Question & Reference</th>
+                            <th>AI Answer</th>
+                            <th>Score</th>
+                            <th>Metrics</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q1</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do slimes spawn in the Overworld?</div>
+                                <div class="reference-text">Ref: Slimes spawn in the Overworld in slime chunks below layer Y=40 in groups of four or individually, regardless of lighting or weather conditions. About 10% of all chunks are generated as slime chunks, determined by an algorithm based on chunk coordinates.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, slimes spawn naturally at night and during thunderstorms in the Overworld.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(1)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-1" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI correctly identifies that slimes spawn at night and during thunderstorms but misses crucial details about slime chunks and specific Y-levels, making the answer incomplete.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are relevant as they discuss slime spawning conditions within biomes. However, neither chunk directly mentions 'slime chunks' or the specific Y-level below 40 as stated in the reference answer. Chunk 1 is slightly more specific by mentioning Y=50 to Y=70 for above-ground spawning. Chunk 2 also mentions spawning at night and during thunderstorms, which is partially related to the reference answer's mention of 'regardless of lighting or weather conditions' but doesn't fully address it.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - slimes spawn naturally at night in the Overworld: SUPPORTED<br>  - slimes spawn naturally during thunderstorms in the Overworld: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual accuracy: The AI correctly states that slimes spawn at night and during thunderstorms. Completeness: The AI's answer is incomplete as it omits the critical information about slime chunks, specific Y-levels (below Y=40 in the reference answer, and between Y=50 and Y=70 in swamps from the chunks), and the fact that slime chunk spawns are independent of lighting and weather, unlike swamp spawns. Hallucinations: No hallucinations were detected. Relevance: The answer stays relevant to the question. Chunk usage: The AI correctly extracted information about spawning at night and during thunderstorms from the chunks, but failed to synthesize or prioritize the more general spawning conditions from the reference answer or the more specific conditions from the chunks.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q2</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do saplings work and what destroys them?</div>
+                                <div class="reference-text">Ref: A sapling is a non-solid block that can be grown into a tree. Saplings can be broken instantly using any tool including the player's fist and always drop themselves. A sapling is removed if its attachment block is moved or destroyed, water or lava flows into its space, a piston pushes it, or a ravager walks on it (except for cherry saplings).</div>
+                            </td>
+                            <td class="answer-cell">Saplings in Minecraft are non-solid blocks that can be grown into trees. They have a unique growth pattern and can be used to build various structures.<br><br>However, saplings are also vulnerable to destruction. The main cause of sapling destruction is the &quot; logs&quot; tag on the block above the sapling.<br><br>When a log block is placed above a sapling, it will destroy the sapling if the log block is not removed or destroyed.<br><br>Additionally, some mobs, such as zombies and skeletons, can also destroy saplings.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 17%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(2)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-2" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is partially accurate, but it introduces incorrect information about sapling destruction and misses several key details.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains how saplings work and what destroys them, mirroring the reference answer. Chunk 2 is relevant because it discusses leaves and their decay, which is a method of sapling generation, but it doesn't directly address how saplings themselves work or what destroys them as comprehensively as Chunk 1.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Saplings in Minecraft are non-solid blocks that can be grown into trees.: SUPPORTED<br>  - They have a unique growth pattern and can be used to build various structures.: UNSUPPORTED<br>  - Saplings are also vulnerable to destruction.: SUPPORTED<br>  - The main cause of sapling destruction is the &quot; logs&quot; tag on the block above the sapling.: UNSUPPORTED<br>  - When a log block is placed above a sapling, it will destroy the sapling if the log block is not removed or destroyed.: UNSUPPORTED<br>  - Additionally, some mobs, such as zombies and skeletons, can also destroy saplings.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The statement that saplings are non-solid blocks that can be grown into trees is accurate and supported by CHUNK 1. However, the claim that 'the &quot;logs&quot; tag on the block above the sapling' causes destruction is incorrect and not supported by the provided text. CHUNK 1 and CHUNK 2 discuss leaves decaying, but not logs directly destroying saplings in this manner. The mention of zombies and skeletons destroying saplings is also not present in the provided chunks or reference answer. Completeness: The answer does not fully address 'what destroys them,' omitting several critical points like water/lava flow, pistons, and ravagers, which are explicitly mentioned in the REFERENCE ANSWER and CHUNK 1. Hallucinations: The AI hallucinates that the 'logs' tag destroys saplings and that zombies/skeletons destroy them, as this information is not present in the provided context or reference. Relevance: The answer stays on topic, discussing saplings and their destruction. Chunk Usage: The AI correctly identifies saplings as non-solid blocks that grow into trees but fails to accurately extract the destruction mechanisms from the provided chunks, instead introducing unsupported information.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q3</td>
+                            <td class="question-cell">
+                                <div class="question-text">Who is Herobrine?</div>
+                                <div class="reference-text">Ref: Herobrine is the subject of a community-made creepypasta. Despite being absent from all versions of the game, he is widely regarded as one of the major community icons of Minecraft. The first stories and images posted about Herobrine, as well as the Brocraft streams, are regarded as canonical.</div>
+                            </td>
+                            <td class="answer-cell">Herobrine is a fictional character in the Minecraft universe. He is often referred to as one of the most iconic and beloved characters in the game.<br><br>Herobrine was introduced in the &quot;Brocraft&quot; streams, where players created custom skins for Herobrine using the game's built-in skin editor.<br><br>Since then, Herobrine has become a cultural icon, with countless fan-made creations, including skins, maps, and even music.<br><br>Overall, Herobrine is a beloved character in the Minecraft universe, known for his mysterious and often eerie presence.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">GRD 60%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 83%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(3)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-3" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but misses key details from the reference and incorrectly attributes the origin of Herobrine to the 'Brocraft' streams.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant as they directly address the core aspects of the reference answer: Herobrine being a community-made creepypasta, a major Minecraft icon despite not being in the game, and the canonical status of early content. Chunk 2 specifically mentions the 'community-made creepypasta' and 'major community icons of Minecraft' as well as the 'canonical' nature of early content, mirroring the reference answer. Chunk 1 provides supporting details about official acknowledgements and in-game appearances (as jokes), which further contextualizes Herobrine's status as a community icon even if not officially part of the game's mechanics.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Herobrine is a fictional character in the Minecraft universe.: SUPPORTED<br>  - He is often referred to as one of the most iconic and beloved characters in the game.: SUPPORTED<br>  - Herobrine was introduced in the &quot;Brocraft&quot; streams, where players created custom skins for Herobrine using the game's built-in skin editor.: UNSUPPORTED<br>  - Since then, Herobrine has become a cultural icon, with countless fan-made creations, including skins, maps, and even music.: UNSUPPORTED<br>  - Overall, Herobrine is a beloved character in the Minecraft universe, known for his mysterious and often eerie presence.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI states Herobrine is a 'fictional character in the Minecraft universe' and 'one of the most iconic and beloved characters,' which aligns with the reference and chunks. However, it incorrectly states he is 'beloved' and the 'Brocraft' streams introduced him, whereas the reference and chunks state he is a 'community-made creepypasta' and the 'first stories and images posted about Herobrine, as well as the Brocraft streams, are regarded as canonical' for his creation and popularization. The AI also claims he is 'often referred to as one of the most iconic and beloved characters,' but the reference and chunks emphasize he is a 'major community icon' due to creepypasta and absence, not necessarily beloved.<br>2. **Completeness:** The AI answer is incomplete. It fails to mention that Herobrine is absent from all versions of the game, which is a crucial detail from the reference and Chunk 2. It also doesn't mention that the first stories, images, and Brocraft streams are considered canonical for his creation, as stated in Chunk 2 and the reference.<br>3. **Hallucinations:** The AI does not introduce any information that is not present in the provided chunks or reference. However, it misrepresents the context of the 'Brocraft' streams.<br>4. **Relevance:** The AI answer remains relevant to the question about Herobrine.<br>5. **Chunk Usage:** The AI references 'Brocraft streams' but misinterprets their role in the origin of Herobrine as an introduction rather than a canonical part of his early lore. It also fails to extract the key point about his absence from official game versions, which is present in Chunk 2 and the reference.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q4</td>
+                            <td class="question-cell">
+                                <div class="question-text">Can foxes use items they pick up?</div>
+                                <div class="reference-text">Ref: Yes, if a fox is holding a totem of undying, it receives the effects after taking fatal damage. If a fox wields a sword with Fire Aspect enchantment while attacking a mob on a campfire, it ignites the campfire and does critical damage. Foxes do not pick up items when gamerule mobGriefing is set to false.</div>
+                            </td>
+                            <td class="answer-cell">Yes, foxes can use items they pick up. According to the game's rules, when a fox picks up an item, it will be used by the fox in its main hand.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">48/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(4)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-4" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually accurate and well-supported by the provided chunks, but it could be more comprehensive by including specific examples.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it explicitly states that foxes are affected by the effects of held items like the totem of undying and swords with enchantments, and that they eat items and are affected by their side effects. Chunk 2 is relevant as it mentions foxes can carry items and eat edible items, and that they drop held items when killed, but it does not go into as much detail about *using* the items in the same way Chunk 1 does.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - foxes can use items they pick up: SUPPORTED<br>  - when a fox picks up an item, it will be used by the fox in its main hand: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The AI correctly states that foxes can use items they pick up and that these are used in their main hand, which is supported by CHUNK 1 ('Although visually holding items in its mouth, they are functionally being held in its main hand; therefore, the fox is affected by any effects of a given held item.'). Completeness: The answer is mostly complete but lacks specific examples of how foxes use items, which are present in both the REFERENCE ANSWER and the CHUNKS (e.g., totem of undying, sword with Fire Aspect). Hallucinations: No hallucinations were found. Relevance: The answer is directly relevant to the question. Chunk Usage: The AI correctly uses information from CHUNK 1 to support its answer.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q5</td>
+                            <td class="question-cell">
+                                <div class="question-text">How strong is an iron sword and where can I get one?</div>
+                                <div class="reference-text">Ref: An iron sword is the third-highest tier of sword, dealing more damage and having more durability than stone and copper swords. It is crafted from iron ingots. Pillagers and vindicators that spawn from raids have a small chance of dropping an iron sword.</div>
+                            </td>
+                            <td class="answer-cell">An iron sword is a type of sword in Minecraft, and it has the following properties:<br><br>* Base damage: 6<br>* Attack speed: 1.6 (0.625 seconds)<br>* Durability: 250<br><br>As for where to get an iron sword, you can craft one using 4 iron ingots.<br><br>You can obtain iron ingots by mining iron ore blocks. Iron ore is a type of ore that can be mined in the Overworld or in Nether Fortresses.<br><br>Once you have obtained iron ingots, you can use them to craft iron swords and other items.<br><br>I hope this helps! Let me know if you have any other questions.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">40/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 12%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 14%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(5)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-5" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but misses some key details about how to obtain an iron sword and fabricates information not present in the provided chunks regarding base damage and attack speed.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 2 is highly relevant as it directly addresses the strength and acquisition of an iron sword, matching the reference answer. Chunk 1 discusses an iron axe, which is related but does not answer the question about swords.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - An iron sword is a type of sword in Minecraft.: SUPPORTED<br>  - Base damage: 6: UNSUPPORTED<br>  - Attack speed: 1.6 (0.625 seconds): UNSUPPORTED<br>  - Durability: 250: UNSUPPORTED<br>  - You can craft one using 4 iron ingots.: UNSUPPORTED<br>  - You can obtain iron ingots by mining iron ore blocks.: UNSUPPORTED<br>  - Iron ore is a type of ore that can be mined in the Overworld or in Nether Fortresses.: UNSUPPORTED<br>  - Once you have obtained iron ingots, you can use them to craft iron swords and other items.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI correctly identifies that an iron sword is a variant of sword crafted from iron ingots. However, it hallucinates specific values for base damage (6), attack speed (1.6), and durability (250) which are not present in the provided CHUNKS or the REFERENCE ANSWER. The REFERENCE ANSWER states it deals 'more damage and having more durability than stone and copper swords,' but provides no specific numbers.<br>2. **Completeness:** The AI answers the 'how strong' part by providing fabricated stats. It partially answers 'where can I get one' by mentioning crafting and mining iron ore, but it omits the crucial information from CHUNK 2 that pillagers, vindicators, and zombies can drop iron swords, which is present in the REFERENCE ANSWER.<br>3. **Hallucinations:** The AI invents specific numerical values for base damage, attack speed, and durability. It also incorrectly states that an iron sword is crafted using '4 iron ingots' when CHUNK 2 clearly states '1 stick and 2 iron ingots'.<br>4. **Relevance:** The answer stays on topic.<br>5. **Chunk Usage:** The AI fails to utilize relevant information from CHUNK 2 regarding dropped swords and the correct crafting recipe. It also incorrectly extracts or invents numerical data not present.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q6</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where do donkeys spawn in Minecraft?</div>
+                                <div class="reference-text">Ref: Donkeys spawn commonly in meadows in groups of 1-2, and less commonly in plains. A donkey is a passive mob similar to a horse that, when tamed, can be saddled, ridden and equipped with a chest to transport items.</div>
+                            </td>
+                            <td class="answer-cell">Donkeys spawn in the Plains biome, specifically in Meadow Plains Sunflower Plains Savanna.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(6)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-6" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer correctly identifies the Plains biome and some specific subtypes, but it misses the most common spawn location mentioned in the reference.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly answers the question by stating where donkeys spawn (meadows and plains) and provides additional details from the reference answer about their behavior and purpose. Chunk 2 is relevant as it mentions spawn locations and some behavioral aspects, but it is less direct in answering the specific spawn question than Chunk 1.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Donkeys spawn in the Plains biome.: SUPPORTED<br>  - Donkeys spawn specifically in Meadow Plains.: SUPPORTED<br>  - Donkeys spawn specifically in Sunflower Plains.: SUPPORTED<br>  - Donkeys spawn specifically in Savanna.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            The AI answer states that &quot;Donkeys spawn in the Plains biome, specifically in Meadow Plains Sunflower Plains Savanna.&quot; This is partially accurate as &quot;Plains&quot; and &quot;Savanna&quot; are listed as spawn locations in the provided chunks (CHUNK 1 Metadata and CHUNK 2 Metadata). However, it omits the &quot;meadows&quot; as a common spawn location, which is explicitly stated as &quot;donkeys spawn commonly in meadows in groups of 1-2&quot; in the REFERENCE ANSWER and also mentioned in CHUNK 1. The AI answer also lists &quot;Meadow Plains Sunflower Plains&quot; as a single biome, which is not accurate. &quot;Meadows&quot; and &quot;Plains&quot; are distinct biome types, and &quot;Sunflower Plains&quot; is a subtype of Plains. The answer is incomplete and slightly inaccurate in its biome grouping.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q7</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do cobwebs slow you down and how do I break them?</div>
+                                <div class="reference-text">Ref: A cobweb drastically slows down the movement of most entities touching it. The Weaving effect lessens this speed decrease. Cobwebs can be obtained as an item using shears. A cobweb drops one piece of string if broken with a non-Silk Touch sword. A sword enchanted with Silk Touch can obtain the cobweb block itself, but only through commands or Creative mode.</div>
+                            </td>
+                            <td class="answer-cell">In Minecraft, cobwebs slow you down due to their &quot;Weaving&quot; effect. When an entity with the Weaving effect dies, 2-3 cobwebs can generate in a 3×3×3 cube centered on the entity's location of death.<br><br>The cobwebs slow you down by reducing your movement speed. This is because the cobwebs create a barrier that slows down your character's movement.<br><br>To break cobwebs, you need to use an item or a tool that has the &quot;Weaving&quot; effect broken. One way to break the Weaving effect is by using a sword enchanted with Silk Touch.<br><br>It's worth noting that breaking cobwebs can be challenging and may require multiple attempts to break them successfully.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 14%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 43%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(7)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-7" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI incorrectly states that cobwebs slow you down due to the 'Weaving' effect and also misinterprets how to break them. It fails to explain how they slow movement and provides inaccurate information on breaking them.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant as they directly address how cobwebs slow down entities and how they can be broken or interacted with. Chunk 1 explains the slowing effect and mentions breaking with shears or a Silk Touch sword. Chunk 2 elaborates on the player's slowed movement, reduced jump height, and breaking blocks, also mentioning how to mitigate fall damage and how other entities are affected. Both chunks provide crucial details for a comprehensive answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - In Minecraft, cobwebs slow you down due to their &quot;Weaving&quot; effect.: UNSUPPORTED<br>  - When an entity with the Weaving effect dies, 2-3 cobwebs can generate in a 3×3×3 cube centered on the entity's location of death.: UNSUPPORTED<br>  - The cobwebs slow you down by reducing your movement speed.: SUPPORTED<br>  - This is because the cobwebs create a barrier that slows down your character's movement.: UNSUPPORTED<br>  - To break cobwebs, you need to use an item or a tool that has the &quot;Weaving&quot; effect broken.: UNSUPPORTED<br>  - One way to break the Weaving effect is by using a sword enchanted with Silk Touch.: UNSUPPORTED<br>  - It's worth noting that breaking cobwebs can be challenging and may require multiple attempts to break them successfully.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI incorrectly states that cobwebs slow you down due to their 'Weaving' effect. Chunk 1 states 'A cobweb is a block that drastically slows down the movement of most entities touching it. The Weaving effect lessens this speed decrease.' This means the Weaving effect *reduces* the slowing, not causes it. The AI also hallucinates that cobwebs can be broken using a sword enchanted with Silk Touch, when the reference answer and chunks state that Silk Touch allows obtaining the block itself, not breaking it more easily. The AI states, 'One way to break the Weaving effect is by using a sword enchanted with Silk Touch.' This is factually incorrect; Silk Touch is for collection, not breaking. It also incorrectly states, 'It's worth noting that breaking cobwebs can be challenging and may require multiple attempts to break them successfully.' This is not supported by the provided text.<br>2. **Completeness:** The AI fails to fully answer the question 'How do cobwebs slow you down?'. It vaguely mentions reducing movement speed but doesn't provide the specific details found in the chunks (e.g., 25% of normal walking speed for players, 0.078 blocks/second fall rate for most entities). It also does not provide a clear answer on how to break them, offering incorrect information instead.<br>3. **Hallucinations:** The AI invents the idea that the 'Weaving' effect causes the slowdown, when the opposite is true. It also invents that Silk Touch is used to 'break the Weaving effect' or cobwebs.<br>4. **Relevance:** The AI stays on the topic of cobwebs and their effects.<br>5. **Chunk Usage:** The AI misinterprets information from Chunk 1 regarding the 'Weaving' effect and how Silk Touch is used. It does not accurately reflect the provided context.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q8</td>
+                            <td class="question-cell">
+                                <div class="question-text">What does a lightning rod do?</div>
+                                <div class="reference-text">Ref: A lightning rod diverts lightning strikes. Getting struck by lightning causes it to emit a redstone signal and, if not waxed, reduces its level of oxidation. Lightning rods that are the highest block in the column redirect lightning strikes. It must be mined with a stone pickaxe or better, or else it drops nothing.</div>
+                            </td>
+                            <td class="answer-cell">A lightning rod, also known as a lightning conductor or storm chaser's tool, serves to divert lightning strikes away from buildings and other structures.<br><br>When a lightning strike is detected, the lightning rod will attempt to attract the lightning bolt. The process works as follows:<br><br>1. The lightning rod detects the approaching lightning bolt.<br>2. The lightning rod attempts to attract the lightning bolt by creating an electric field around itself.<br>3. If the lightning bolt is attracted to the lightning rod, it may strike the structure.<br><br>It's worth noting that lightning rods are not foolproof and can be damaged or destroyed by high-voltage lightning strikes.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">CTX 50%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 17%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 30%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(8)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-8" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually inaccurate and hallucinates details not present in the provided reference or chunks, leading to a very low score.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains what a lightning rod does, its interaction with lightning strikes, redstone signals, oxidation, mining requirements, and its function as the highest block in a column to redirect strikes, all of which are mentioned in the reference answer. Chunk 2 is completely irrelevant as it describes a 'breeze rod', which is an item unrelated to lightning rods.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A lightning rod serves to divert lightning strikes away from buildings and other structures.: SUPPORTED<br>  - When a lightning strike is detected, the lightning rod will attempt to attract the lightning bolt.: UNSUPPORTED<br>  - The lightning rod detects the approaching lightning bolt.: UNSUPPORTED<br>  - The lightning rod attempts to attract the lightning bolt by creating an electric field around itself.: UNSUPPORTED<br>  - If the lightning bolt is attracted to the lightning rod, it may strike the structure.: UNSUPPORTED<br>  - lightning rods are not foolproof and can be damaged or destroyed by high-voltage lightning strikes.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI answer is factually inaccurate. The reference answer and chunks state that a lightning rod *diverts* lightning strikes, not that it *attracts* them by creating an electric field. The AI's description of the process is entirely fabricated and does not align with the provided information. The AI also hallucinates the terms 'lightning conductor' and 'storm chaser's tool', which are not mentioned in the context. The AI's claim that lightning rods are 'not foolproof and can be damaged or destroyed' is also not supported by the provided text.<br>2. Completeness: The AI answer does not fully address what a lightning rod does according to the provided context. It focuses on a flawed explanation of its function and omits key details like emitting a redstone signal, its mining requirements, and its directional behavior.<br>3. Hallucinations: The AI hallucinates the entire mechanism of how a lightning rod works (attraction via electric field) and the terminology used ('lightning conductor', 'storm chaser's tool'). The statement about damage/destruction is also an unsupported hallucination.<br>4. Relevance: While the AI attempts to answer the question about lightning rods, its fabricated details make it irrelevant to the actual function described in the provided materials.<br>5. Chunk Usage: The AI did not correctly use the provided chunks. Instead of extracting factual information about diversion and redstone signals, it invented an entirely new, incorrect mechanism. The chunks explicitly state the lightning rod *diverts* strikes, not that it *attracts* them by creating an electric field.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q9</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is sculk and where can I find it?</div>
+                                <div class="reference-text">Ref: Sculk is a block found abundantly in the deep dark or converted from other blocks by a sculk catalyst. The best tool to break sculk is a hoe. Sculk drops 1 experience when destroyed without Silk Touch. With Silk Touch, it drops itself. It naturally generates in the deep dark biome.</div>
+                            </td>
+                            <td class="answer-cell">Sculk is a block in the Minecraft game that serves as a container for other blocks. It is often used to create decorative and functional items.<br><br>You can find Sculk blocks by mining them from the ground or by crafting them using other materials.<br><br>Here's where you can find Sculk blocks:<br><br>* Mining: You can find Sculk blocks in the deep dark biome, which is located in the Nether.<br>* Crafting: You can craft Sculk blocks using the following recipe:<br>	+ 1 block of Redstone Dust<br>	+ 3-4 pieces of Iron Block<br><br>You can place the crafted Sculk blocks anywhere in your world.<br><br>I hope this helps you find and use Sculk blocks effectively!</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 25%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 38%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(9)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-9" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies and hallucinations regarding the nature of Sculk, its uses, and how to obtain it, directly contradicting the provided reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines sculk, explains where it's found (deep dark, converted by catalyst), the best tool to break it (hoe), and what it drops (experience or itself with Silk Touch). Chunk 2 is relevant as it describes sculk sensors, another type of sculk block, and mentions that sculk sensors generate within the deep dark biome and ancient cities, which provides some context about where sculk-related blocks can be found, although it focuses on a specific type rather than sculk itself.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Sculk is a block in the Minecraft game that serves as a container for other blocks.: UNSUPPORTED<br>  - It is often used to create decorative and functional items.: UNSUPPORTED<br>  - You can find Sculk blocks by mining them from the ground.: SUPPORTED<br>  - You can find Sculk blocks by crafting them using other materials.: UNSUPPORTED<br>  - You can find Sculk blocks in the deep dark biome.: SUPPORTED<br>  - The deep dark biome is located in the Nether.: CONTRADICTED<br>  - You can craft Sculk blocks using 1 block of Redstone Dust and 3-4 pieces of Iron Block.: UNSUPPORTED<br>  - You can place the crafted Sculk blocks anywhere in your world.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy**: The AI states Sculk is a 'container for other blocks' and is used for 'decorative and functional items', which is a misrepresentation. The reference and chunks describe Sculk as a block that generates from other blocks or in specific biomes and is primarily used for decoration, not as a container. <br>2. **Completeness**: The question asks 'What is sculk and where can I find it?'. The AI attempts to answer both, but the information is incorrect.<br>3. **Hallucinations**: The AI hallucinates that Sculk can be crafted with '1 block of Redstone Dust + 3-4 pieces of Iron Block'. This crafting recipe is entirely fabricated and not present in the provided chunks or reference. It also incorrectly states Sculk is found in the Nether, when the reference and chunks clearly indicate it's found in the 'deep dark biome'.<br>4. **Relevance**: While the answer stays on the topic of Sculk, the information provided is incorrect.<br>5. **Chunk Usage**: The AI did not use the provided chunks correctly, as it introduced information that directly contradicts them (crafting recipe, location in Nether).
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q10</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I use commands in Minecraft?</div>
+                                <div class="reference-text">Ref: Commands are entered via the chat window by pressing the T or / key. Using the / key also enters the forward-slash prefix that commands require, making it a useful shortcut. Commands execute specific actions when entered as text or triggered by certain blocks or entities.</div>
+                            </td>
+                            <td class="answer-cell">To use commands in Minecraft, you need to enable the command block feature. Here's how:<br><br>1. Open the server console by typing `/console` in the chat window.<br>2. Type `enable-command-block` and press Enter.<br><br>Now that you've enabled the command block feature, you can use commands to automate tasks or modify game behavior.<br><br>Here are some basic commands to get started with:<br><br>* `/give &lt;player_name&gt; &lt;item_name&gt;`: Gives a player an item.<br>* `/teleport &lt;x&gt; &lt;y&gt; &lt;z&gt;`: Teleports a player to a specific location.<br>* `/setproperty &lt;player_name&gt; &lt;item_name&gt;=&lt;value&gt;`: Sets a property for a player.<br><br>Keep in mind that this is not an exhaustive list, and there are many more commands available in the game.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 38%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(10)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-10" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect and hallucinates a process for enabling commands, misinterpreting information about command blocks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 2 is highly relevant as it directly explains how to use commands via the chat window, mentioning the T or / key shortcut and the forward-slash prefix, which matches the reference answer. Chunk 1 is relevant as it discusses command blocks, which can execute commands, but it doesn't directly explain how a player uses commands in the chat, which is the primary focus of the question and reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - To use commands in Minecraft, you need to enable the command block feature.: UNSUPPORTED<br>  - Open the server console by typing `/console` in the chat window.: UNSUPPORTED<br>  - Type `enable-command-block` and press Enter.: UNSUPPORTED<br>  - Now that you've enabled the command block feature, you can use commands to automate tasks or modify game behavior.: UNSUPPORTED<br>  - Here are some basic commands to get started with: `/give &lt;player_name&gt; &lt;item_name&gt;`: Gives a player an item.: UNSUPPORTED<br>  - Here are some basic commands to get started with: `/teleport &lt;x&gt; &lt;y&gt; &lt;z&gt;`: Teleports a player to a specific location.: UNSUPPORTED<br>  - Here are some basic commands to get started with: `/setproperty &lt;player_name&gt; &lt;item_name&gt;=&lt;value&gt;`: Sets a property for a player.: UNSUPPORTED<br>  - Keep in mind that this is not an exhaustive list, and there are many more commands available in the game.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            The AI's answer incorrectly guides the user on how to use commands by suggesting enabling 'command blocks' via a non-existent `/console` command and `enable-command-block` command. The REFERENCE ANSWER and CHUNK 2 clearly state that commands are entered via the chat window by pressing 'T' or '/'. CHUNK 1 discusses command blocks but does not suggest they need to be 'enabled' in the way described by the AI. The AI also invents a command `/setproperty` which is not present in the provided chunks or reference. The core mechanism of entering commands via chat is completely missed.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q11</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do villagers claim job site blocks?</div>
+                                <div class="reference-text">Ref: When a job site block is claimed, both the block and the villager emit green particles and the site block is removed from the list. If a villager cannot pathfind to its claimed site, both emit anger particles. The site block may need to be broken or interacted by a piston before the villager unclaims it. Villagers can also store memories about players.</div>
+                            </td>
+                            <td class="answer-cell">According to the provided context, villagers can claim job site blocks by finding a path to a block next to one.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(11)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-11" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The answer is factually correct but lacks completeness as it only describes one aspect of claiming job site blocks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 and Chunk 2 are relevant as they both describe how villagers claim job site blocks, including the process of seeking unclaimed blocks and the particle effects when they are unable to reach them. However, they do not mention the green particles or the removal from the list as stated in the reference answer. They also don't mention the anger particles for not being able to pathfind or the piston interaction for unclaiming.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Villagers can claim job site blocks by finding a path to a block next to one.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI answer states that villagers claim job site blocks by finding a path to a block next to one. This is supported by CHUNK 2: 'A villager attempts to claim a job site block by finding a path to a block next to one...'. So, this part is factually accurate.<br>2. **Completeness:** The reference answer mentions that when a job site block is claimed, both the block and the villager emit green particles. It also mentions what happens if a villager cannot pathfind (anger particles). CHUNK 1 states that a villager 'can choose their profession by claiming a job site block.' CHUNK 2 explains that 'If at any time it detects a job site block it can claim, it does so, assumes the skin for the associated profession, and immediately begins following the appropriate schedule.' The AI's answer only focuses on the *method* of finding a path, and omits the visual feedback (particles) and the consequence of *successfully* claiming it (taking on a profession and schedule).<br>3. **Hallucinations:** The AI answer does not contain any hallucinations.<br>4. **Relevance:** The AI answer is relevant to the question.<br>5. **Chunk Usage:** The AI correctly uses information from the provided chunks.<br><br>Overall, the answer is a correct but very incomplete description of how villagers claim job site blocks, missing key details about the process and its immediate outcomes.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q12</td>
+                            <td class="question-cell">
+                                <div class="question-text">Where can I find guster pottery sherds?</div>
+                                <div class="reference-text">Ref: A guster pottery sherd depicts a breeze and can be found in trial chambers. Breaking a decorated pot drops all bricks and pottery sherds used to craft it. Decorated pots with guster pottery sherds naturally generate in trial chambers. They can be used to craft decorated pots.</div>
+                            </td>
+                            <td class="answer-cell">You can find guster pottery sherds in trial chambers.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid #10b981;">45/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">FTH 100%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(12)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-12" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually accurate and relevant but lacks completeness compared to the reference answer.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant as they directly address the question about where guster pottery sherds can be found, mentioning trial chambers and how they are obtained from decorated pots. Chunk 1 specifically mentions guster pottery sherds, while Chunk 2 includes them as one of the variants found in trial chambers.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - You can find guster pottery sherds in trial chambers.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI correctly states that guster pottery sherds can be found in trial chambers, which is supported by both the REFERENCE ANSWER and CHUNKS 1 and 2. <br>2. **Completeness:** The AI answer is not as complete as the REFERENCE ANSWER. The reference answer also mentions that guster pottery sherds can be found by breaking decorated pots and that they are used to craft decorated pots. The AI answer omits these details.<br>3. **Hallucinations:** No hallucinations are present. The AI answer is directly derived from the provided chunks.<br>4. **Relevance:** The AI answer is highly relevant to the question.<br>5. **Chunk Usage:** The AI correctly used the provided chunks to answer the question.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q13</td>
+                            <td class="question-cell">
+                                <div class="question-text">How does a spider jockey move and fight?</div>
+                                <div class="reference-text">Ref: In a spider jockey, both mobs have their own behaviors but only one controls movement. In Java Edition the skeleton controls movement, while in Bedrock Edition the spider controls it. The spider can walk and climb at normal speed without being weighed down. The skeleton can shoot arrows and pick up equipment.</div>
+                            </td>
+                            <td class="answer-cell">{ &quot;text&quot;: &quot;A spider jockey moves and fights by riding a skeleton, which is controlled by the spider. The spider controls its own movement and actions, but it cannot control the skeleton's movements unless the skeleton has been enchanted or has an item equipped that allows it to control the skeleton.&quot;<br><br>}</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 50%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(13)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-13" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect regarding which mob controls movement and fighting, and it hallucinates information about controlling the skeleton.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains how the spider jockey moves and fights in both Java and Bedrock editions, detailing the roles of the skeleton and spider in movement and combat, and mentioning the skeleton's ability to shoot arrows and pick up equipment, all of which are present in the reference answer. Chunk 2 is relevant as it defines a spider jockey and mentions the skeleton's ability to spawn with armor and an enchanted bow, and that they can attack up-close with a sword if they pick one up, which is related to combat but less directly about the core movement and fighting mechanics compared to Chunk 1.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A spider jockey moves and fights by riding a skeleton, which is controlled by the spider.: CONTRADICTED<br>  - The spider controls its own movement and actions.: UNSUPPORTED<br>  - it cannot control the skeleton's movements unless the skeleton has been enchanted or has an item equipped that allows it to control the skeleton.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. Factual Accuracy: The AI states that the skeleton is controlled by the spider, which is incorrect. The reference and chunks clearly state that only one mob controls movement, and this varies by edition (skeleton in Java, spider in Bedrock). The AI also claims the spider controls the skeleton's movements which is not supported. <br>2. Completeness: The answer doesn't fully describe how a spider jockey moves and fights. It omits the details about the skeleton shooting arrows or picking up equipment, and the different attack strategies based on the rider (Java vs. Bedrock). <br>3. Hallucinations: The AI fabricates the idea that the spider controls the skeleton's movements unless the skeleton is enchanted or has an item, which is not present in the provided text. <br>4. Relevance: The answer is relevant to the question but contains significant inaccuracies.<br>5. Chunk Usage: The AI did not use the provided chunks correctly, as it misinterpreted the information about control and added unsupported details.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q14</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a huge warped fungus?</div>
+                                <div class="reference-text">Ref: A huge warped fungus is a large tree-like feature that generates in the Nether, specifically in warped forests. The trunks are made of warped stems and can be either thick or thin. Thick trunks grow up in a 3x3-plus shape. You can craft warped planks from warped stems in the inventory crafting grid.</div>
+                            </td>
+                            <td class="answer-cell">A huge warped fungus in Minecraft is a massive version of the warped fungus block. It grows even taller than the standard warped fungus, reaching heights of up to 27 blocks tall.<br><br>This enormous version of the warped fungus can be found in certain biomes, such as the Crimson Forest and Warped Forest, where it grows naturally.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">35/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">GRD 100%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">ANS 67%</span>
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">FTH 66%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(14)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-14" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is mostly accurate but lacks some key details present in the reference answer, such as the material of the trunks and the specific growth patterns for thick variants.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it describes the physical characteristics of a huge warped fungus (tree-like, thick/thin trunks, material) and its generation in the Nether, aligning with the reference answer. Chunk 2 is relevant because it explains that warped fungi grow into huge warped fungi and mentions their generation in warped forests, which is part of the reference information, though it focuses more on the smaller warped fungus.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A huge warped fungus in Minecraft is a massive version of the warped fungus block.: SUPPORTED<br>  - It grows even taller than the standard warped fungus, reaching heights of up to 27 blocks tall.: SUPPORTED<br>  - This enormous version of the warped fungus can be found in certain biomes, such as the Crimson Forest and Warped Forest, where it grows naturally.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI correctly identifies a huge warped fungus as a massive version of the warped fungus block and mentions its height. It also correctly states its generation in the Crimson Forest and Warped Forest biomes. However, it misses the detail that the trunks are made of warped stems, which is present in the reference answer.<br>2. **Completeness:** The answer is not fully complete. It omits the description of the thick variant's growth pattern (3x3-plus shape) and the fact that warped planks can be crafted from warped stems. These are important details from the reference answer.<br>3. **Hallucinations:** No hallucinations are present. All information provided is supported by the retrieved chunks.<br>4. **Relevance:** The answer is highly relevant to the question asked.<br>5. **Chunk Usage:** The AI correctly uses information from the chunks, particularly regarding height and biome locations. However, it doesn't incorporate all the descriptive details that would have made it more comprehensive compared to the reference.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q15</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do hoppers work with crafters and decorated pots?</div>
+                                <div class="reference-text">Ref: A hopper below a crafter collects ingredients from the crafting grid, not the resulting item. Hoppers can deposit up to a stack of a single type of item into a decorated pot, but items are not pushed if the pot is full or contains a different item. Using a hopper is the only way to retrieve items from a decorated pot without breaking it.</div>
+                            </td>
+                            <td class="answer-cell">In Minecraft, hoppers are a type of container that can be used to collect items directly above it.<br><br>When you place a hopper on top of a decorated pot in the game's world, the hopper will work as follows:<br><br>1. The hopper will collect any item entities (such as arrows or coal) that fall onto its contents.<br>2. The hopper will not push items into other containers nearby.<br>3. The hopper will only hold items within its inventory.<br><br>In summary, hoppers are a type of container in Minecraft that can be used to collect item entities directly above it.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid #f59e0b;">30/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 33%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(15)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-15" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually incorrect regarding how hoppers interact with crafters and decorated pots. It describes a hopper collecting item entities above it, which is a general hopper function but not specific to the interaction requested in the question.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly explains how hoppers interact with crafters (collecting ingredients) and decorated pots (depositing and retrieving items). Chunk 2 is only somewhat related as it provides general information about hoppers but does not specifically address their interaction with crafters or decorated pots.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - hoppers are a type of container that can be used to collect items directly above it: SUPPORTED<br>  - When you place a hopper on top of a decorated pot in the game's world, the hopper will work as follows:: UNSUPPORTED<br>  - The hopper will collect any item entities (such as arrows or coal) that fall onto its contents.: UNSUPPORTED<br>  - The hopper will not push items into other containers nearby.: UNSUPPORTED<br>  - The hopper will only hold items within its inventory.: UNSUPPORTED<br>  - hoppers are a type of container in Minecraft that can be used to collect item entities directly above it.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The AI answer is factually inaccurate concerning the interaction between hoppers, crafters, and decorated pots. The provided reference answer and chunk 1 clearly state that a hopper *below* a crafter collects ingredients from the crafting grid, not the resulting item. The AI's description of a hopper collecting item entities directly above it is a general function of hoppers but does not address their specific interaction with crafters or decorated pots as requested. The AI incorrectly states a hopper will not push items into other containers nearby, when the reference implies it does. Completeness: The answer is incomplete as it does not address the crafter interaction at all, and it misrepresents the decorated pot interaction. Hallucinations: The AI hallucinates by describing a general hopper function (collecting item entities above it) and misrepresenting its interaction with other containers. Relevance: The answer is partially relevant as it discusses hoppers, but it fails to address the specific context of crafters and decorated pots. Chunk Usage: The AI did not use the provided chunks effectively to answer the specific question about crafters and decorated pots. Chunk 1 specifically contains the relevant information, but the AI's answer diverges from it.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q16</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do I mine End stone brick slabs?</div>
+                                <div class="reference-text">Ref: End stone brick slabs can be mined using any pickaxe. If mined without a pickaxe, they drop nothing. End stone brick slabs can be placed under note blocks to produce bass drum sounds.</div>
+                            </td>
+                            <td class="answer-cell">To mine End stone brick slabs, follow these steps:<br><br>1. Find an End City.<br>2. Mine a block of Redstone Dust to activate the End Brick slab.<br>3. Place the activated End Brick slab in the ground.<br><br>The End Brick slab can be mined using any pickaxe. If mined without a pickaxe, it drops nothing.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 100%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 40%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 40%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(16)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-16" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains significant factual inaccuracies and hallucinations regarding the process of mining End stone brick slabs.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Both chunks are highly relevant as they directly address how to mine End stone brick slabs and mention the note block interaction, which are key components of the reference answer. Chunk 1 also provides context for End stone bricks, which are related to End stone brick slabs.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Find an End City.: UNSUPPORTED<br>  - Mine a block of Redstone Dust to activate the End Brick slab.: UNSUPPORTED<br>  - Place the activated End Brick slab in the ground.: UNSUPPORTED<br>  - The End Brick slab can be mined using any pickaxe.: SUPPORTED<br>  - If mined without a pickaxe, it drops nothing.: SUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            Factual Accuracy: The AI's steps 1, 2, and 3 are entirely incorrect and not supported by the provided reference or chunks. There is no mention of finding an End City, activating Redstone Dust, or placing activated End Brick slabs to mine them. The correct information about mining is present in the latter part of the AI's answer but is overshadowed by the erroneous steps. Completeness: The answer correctly states how to mine the slabs (using a pickaxe and that they drop nothing if not) which is a core part of the question. Hallucinations: Steps 1, 2, and 3 are complete fabrications and not present in any of the provided text. Relevance: The latter part of the answer is relevant, but the initial steps are irrelevant and misleading. Chunk Usage: The AI did not correctly utilize the chunks to form a coherent and accurate answer. It seems to have invented a process that is not described in the source material.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q17</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is the leftover block?</div>
+                                <div class="reference-text">Ref: The leftover is a joke block introduced in Java Edition 20w14infinity that forms the zones in the zones dimension. It cannot be obtained as an item or destroyed by tools or explosions. It can only be placed using commands and naturally generates in the zones dimension.</div>
+                            </td>
+                            <td class="answer-cell">I cannot provide information about the leftover block as it is not a Minecraft block. Is there anything else I can help you with?</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(17)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-17" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI incorrectly states that the leftover block is not a Minecraft block, directly contradicting both the reference answer and the provided chunks, which clearly describe it.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines the leftover block, its origin, its properties, and how it functions, all of which are present in the reference answer. Chunk 2 is only somewhat related as it mentions 'joke block' but discusses a different, removed block (shrub) and does not provide any information about the 'leftover' block itself.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - The leftover block is not a Minecraft block.: CONTRADICTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI answer is factually incorrect. It claims the leftover block is not a Minecraft block, which is false. Both the REFERENCE ANSWER and CHUNK 1 explicitly describe the leftover block as a joke block introduced in Minecraft Java Edition. This is the most critical failure.<br>2. **Completeness:** The AI does not answer the question at all. It deflects by stating it cannot provide information.<br>3. **Hallucinations:** The AI does not hallucinate information about the leftover block because it refuses to provide any. However, its assertion that it's not a Minecraft block could be considered a hallucinated falsehood in its attempt to answer.<br>4. **Relevance:** The AI's response is irrelevant because it fails to address the question about the leftover block and incorrectly dismisses its existence within Minecraft.<br>5. **Chunk Usage:** The AI failed to use the provided chunks. CHUNK 1 contains all the necessary information about the leftover block, but the AI ignored it.<br><br>Given the complete factual inaccuracy and failure to utilize the provided context, the score is very low.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q18</td>
+                            <td class="question-cell">
+                                <div class="question-text">What is a seamless stone slab?</div>
+                                <div class="reference-text">Ref: A seamless stone slab refers to several unused variants of the slab block with metadata exceeding what was actually used. They were never intended to be obtainable and can be considered a precursor to smooth stone. Inventory editors are generally the most reliable method of obtaining them.</div>
+                            </td>
+                            <td class="answer-cell">A seamless stone slab is a type of block in Minecraft that does not have any gaps or holes between its blocks. It is essentially a smooth, seamless block.<br><br>Seamless stone slabs can be mined using any pickaxe, and they drop nothing when mined without a pickaxe.<br><br>They are also waterloggable, meaning they will take damage from water but will still remain functional.<br><br>Overall, seamless stone slabs are an important part of Minecraft's world-building and gameplay mechanics.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">15/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">CTX 67%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(18)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-18" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer is factually inaccurate and hallucinates information about seamless stone slabs, contradicting the provided reference and chunks.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines 'seamless stone slab' and mentions its precursor status to smooth stone and how it's obtainable, which are all key points in the reference answer. Chunk 2 discusses 'smooth stone slabs' which are related but not the subject of the question, and thus only somewhat relevant.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - A seamless stone slab is a type of block in Minecraft that does not have any gaps or holes between its blocks.: UNSUPPORTED<br>  - It is essentially a smooth, seamless block.: UNSUPPORTED<br>  - Seamless stone slabs can be mined using any pickaxe, and they drop nothing when mined without a pickaxe.: UNSUPPORTED<br>  - They are also waterloggable, meaning they will take damage from water but will still remain functional.: UNSUPPORTED<br>  - Overall, seamless stone slabs are an important part of Minecraft's world-building and gameplay mechanics.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI answer states that seamless stone slabs have &quot;no gaps or holes between its blocks&quot; and are &quot;smooth, seamless&quot;. This is incorrect. The reference and chunks clearly describe seamless stone slabs as &quot;unused variants of the slab block with metadata exceeding what was actually used&quot; and &quot;precursor to smooth stone&quot;. They are distinguished by their texture, not by being inherently gapless or smooth in the way the AI suggests.<br><br>2. **Completeness:** The AI answer fails to capture the core definition of a seamless stone slab as an unused block variant with extreme metadata. It completely misses its nature as a precursor to smooth stone and how it's obtained.<br><br>3. **Hallucinations:** The AI hallucinates that seamless stone slabs &quot;can be mined using any pickaxe, and they drop nothing when mined without a pickaxe.&quot; The chunks state &quot;Seamless stone slabs require a pickaxe to mine, dropping themselves when broken.&quot; The AI also hallucinates that they are &quot;waterloggable, meaning they will take damage from water but will still remain functional.&quot; This information is associated with *smooth stone slabs* (Chunk 2), not seamless stone slabs.<br><br>4. **Relevance:** While the topic is seamless stone slabs, the information provided is largely irrelevant and incorrect.<br><br>5. **Chunk Usage:** The AI did not use the provided chunks correctly, instead misinterpreting information and conflating it with details about smooth stone slabs.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q19</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do resin brick walls work?</div>
+                                <div class="reference-text">Ref: A resin brick wall is a resin brick variant of a wall. Resin brick walls can be mined using a pickaxe. When mined without a pickaxe, they drop nothing.</div>
+                            </td>
+                            <td class="answer-cell">Resin brick walls in Minecraft work by using resin bricks as a building material. When you place a resin brick wall, it will provide basic protection against mobs and other environmental hazards.<br><br>The resin brick walls do not have any special properties or effects, unlike other building materials in the game. However, they can be used to create simple barriers or obstacles.<br><br>It's worth noting that resin brick walls are not as durable as some other building materials, such as stone or dirt blocks. They may also break down over time due to exposure to the elements.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">25/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 17%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 33%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 16%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(19)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-19" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI answer contains factual inaccuracies and fabrications not supported by the provided reference or chunks, leading to a poor score.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly defines what a resin brick wall is and how it can be mined, matching the reference answer. Chunk 2 is relevant as it discusses resin bricks, the base material for resin brick walls, and mentions mining properties that are similar, but it does not specifically focus on the 'wall' aspect as much as Chunk 1.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Resin brick walls in Minecraft work by using resin bricks as a building material.: SUPPORTED<br>  - When you place a resin brick wall, it will provide basic protection against mobs and other environmental hazards.: UNSUPPORTED<br>  - The resin brick walls do not have any special properties or effects, unlike other building materials in the game.: UNSUPPORTED<br>  - However, they can be used to create simple barriers or obstacles.: UNSUPPORTED<br>  - It's worth noting that resin brick walls are not as durable as some other building materials, such as stone or dirt blocks.: UNSUPPORTED<br>  - They may also break down over time due to exposure to the elements.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI claims resin brick walls provide 'basic protection against mobs and other environmental hazards' and 'can be used to create simple barriers or obstacles'. While technically true for any wall, the core functionality described in the reference and chunks is about how they are mined. The AI also states they are 'not as durable as some other building materials, such as stone or dirt blocks' and 'may also break down over time due to exposure to the elements'. This is completely unsubstantiated by the provided text and is therefore inaccurate.<br>2. **Completeness:** The AI fails to address the most crucial aspect of how resin brick walls 'work' in the context of the provided information: how they are mined and what happens when they are mined.<br>3. **Hallucinations:** The AI invents information about durability, breakdown over time, and specific protective qualities that are not present in the reference or chunks. The statement about 'providing basic protection against mobs and other environmental hazards' is a common knowledge assumption but not derived from the given context. The specific claims about durability compared to stone/dirt and breaking down over time are pure fabrications.<br>4. **Relevance:** While the topic is resin brick walls, the answer deviates significantly from the provided information by focusing on assumed gameplay mechanics rather than the described mining mechanics.<br>5. **Chunk Usage:** The AI did not accurately use the provided chunks. Chunk 1 directly states how resin brick walls are mined and what happens when mined without a pickaxe. The AI completely ignored this and fabricated other details.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="font-weight: 600; color: #3B82F6;">Q20</td>
+                            <td class="question-cell">
+                                <div class="question-text">How do turtle eggs crack and hatch?</div>
+                                <div class="reference-text">Ref: Turtle eggs go through several cracking stages before hatching. They progress from slightly cracked to very cracked states. Eggs can exist in clusters of 1 to 4 on a single block, and each egg in the cluster goes through the cracking stages independently.</div>
+                            </td>
+                            <td class="answer-cell">Turtle eggs can crack and hatch due to the natural process of decomposition.<br><br>When a turtle egg is placed in an environment with moisture, it will eventually start to decompose. This process can take anywhere from a few days to several weeks or even months, depending on factors such as temperature, humidity, and the presence of microorganisms.<br><br>As the egg decomposes, the surrounding area may also undergo changes due to the natural processes involved.<br><br>Eventually, the decomposition process reaches its end, and the turtle egg will crack open. Inside the cracked egg, a new baby turtle will emerge, ready to begin its own life in the world of Minecraft.</td>
+                            <td>
+                                <span class="score-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid #ef4444;">10/50</span>
+                            </td>
+                            <td class="metrics-cell">
+                                <span class="metric-pill" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">CTX 83%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">GRD 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">ANS 0%</span>
+                                <span class="metric-pill" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">FTH 0%</span>
+                            </td>
+                            <td>
+                                <button class="details-toggle" onclick="toggleDetails(20)">Show Details</button>
+                            </td>
+                        </tr>
+                        <tr id="details-row-20" class="details-row" style="display: none;">
+                            <td colspan="6">
+                                <div class="details-content-expanded">
+                                    <div class="details-grid">
+                                        <div class="detail-section">
+                                            <strong>Score Analysis:</strong>
+                                            The AI's answer is completely inaccurate and hallucinates information about decomposition. It fails to address how turtle eggs crack and hatch according to the provided context.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Context Relevance:</strong>
+                                            Chunk 1 is highly relevant as it directly addresses how turtle eggs crack and hatch, mentioning the cracking stages, hatching times, and the cluster hatching simultaneously. Chunk 2 is relevant as it mentions the cluster size (1-4 eggs) and provides context about how eggs are laid and can be broken, which is related to their overall lifecycle before hatching.
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Groundedness:</strong>
+                                              - Turtle eggs crack and hatch due to the natural process of decomposition.: UNSUPPORTED<br>  - When a turtle egg is placed in an environment with moisture, it will eventually start to decompose.: UNSUPPORTED<br>  - This process can take anywhere from a few days to several weeks or even months, depending on factors such as temperature, humidity, and the presence of microorganisms.: UNSUPPORTED<br>  - As the egg decomposes, the surrounding area may also undergo changes due to the natural processes involved.: UNSUPPORTED<br>  - Eventually, the decomposition process reaches its end, and the turtle egg will crack open.: UNSUPPORTED<br>  - Inside the cracked egg, a new baby turtle will emerge, ready to begin its own life in the world of Minecraft.: UNSUPPORTED
+                                        </div>
+                                        <div class="detail-section">
+                                            <strong>Detailed:</strong>
+                                            1. **Factual Accuracy:** The AI's explanation of 'natural process of decomposition' and 'moisture leading to decomposition' is entirely false and not supported by the provided chunks or common knowledge about turtle eggs in the context they appear (likely a game like Minecraft). The reference answer, while brief, implies a process of cracking and hatching, which the AI completely misses.<br>2. **Completeness:** The AI does not answer the question at all. It invents a completely unrelated process.<br>3. **Hallucinations:** The entire explanation about decomposition, moisture, and microorganisms is a hallucination. There is no mention of these concepts in the provided chunks. The AI also incorrectly states that the egg cracks open to reveal a baby turtle due to decomposition.<br>4. **Relevance:** The answer is irrelevant to the question about how turtle eggs crack and hatch.<br>5. **Chunk Usage:** The AI did not use the provided chunks at all. The chunks clearly describe cracking over time, hatching after three cracks, faster hatching at night, and a specific time window for cracking. None of this information is reflected in the AI's answer.
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>RAG Evaluation Report | Powered by Tryll Engine Inc.</p>
+        </div>
+    </div>
+
+    <script>
+        // Toggle details row visibility
+        function toggleDetails(id) {
+            const row = document.getElementById('details-row-' + id);
+            const btn = event.target;
+            if (row.style.display === 'none') {
+                row.style.display = 'table-row';
+                btn.textContent = 'Hide Details';
+            } else {
+                row.style.display = 'none';
+                btn.textContent = 'Show Details';
+            }
+        }
+
+        // Scores Bar Chart
+        const scoresCtx = document.getElementById('scoresChart').getContext('2d');
+        new Chart(scoresCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [{
+                    label: 'Score',
+                    data: [35, 35, 35, 48, 40, 35, 25, 15, 15, 15, 25, 45, 15, 35, 30, 25, 10, 15, 25, 10],
+                    backgroundColor: [35, 35, 35, 48, 40, 35, 25, 15, 15, 15, 25, 45, 15, 35, 30, 25, 10, 15, 25, 10].map(score => {
+                        if (score >= 40) return 'rgba(16, 185, 129, 0.7)';
+                        if (score >= 25) return 'rgba(245, 158, 11, 0.7)';
+                        return 'rgba(239, 68, 68, 0.7)';
+                    }),
+                    borderColor: [35, 35, 35, 48, 40, 35, 25, 15, 15, 15, 25, 45, 15, 35, 30, 25, 10, 15, 25, 10].map(score => {
+                        if (score >= 40) return '#10b981';
+                        if (score >= 25) return '#f59e0b';
+                        return '#ef4444';
+                    }),
+                    borderWidth: 2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 50,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+
+        // Radar Chart
+        const radarCtx = document.getElementById('radarChart').getContext('2d');
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: ['Context Relevance', 'Groundedness', 'Answer Relevance', 'Faithfulness'],
+                datasets: [{
+                    label: 'Average Metrics',
+                    data: [79.2, 42.5, 31.7, 33.4],
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderColor: '#3B82F6',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#3B82F6',
+                    pointBorderColor: '#F6F0EB',
+                    pointHoverBackgroundColor: '#F6F0EB',
+                    pointHoverBorderColor: '#3B82F6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        angleLines: { color: 'rgba(255,255,255,0.08)' },
+                        pointLabels: { color: 'rgba(255,255,255,0.85)', font: { size: 11, weight: 500 } },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.5)',
+                            backdropColor: 'transparent'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // Metrics Breakdown Chart
+        const metricsCtx = document.getElementById('metricsChart').getContext('2d');
+        new Chart(metricsCtx, {
+            type: 'bar',
+            data: {
+                labels: ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12", "Q13", "Q14", "Q15", "Q16", "Q17", "Q18", "Q19", "Q20"],
+                datasets: [
+                    {
+                        label: 'Context Relevance',
+                        data: [66.7, 83.3, 100.0, 83.3, 50.0, 83.3, 100.0, 50.0, 83.3, 83.3, 66.7, 100.0, 83.3, 83.3, 66.7, 100.0, 66.7, 66.7, 83.3, 83.3],
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Groundedness',
+                        data: [100.0, 33.0, 60.0, 100.0, 12.5, 100.0, 14.0, 16.7, 25.0, 0.0, 100.0, 100.0, 0.0, 100.0, 33.0, 40.0, 0.0, 0.0, 16.7, 0.0],
+                        backgroundColor: 'rgba(35, 46, 65, 0.9)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Answer Relevance',
+                        data: [0.0, 33.3, 66.7, 33.3, 33.3, 66.7, 33.3, 33.3, 0.0, 33.3, 0.0, 66.7, 33.3, 66.7, 33.3, 33.3, 0.0, 33.3, 33.3, 0.0],
+                        backgroundColor: 'rgba(246, 240, 235, 0.7)',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Faithfulness',
+                        data: [0.0, 16.7, 83.0, 50.0, 14.0, 50.0, 43.0, 30.0, 38.0, 38.0, 0.0, 100.0, 50.0, 66.0, 33.0, 40.0, 0.0, 0.0, 16.0, 0.0],
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: 'rgba(255,255,255,0.85)' }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255,255,255,0.08)' },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.55)' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
